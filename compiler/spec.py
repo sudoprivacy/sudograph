@@ -111,6 +111,17 @@ def check(s: Spec) -> list[str]:
                 out.append(f"{where}: ontology property cannot have 'from' — it is not upstream")
             if p.get("type") == "enum" and not p.get("values"):
                 out.append(f"{where}: an enum needs 'values'")
+            # A nullable number is ambiguous unless the spec says what absence
+            # means. "not recorded yet" and "determined to be zero" look the
+            # same in the data and are opposite in the business: one is a gap
+            # to chase, the other is a finding. Saying which is cheap here and
+            # impossible to recover later.
+            if p.get("nullable") and p.get("type") in ("money", "number"):
+                if p.get("absent") not in ("gap", "zero"):
+                    out.append(
+                        f"{where}: a nullable {p['type']} must declare absent: "
+                        f"'gap' (not recorded yet) or 'zero' (determined to be none)"
+                    )
 
     for rname, r in s.raw.items():
         if not r.get("connector"):

@@ -26,6 +26,12 @@ from compiler import compile as compile_mod  # noqa: E402
 from compiler import expr  # noqa: E402
 from compiler import spec as spec_mod  # noqa: E402
 
+REAL_FIXTURE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "examples",
+    "weiwai-real.yaml",
+)
+
 FIXTURE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "examples",
@@ -268,6 +274,80 @@ def test_a_hook_that_affects_nothing_fails_the_check():
     bad = _mutated(**{"hooks/H4-委外待补/affects": []})
     c = compile_mod.compile_spec(bad)
     assert any(k.name.endswith("/affects") and not k.ok for k in c.checks)
+
+
+def test_a_nullable_amount_must_say_what_absence_means():
+    """'Not recorded yet' and 'determined to be zero' look identical in the data
+    and are opposite in the business: one is a gap to chase, the other a finding.
+    Declaring which is cheap at authoring time and unrecoverable afterwards."""
+    bad = _mutated(**{
+        "types/委外合同/props/验收日期": {
+            "type": "money", "owner": "ontology", "nullable": True,
+        }
+    })
+    problems = spec_mod.check(bad)
+    assert any("must declare absent" in p for p in problems), problems
+
+
+def test_an_absent_gap_with_no_hook_fails_because_the_total_understates():
+    """A null in a gap column is a missing figure. Summing over it silently
+    understates the total, and an understated total that passes every other
+    check is the exact failure this design exists to prevent."""
+    bad = _mutated(**{
+        "types/委外合同/props/金额_含税": {
+            "type": "money", "owner": "source", "from": "R-CONTRACT",
+            "nullable": True, "absent": "gap",
+        },
+        "instances/委外合同/0/金额_含税": None,
+    })
+    c = compile_mod.compile_spec(bad)
+    failed = [k for k in c.checks if k.name.startswith("absent/") and not k.ok]
+    assert failed, "an uncovered gap must be reported"
+    assert "understates" in failed[0].detail
+
+
+def test_an_absent_gap_is_accepted_when_the_row_cites_a_hook():
+    """The rule asks for provenance, not for a value: a gap that names how it
+    gets filled is a legitimate state of the world."""
+    bad = _mutated(**{
+        "types/委外合同/props/金额_含税": {
+            "type": "money", "owner": "source", "from": "R-CONTRACT",
+            "nullable": True, "absent": "gap",
+        },
+        "instances/委外合同/2/金额_含税": None,  # C-003 already cites H4
+    })
+    c = compile_mod.compile_spec(bad)
+    covered = [k for k in c.checks if k.name.startswith("absent/")]
+    assert covered and all(k.ok for k in covered)
+
+
+def test_a_folded_group_still_shows_buckets_and_top_rows():
+    """Folding that shows nothing teaches the reader only that there are too many.
+    A folded group must still answer the two questions a person actually asks of a
+    long list: how does it break down, and which rows carry the weight."""
+    s = spec_mod.load(REAL_FIXTURE)
+    g = compile_mod.compile_spec(s, fold_over=5, top_n=3).view["groups"][0]
+    assert g["folded"] and g["members"] == []
+    assert g["count"] == 16
+
+    by_status = {b["value"]: b for b in g["buckets"]["状态"]}
+    assert by_status["已确认"]["count"] == 9
+    # Buckets and node values must agree; they are computed from the same rows.
+    stuck = sum(b["totals"].get("金额_不含税", 0) for k, b in by_status.items() if k != "已确认")
+    assert stuck == compile_mod.compile_spec(s).values["待坐实金额"]
+
+    top = g["top"]["金额_不含税"]
+    assert len(top) == 3
+    assert top == sorted(top, key=lambda r: r["value"], reverse=True)
+
+
+def test_buckets_only_form_on_enums_whose_values_the_spec_closed():
+    """An open-ended column would produce as many buckets as rows, which is the
+    long list again under another name."""
+    s = spec_mod.load(REAL_FIXTURE)
+    g = compile_mod.compile_spec(s).view["groups"][0]
+    assert set(g["buckets"]) == {"认定", "状态"}
+    assert "供应商" not in g["buckets"]
 
 
 def test_cycles_among_derived_nodes_are_reported_not_hung():

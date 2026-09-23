@@ -4,120 +4,343 @@
   "title": "sudograph spec",
   "description": "Field names are English because they are the contract. Values keep the customer's own business vocabulary.",
   "type": "object",
-  "required": ["ontology", "types"],
+  "required": [
+    "ontology",
+    "types"
+  ],
   "additionalProperties": false,
   "properties": {
-    "ontology": { "type": "string", "minLength": 1 },
-    "types": { "type": "object", "additionalProperties": { "$ref": "#/$defs/type" } },
-    "raw": { "type": "object", "additionalProperties": { "$ref": "#/$defs/raw" } },
-    "hooks": { "type": "object", "additionalProperties": { "$ref": "#/$defs/hook" } },
+    "ontology": {
+      "type": "string",
+      "minLength": 1
+    },
+    "types": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/type"
+      }
+    },
+    "raw": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/raw"
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/hook"
+      }
+    },
     "instances": {
       "type": "object",
-      "additionalProperties": { "type": "array", "items": { "type": "object" } }
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
     },
-    "nodes": { "type": "object", "additionalProperties": { "$ref": "#/$defs/node" } },
-    "ops": { "type": "object", "additionalProperties": { "$ref": "#/$defs/op" } }
+    "nodes": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "ops": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/op"
+      }
+    }
   },
   "$defs": {
     "type": {
       "type": "object",
-      "required": ["label", "id", "props"],
+      "required": [
+        "label",
+        "id",
+        "props"
+      ],
       "additionalProperties": false,
       "properties": {
-        "label": { "type": "string" },
-        "description": { "type": "string" },
-        "id": { "type": "string", "description": "Name of the identifying property. Immutable." },
-        "props": { "type": "object", "additionalProperties": { "$ref": "#/$defs/prop" } }
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string",
+          "description": "Name of the identifying property. Immutable."
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/prop"
+          }
+        }
       }
     },
     "prop": {
       "type": "object",
-      "required": ["type", "owner"],
+      "required": [
+        "type",
+        "owner"
+      ],
       "additionalProperties": false,
       "properties": {
-        "type": { "enum": ["string", "money", "number", "date", "enum", "ref", "bool"] },
+        "type": {
+          "enum": [
+            "string",
+            "money",
+            "number",
+            "date",
+            "enum",
+            "ref",
+            "bool"
+          ]
+        },
         "owner": {
-          "enum": ["source", "ontology"],
+          "enum": [
+            "source",
+            "ontology"
+          ],
           "description": "Hard rule: never both. Ops may only write owner=ontology."
         },
-        "from": { "type": "string", "description": "Required when owner=source: which raw supplies it." },
-        "values": { "type": "array", "items": { "type": "string" } },
+        "from": {
+          "type": "string",
+          "description": "Required when owner=source: which raw supplies it."
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "to": {},
-        "nullable": { "type": "boolean" },
-        "note": { "type": "string" }
+        "nullable": {
+          "type": "boolean"
+        },
+        "note": {
+          "type": "string"
+        },
+        "absent": {
+          "enum": [
+            "gap",
+            "zero"
+          ],
+          "description": "What a null means for a nullable number: 'gap' = not recorded yet (chase it), 'zero' = determined to be none (a finding). Required, because the two are indistinguishable in the data and opposite in the business."
+        }
       },
       "allOf": [
         {
-          "if": { "properties": { "owner": { "const": "source" } }, "required": ["owner"] },
-          "then": { "required": ["from"] }
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "source"
+              }
+            },
+            "required": [
+              "owner"
+            ]
+          },
+          "then": {
+            "required": [
+              "from"
+            ]
+          }
         },
         {
-          "if": { "properties": { "owner": { "const": "ontology" } }, "required": ["owner"] },
-          "then": { "not": { "required": ["from"] } }
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "ontology"
+              }
+            },
+            "required": [
+              "owner"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "from"
+              ]
+            }
+          }
         },
         {
-          "if": { "properties": { "type": { "const": "enum" } }, "required": ["type"] },
-          "then": { "required": ["values"] }
+          "if": {
+            "properties": {
+              "type": {
+                "const": "enum"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "values"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "nullable": {
+                "const": true
+              },
+              "type": {
+                "enum": [
+                  "money",
+                  "number"
+                ]
+              }
+            },
+            "required": [
+              "nullable",
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "absent"
+            ]
+          }
         }
       ]
     },
     "raw": {
       "type": "object",
-      "required": ["label", "connector"],
+      "required": [
+        "label",
+        "connector"
+      ],
       "additionalProperties": false,
       "properties": {
-        "label": { "type": "string" },
+        "label": {
+          "type": "string"
+        },
         "connector": {
           "type": "string",
           "description": "One executable command. Values never enter the spec; they are fetched at render time."
         },
-        "provides": { "type": "array", "items": { "type": "string" } }
+        "provides": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "hook": {
       "type": "object",
-      "required": ["label", "resolve_when"],
+      "required": [
+        "label",
+        "resolve_when"
+      ],
       "additionalProperties": false,
       "properties": {
-        "label": { "type": "string" },
-        "blocked_on": { "type": "string", "description": "Which raw the gap sits behind." },
+        "label": {
+          "type": "string"
+        },
+        "blocked_on": {
+          "type": "string",
+          "description": "Which raw the gap sits behind."
+        },
         "resolve_when": {
           "type": "string",
           "description": "Abstract until this holds; then it lands as a raw or derived node."
         },
-        "owner": { "type": "string", "description": "Who owes the missing material." },
-        "affects": { "type": "array", "items": { "type": "string" } }
+        "owner": {
+          "type": "string",
+          "description": "Who owes the missing material."
+        },
+        "affects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "node": {
       "type": "object",
-      "required": ["kind", "label"],
+      "required": [
+        "kind",
+        "label"
+      ],
       "additionalProperties": false,
       "properties": {
-        "kind": { "enum": ["raw", "hook", "derived"] },
-        "label": { "type": "string" },
-        "op": { "type": "string", "description": "Restricted expression. Parsed by the compiler, never eval'd." }
+        "kind": {
+          "enum": [
+            "raw",
+            "hook",
+            "derived"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "op": {
+          "type": "string",
+          "description": "Restricted expression. Parsed by the compiler, never eval'd."
+        }
       },
-      "if": { "properties": { "kind": { "const": "derived" } }, "required": ["kind"] },
-      "then": { "required": ["op"] }
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "derived"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "op"
+        ]
+      }
     },
     "op": {
       "type": "object",
-      "required": ["label", "class", "params", "writes", "intent"],
+      "required": [
+        "label",
+        "class",
+        "params",
+        "writes",
+        "intent"
+      ],
       "additionalProperties": false,
       "properties": {
-        "label": { "type": "string" },
+        "label": {
+          "type": "string"
+        },
         "class": {
-          "enum": ["DerivedOp", "RecordableOp", "BlockedOp"],
+          "enum": [
+            "DerivedOp",
+            "RecordableOp",
+            "BlockedOp"
+          ],
           "description": "Reversibility tier: who is allowed to land the write."
         },
-        "params": { "type": "object" },
+        "params": {
+          "type": "object"
+        },
         "writes": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Every entry must be an owner=ontology property."
         },
-        "intent": { "const": "required" }
+        "intent": {
+          "const": "required"
+        }
       }
     }
   }

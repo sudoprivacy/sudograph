@@ -72,7 +72,7 @@ def _order(s: Spec) -> list[str]:
     return out
 
 
-def compile_spec(s: Spec, *, fold_over: int = 20) -> Compiled:
+def compile_spec(s: Spec, *, fold_over: int = 20, top_n: int = 5) -> Compiled:
     c = Compiled(ontology=s.name)
 
     # ── values ────────────────────────────────────────────────────────
@@ -122,6 +122,32 @@ def compile_spec(s: Spec, *, fold_over: int = 20) -> Compiled:
                     )
                 )
 
+    # A null in a column declared absent:'gap' is a missing figure, not a zero.
+    # Summing over it silently understates the total, and an understated total
+    # that passes every other check is exactly the failure this whole design
+    # exists to prevent. So each one is reported, and it must be attached to a
+    # hook that says how it gets filled.
+    for tname, rows in s.instances.items():
+        props = s.types[tname].get("props") or {}
+        gap_cols = [p for p, d in props.items() if d.get("absent") == "gap"]
+        gap_refs = [p for p, d in props.items() if d.get("type") == "ref" and d.get("to") == "hook"]
+        idp = s.types[tname]["id"]
+        for row in rows:
+            for col in gap_cols:
+                if row.get(col) is not None:
+                    continue
+                covered = any(row.get(g) for g in gap_refs)
+                c.checks.append(
+                    Check(
+                        f"absent/{tname}/{row.get(idp)}/{col}",
+                        covered,
+                        ""
+                        if covered
+                        else f"{col} is absent and means 'not recorded yet', but the row cites no hook — "
+                        f"the total silently understates by an unknown amount",
+                    )
+                )
+
     # A hook must name at least one node it affects, otherwise nothing on the
     # graph tells a reader that this number is provisional.
     for hname, h in s.hooks.items():
@@ -134,11 +160,11 @@ def compile_spec(s: Spec, *, fold_over: int = 20) -> Compiled:
             )
         )
 
-    c.view = view_model(s, c, fold_over=fold_over)
+    c.view = view_model(s, c, fold_over=fold_over, top_n=top_n)
     return c
 
 
-def view_model(s: Spec, c: Compiled, *, fold_over: int = 20) -> dict[str, Any]:
+def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> dict[str, Any]:
     """What the graph app consumes. It renders and emits events; it holds no logic."""
     nodes: list[dict] = []
     edges: list[dict] = []
@@ -192,17 +218,54 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20) -> dict[str, Any]:
     groups: list[dict] = []
     for tname, rows in s.instances.items():
         t = s.types[tname]
+        props = t.get("props") or {}
         idp = t["id"]
         members = [{"id": r.get(idp), "props": r} for r in rows]
+        folded = len(members) > fold_over
+
+        # A folded group that shows nothing is useless: the reader learns only
+        # that there are too many. So folding produces buckets instead — one per
+        # value of each enum, with a count and a total, which is what a person
+        # actually asks of a long list. Enums are the natural axes because the
+        # spec already says their values are closed.
+        buckets: dict[str, list[dict]] = {}
+        money_cols = [p for p, d in props.items() if d.get("type") == "money"]
+        for axis, d in props.items():
+            if d.get("type") != "enum":
+                continue
+            by: dict[Any, dict] = {}
+            for r in rows:
+                key = r.get(axis)
+                slot = by.setdefault(key, {"value": key, "count": 0, "totals": {}})
+                slot["count"] += 1
+                for mc in money_cols:
+                    v = r.get(mc)
+                    if v is not None:
+                        slot["totals"][mc] = slot["totals"].get(mc, 0) + v
+            buckets[axis] = sorted(by.values(), key=lambda b: (-b["count"], str(b["value"])))
+
+        # Top-N by each money column, so a folded group still surfaces the rows
+        # that carry the weight — the ones a reviewer would look at first.
+        top: dict[str, list[dict]] = {}
+        for mc in money_cols:
+            ranked = sorted(
+                (r for r in rows if r.get(mc) is not None),
+                key=lambda r: r[mc],
+                reverse=True,
+            )
+            top[mc] = [{"id": r.get(idp), "value": r[mc]} for r in ranked[:top_n]]
+
         groups.append(
             {
                 "type": tname,
                 "label": t.get("label", tname),
                 "count": len(members),
-                "folded": len(members) > fold_over,
-                "members": [] if len(members) > fold_over else members,
+                "folded": folded,
+                "members": [] if folded else members,
+                "buckets": buckets,
+                "top": top,
                 "id_prop": idp,
-                "owners": {p: d.get("owner") for p, d in (t.get("props") or {}).items()},
+                "owners": {p: d.get("owner") for p, d in props.items()},
             }
         )
         for name in aggregated_by.get(tname, ()):
