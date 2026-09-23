@@ -1,13 +1,18 @@
-# 第一刀的 fixture：委外开发资本化判定
-# 供应商已脱敏（保留行业与业务类型）；金额量级已调整，含税/不含税的关系保持真实（÷1.06）
+# First slice fixture: capitalisation of outsourced development contracts.
+#
+# Field names are English (the contract); values keep the business vocabulary.
+# Suppliers are desensitised to an industry and a line of business. Amounts are
+# rescaled, but the with-tax to without-tax relationship (/1.06) is real, because
+# that is the part the compiler has to get right.
 ontology: 委外资本化
 
 types:
   委外合同:
     label: 委外开发合同
     description: 一份委托外部开发的合同，是资本化判定的最小单位
-    id: 合同编号                      # 实例标识；不可变，显示名可变
+    id: 合同编号                      # immutable; the display name may change
     props:
+      合同编号:    { type: string, owner: source,   from: R-CONTRACT }
       供应商:      { type: string, owner: source,   from: R-CONTRACT }
       行业:        { type: string, owner: source,   from: R-CONTRACT }
       金额_含税:    { type: money,  owner: source,   from: R-CONTRACT }
@@ -22,7 +27,7 @@ raw:
   R-CONTRACT:
     label: 委外合同原文（含 IP 条款）
     connector: "python -m ai_dev_browser.tools.download --profile kingdee --path 合同订单"
-    provides: [供应商, 行业, 金额_含税, IP依据条款]
+    provides: [合同编号, 供应商, 行业, 金额_含税, IP依据条款]
   R-ACCEPT:
     label: 验收单
     connector: "python -m ai_dev_browser.tools.download --profile kingdee --path 验收单"
@@ -31,32 +36,40 @@ raw:
 hooks:
   H4-委外待补:
     label: 委外合同的 IP 条款与验收材料未齐
-    卡在: R-CONTRACT
-    解除条件: "每份合同均有 IP 条款页 + 带日期验收单 + 专用发票"
-    负责人: 供应商对接人
-    影响: [委外cap]
+    blocked_on: R-CONTRACT
+    resolve_when: "每份合同均有 IP 条款页 + 带日期验收单 + 专用发票"
+    owner: 供应商对接人
+    affects: [委外cap]
 
 instances:
   委外合同:
-    - { 合同编号: C-001, 供应商: 供应商A, 行业: 数据标注服务,   金额_含税: 4000000, 金额_不含税: 3773585, IP归属: 归甲方, IP依据条款: 第九条,   可资本化: 是 }
-    - { 合同编号: C-002, 供应商: 供应商B, 行业: 算法外包,       金额_含税: 3600000, 金额_不含税: 3396226, IP归属: 归甲方, IP依据条款: 第七条,   可资本化: 是 }
-    - { 合同编号: C-003, 供应商: 供应商C, 行业: 系统集成,       金额_含税: 4573000, 金额_不含税: 4314151, IP归属: 未约定, IP依据条款: null,     可资本化: 待补, 缺口: H4-委外待补 }
-    - { 合同编号: C-004, 供应商: 供应商D, 行业: 安全测评,       金额_含税: 2000000, 金额_不含税: 1886792, IP归属: 归乙方, IP依据条款: 第十一条, 可资本化: 否 }
-    - { 合同编号: C-005, 供应商: 供应商E, 行业: 数据治理咨询,   金额_含税: 2383260, 金额_不含税: 2248358, IP归属: 共有,   IP依据条款: 第八条,   可资本化: 否 }
+    - { 合同编号: C-001, 供应商: 供应商A, 行业: 数据标注服务, 金额_含税: 4000000, 金额_不含税: 3773585, IP归属: 归甲方, IP依据条款: 第九条,   可资本化: 是 }
+    - { 合同编号: C-002, 供应商: 供应商B, 行业: 算法外包,     金额_含税: 3600000, 金额_不含税: 3396226, IP归属: 归甲方, IP依据条款: 第七条,   可资本化: 是 }
+    - { 合同编号: C-003, 供应商: 供应商C, 行业: 系统集成,     金额_含税: 4573000, 金额_不含税: 4314151, IP归属: 未约定, IP依据条款: null,     可资本化: 待补, 缺口: H4-委外待补 }
+    - { 合同编号: C-004, 供应商: 供应商D, 行业: 安全测评,     金额_含税: 2000000, 金额_不含税: 1886792, IP归属: 归乙方, IP依据条款: 第十一条, 可资本化: 否 }
+    - { 合同编号: C-005, 供应商: 供应商E, 行业: 数据治理咨询, 金额_含税: 2383260, 金额_不含税: 2248358, IP归属: 共有,   IP依据条款: 第八条,   可资本化: 否 }
 
 nodes:
   委外cap:
     kind: derived
     label: 委外资本化额
     op: "sum(委外合同 where 可资本化 == '是' -> 金额_不含税)"
+  委外待补金额:
+    kind: derived
+    label: 待补材料的合同金额
+    op: "sum(委外合同 where 可资本化 == '待补' -> 金额_不含税)"
+  委外合同数:
+    kind: derived
+    label: 合同份数
+    op: "count(委外合同)"
 
 ops:
   标记可资本化:
     label: 标记一份合同是否可资本化
-    class: DerivedOp                 # 可逆：重算即恢复
+    class: DerivedOp                 # reversible: recomputing restores it
     params:
       合同:  { type: ref,  to: 委外合同 }
       判定:  { type: enum, values: [是, 否, 待补] }
       依据:  { type: ref,  to: [raw, hook] }
-    writes: [IP归属, 可资本化]        # 必须全部 owner=ontology
+    writes: [IP归属, 可资本化]        # every entry must be owner=ontology
     intent: required

@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/sudoprivacy/sudograph/schema/spec.schema.json",
   "title": "sudograph spec",
+  "description": "Field names are English because they are the contract. Values keep the customer's own business vocabulary.",
   "type": "object",
   "required": ["ontology", "types"],
   "additionalProperties": false,
@@ -25,7 +26,7 @@
       "properties": {
         "label": { "type": "string" },
         "description": { "type": "string" },
-        "id": { "type": "string", "description": "实例标识属性名；不可变" },
+        "id": { "type": "string", "description": "Name of the identifying property. Immutable." },
         "props": { "type": "object", "additionalProperties": { "$ref": "#/$defs/prop" } }
       }
     },
@@ -37,9 +38,9 @@
         "type": { "enum": ["string", "money", "number", "date", "enum", "ref", "bool"] },
         "owner": {
           "enum": ["source", "ontology"],
-          "description": "硬规则：不存在含糊地两者都是；ops 只许写 owner=ontology"
+          "description": "Hard rule: never both. Ops may only write owner=ontology."
         },
-        "from": { "type": "string", "description": "owner=source 时必填：哪个 raw 提供它" },
+        "from": { "type": "string", "description": "Required when owner=source: which raw supplies it." },
         "values": { "type": "array", "items": { "type": "string" } },
         "to": {},
         "nullable": { "type": "boolean" },
@@ -49,6 +50,10 @@
         {
           "if": { "properties": { "owner": { "const": "source" } }, "required": ["owner"] },
           "then": { "required": ["from"] }
+        },
+        {
+          "if": { "properties": { "owner": { "const": "ontology" } }, "required": ["owner"] },
+          "then": { "not": { "required": ["from"] } }
         },
         {
           "if": { "properties": { "type": { "const": "enum" } }, "required": ["type"] },
@@ -64,24 +69,24 @@
         "label": { "type": "string" },
         "connector": {
           "type": "string",
-          "description": "一行可执行命令；值不进 spec，渲染时才取"
+          "description": "One executable command. Values never enter the spec; they are fetched at render time."
         },
         "provides": { "type": "array", "items": { "type": "string" } }
       }
     },
     "hook": {
       "type": "object",
-      "required": ["label", "解除条件"],
+      "required": ["label", "resolve_when"],
       "additionalProperties": false,
       "properties": {
         "label": { "type": "string" },
-        "卡在": { "type": "string" },
-        "解除条件": {
+        "blocked_on": { "type": "string", "description": "Which raw the gap sits behind." },
+        "resolve_when": {
           "type": "string",
-          "description": "抽象类：材料补齐后落地成 raw 或 derived"
+          "description": "Abstract until this holds; then it lands as a raw or derived node."
         },
-        "负责人": { "type": "string" },
-        "影响": { "type": "array", "items": { "type": "string" } }
+        "owner": { "type": "string", "description": "Who owes the missing material." },
+        "affects": { "type": "array", "items": { "type": "string" } }
       }
     },
     "node": {
@@ -91,7 +96,7 @@
       "properties": {
         "kind": { "enum": ["raw", "hook", "derived"] },
         "label": { "type": "string" },
-        "op": { "type": "string", "description": "受限表达式；compiler 解析，不 eval" }
+        "op": { "type": "string", "description": "Restricted expression. Parsed by the compiler, never eval'd." }
       },
       "if": { "properties": { "kind": { "const": "derived" } }, "required": ["kind"] },
       "then": { "required": ["op"] }
@@ -102,12 +107,15 @@
       "additionalProperties": false,
       "properties": {
         "label": { "type": "string" },
-        "class": { "enum": ["DerivedOp", "RecordableOp", "BlockedOp"] },
+        "class": {
+          "enum": ["DerivedOp", "RecordableOp", "BlockedOp"],
+          "description": "Reversibility tier: who is allowed to land the write."
+        },
         "params": { "type": "object" },
         "writes": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "必须全部 owner=ontology"
+          "description": "Every entry must be an owner=ontology property."
         },
         "intent": { "const": "required" }
       }

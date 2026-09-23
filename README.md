@@ -4,25 +4,35 @@
 
 对象、关系、带权限的 ops；**git 是历史**。
 
-## 三条不让步的规则
+## 设计决策的 SSOT
 
-1. **图 = 代码 = 数据 = 校验，同源。** 不存在"另一个核对脚本"——校验就是跑同一份 spec。
-2. **每个属性声明 owner。** `source`（上游事实，归 connector）/ `ontology`（这里做的决定，归 ops）。不存在两者都是；ops 只许写 `owner=ontology`。
-3. **值不进 spec。** spec 里只有 connector 命令，数字在渲染时才取；取数时刻与校验属于渲染产物。
+**所有设计决策记录在 [Sudo Cloud 架构与设计 §7](https://s.shareone.vip/s/sudo-cloud-plan)，本仓不复述。**
 
-## 三层
+那一节涵盖：harness 四要素、SSOT 硬规则、agent 作业纪律、落库权分档、三层分离、读治理、交互面、量化轴。有分歧以那一页为准；要改决策，改那一页并在节点上留评论，不要改这里。
 
-| 层 | 谁写 | 产出 |
-|---|---|---|
-| 描述 spec | agent | 节点 · 依赖 · op · connector 命令 |
-| 编译 compiler | 代码 | 值 · 校验结果 · 视图模型（折叠 / 分组 / top-N） |
-| 渲染 renderer | 库 | 图应用（交互）· mermaid（静态回落） |
+本 README 只写**这个仓怎么用**。
 
-折叠与分组归 compiler，**不得进 spec**——否则排版需求会污染"图 = 代码"。
+## 仓库结构
+
+```
+schema/spec.schema.json   spec 的 JSON Schema —— owner 规则在这里被做成校验
+examples/*.yaml           fixture
+compiler/                 读 spec → 校验 → 算值 → 出视图模型
+```
+
+## spec 长什么样
+
+见 `examples/weiwai-capitalisation.yaml`。要点：
+
+- `types` 声明对象类型，每个属性带 `owner`（`source` / `ontology`）
+- `raw` 是取数入口，写的是**一行可执行命令**，不是数据
+- `hooks` 是缺口的具名登记，带解除条件与负责人
+- `nodes` 里 `kind: derived` 的节点带一个 `op` 表达式
+- `ops` 是写回动作，`intent` 必填
 
 ## op 表达式：受限，不是 Python
 
-compiler 解析，**不 eval**。支持：
+compiler 解析，**不 eval**。白名单：
 
 - 算术 `+ - * / ( )`
 - 节点与属性引用（裸标识符）
@@ -30,21 +40,11 @@ compiler 解析，**不 eval**。支持：
 - 比较 `== != < <= > >=`，布尔 `and or not`
 - 字面量：数字、单引号字符串、`null`
 
-不支持：函数定义、属性访问链、导入、任意调用。需要新能力就加进 compiler 的白名单，**不开后门**。
+不支持函数定义、属性访问链、导入、任意调用。需要新能力就加进白名单，**不开后门**。
 
-## 落库权按可逆性分档
+## edit 记录格式
 
-| class | 判据 | 谁能落 |
-|---|---|---|
-| `DerivedOp` | 可逆 · 重算即恢复 | agent 直接落 |
-| `RecordableOp` | 不可逆 · 金额由 infra 派生 | agent 生成，人按按钮 |
-| `BlockedOp` | 当前材料下不构成合法写入 | 谁都不能落，先补材料 |
-
-所有 op 的 `intent` **必填**，且须指向具体的 raw 或 hook，不是自由文本。
-
-## edit 记录
-
-每次 op 除改属性外，追加一条结构化记录，**跟着 spec 进 git**：
+每次 op 除改属性外，追加一条结构化记录，跟着 spec 进 git：
 
 ```yaml
 - at: 2026-09-23T10:00:00Z
@@ -57,14 +57,8 @@ compiler 解析，**不 eval**。支持：
   refs: [R-CONTRACT]
 ```
 
-历史**按对象聚合渲染**（点节点看它自己的时间线），不是全局 commit 列表。
-
 ## 数据纪律
 
 - spec 进 git；**原始材料不进**（扫描件、流水、合同 PDF 是数据不是 spec）
 - 凭据一律不进 spec，也不进仓库
 - 示例中的供应商已脱敏为「行业 + 业务类型」，金额量级已调整
-
-## 设计出处
-
-决策记录在 [Sudo Cloud 架构与设计 §7](https://s.shareone.vip/s/sudo-cloud-plan)。
