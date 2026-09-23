@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sudoprivacy/sudograph/schema/spec.schema.json",
+  "title": "sudograph spec",
+  "type": "object",
+  "required": ["ontology", "types"],
+  "additionalProperties": false,
+  "properties": {
+    "ontology": { "type": "string", "minLength": 1 },
+    "types": { "type": "object", "additionalProperties": { "$ref": "#/$defs/type" } },
+    "raw": { "type": "object", "additionalProperties": { "$ref": "#/$defs/raw" } },
+    "hooks": { "type": "object", "additionalProperties": { "$ref": "#/$defs/hook" } },
+    "instances": {
+      "type": "object",
+      "additionalProperties": { "type": "array", "items": { "type": "object" } }
+    },
+    "nodes": { "type": "object", "additionalProperties": { "$ref": "#/$defs/node" } },
+    "ops": { "type": "object", "additionalProperties": { "$ref": "#/$defs/op" } }
+  },
+  "$defs": {
+    "type": {
+      "type": "object",
+      "required": ["label", "id", "props"],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "id": { "type": "string", "description": "实例标识属性名；不可变" },
+        "props": { "type": "object", "additionalProperties": { "$ref": "#/$defs/prop" } }
+      }
+    },
+    "prop": {
+      "type": "object",
+      "required": ["type", "owner"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["string", "money", "number", "date", "enum", "ref", "bool"] },
+        "owner": {
+          "enum": ["source", "ontology"],
+          "description": "硬规则：不存在含糊地两者都是；ops 只许写 owner=ontology"
+        },
+        "from": { "type": "string", "description": "owner=source 时必填：哪个 raw 提供它" },
+        "values": { "type": "array", "items": { "type": "string" } },
+        "to": {},
+        "nullable": { "type": "boolean" },
+        "note": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "owner": { "const": "source" } }, "required": ["owner"] },
+          "then": { "required": ["from"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "enum" } }, "required": ["type"] },
+          "then": { "required": ["values"] }
+        }
+      ]
+    },
+    "raw": {
+      "type": "object",
+      "required": ["label", "connector"],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string" },
+        "connector": {
+          "type": "string",
+          "description": "一行可执行命令；值不进 spec，渲染时才取"
+        },
+        "provides": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "hook": {
+      "type": "object",
+      "required": ["label", "解除条件"],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string" },
+        "卡在": { "type": "string" },
+        "解除条件": {
+          "type": "string",
+          "description": "抽象类：材料补齐后落地成 raw 或 derived"
+        },
+        "负责人": { "type": "string" },
+        "影响": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["kind", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["raw", "hook", "derived"] },
+        "label": { "type": "string" },
+        "op": { "type": "string", "description": "受限表达式；compiler 解析，不 eval" }
+      },
+      "if": { "properties": { "kind": { "const": "derived" } }, "required": ["kind"] },
+      "then": { "required": ["op"] }
+    },
+    "op": {
+      "type": "object",
+      "required": ["label", "class", "params", "writes", "intent"],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string" },
+        "class": { "enum": ["DerivedOp", "RecordableOp", "BlockedOp"] },
+        "params": { "type": "object" },
+        "writes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "必须全部 owner=ontology"
+        },
+        "intent": { "const": "required" }
+      }
+    }
+  }
+}
