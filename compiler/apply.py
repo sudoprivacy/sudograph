@@ -38,9 +38,15 @@ class Edit:
     changes: list[dict]
     intent: str
     refs: list[str]
+    #: "landed" once the change is in the rows; "proposed" while it waits on a
+    #: person. A proposal is validated exactly as strictly as a landing, so
+    #: proposing can never record something that could not be applied.
+    status: str = "landed"
+    decided_by: str | None = None
+    decided_at: str | None = None
 
     def as_dict(self) -> dict:
-        return {
+        d = {
             "at": self.at,
             "by": self.by,
             "op": self.op,
@@ -48,7 +54,12 @@ class Edit:
             "changes": self.changes,
             "intent": self.intent,
             "refs": self.refs,
+            "status": self.status,
         }
+        if self.decided_by:
+            d["decided_by"] = self.decided_by
+            d["decided_at"] = self.decided_at
+        return d
 
 
 #: Who may land a write, per reversibility tier.
@@ -94,11 +105,7 @@ def apply_op(
             f"op {op_name} is a {op.get('class')}: it does not constitute a legal write "
             f"with today's materials — resolve the gap first"
         )
-    if tier == "human" and actor != "human":
-        raise Refused(
-            f"op {op_name} is a {op.get('class')}: an agent may propose it, "
-            f"but a human has to land it"
-        )
+    proposal = tier == "human" and actor != "human"
 
     rows = s.instances.get(target_type) or []
     idp = s.types[target_type]["id"]
@@ -109,6 +116,9 @@ def apply_op(
     declared = set(op.get("writes") or [])
     changes: list[dict] = []
     for prop, new in values.items():
+        # Validate against the row without touching it yet: a proposal must be
+        # checked as strictly as a landing, or "propose" becomes a way to record
+        # something that could never be applied.
         # Gate 1: the owner rule, enforced at write time and not only at load.
         if s.owner_of(target_type, prop) != "ontology":
             raise Refused(
@@ -123,12 +133,16 @@ def apply_op(
         old = row.get(prop)
         if old != new:
             changes.append({"prop": prop, "from": old, "to": new})
-            row[prop] = new
 
     if not changes:
         raise Refused(f"op {op_name} would change nothing — not recording an empty edit")
 
+    if not proposal:
+        for ch in changes:
+            row[ch["prop"]] = ch["to"]
+
     return Edit(
+        status="proposed" if proposal else "landed",
         at=datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         by=by,
         op=op_name,
@@ -140,11 +154,74 @@ def apply_op(
 
 
 def append_edit(path: str, edit: Edit) -> None:
-    """Append to the edit log beside the spec, so git carries both together."""
+    """Write the edit to the log beside the spec, so git carries both together.
+
+    A proposal that later lands replaces its own entry rather than adding a
+    second one. Two records of one decision would read, to an auditor, as two
+    decisions — and the approval already carries who decided and when, so
+    nothing is lost by collapsing them.
+    """
     existing: list[dict] = []
     if os.path.exists(path):
         with io.open(path, encoding="utf-8") as fh:
             existing = yaml.safe_load(fh) or []
-    existing.append(edit.as_dict())
+    d = edit.as_dict()
+    for i, prior in enumerate(existing):
+        same_proposal = (
+            prior.get("status") == "proposed"
+            and prior.get("target") == d["target"]
+            and prior.get("op") == d["op"]
+            and prior.get("at") == d["at"]
+        )
+        if same_proposal:
+            existing[i] = d
+            break
+    else:
+        existing.append(d)
     with io.open(path, "w", encoding="utf-8") as fh:
         yaml.safe_dump(existing, fh, allow_unicode=True, sort_keys=False, width=100)
+
+
+def approve(
+    s: Spec,
+    edit: Edit,
+    *,
+    by: str,
+    note: str = "",
+) -> Edit:
+    """A person lands a proposal.
+
+    The other half of "an agent may propose it, but a human has to land it". A
+    refusal with nowhere to go is not a gate, it is a dead end — this is where
+    the proposal becomes a change.
+
+    Re-resolves the row and re-applies the recorded changes, so a proposal that
+    has gone stale (someone else moved the value meanwhile) is caught rather
+    than silently overwriting.
+    """
+    if edit.status != "proposed":
+        raise Refused(f"edit for {edit.target} is {edit.status}, not awaiting a decision")
+
+    target_type, target_id = edit.target.split("/", 1)
+    rows = s.instances.get(target_type) or []
+    idp = s.types[target_type]["id"]
+    row = next((r for r in rows if r.get(idp) == target_id), None)
+    if row is None:
+        raise Refused(f"{edit.target} no longer exists")
+
+    for ch in edit.changes:
+        current = row.get(ch["prop"])
+        if current != ch["from"]:
+            raise Refused(
+                f"{edit.target}.{ch['prop']} is now {current!r}, not {ch['from']!r} — "
+                f"the proposal is stale; re-propose against the current value"
+            )
+    for ch in edit.changes:
+        row[ch["prop"]] = ch["to"]
+
+    edit.status = "landed"
+    edit.decided_by = by
+    edit.decided_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    if note:
+        edit.intent = f"{edit.intent} | approved: {note}"
+    return edit

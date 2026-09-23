@@ -126,14 +126,77 @@ def test_apply_refuses_to_write_a_source_property(s):
 
 # ── gate 2: reversibility tier ─────────────────────────────────────────
 
-def test_recordable_op_refuses_an_agent_and_names_the_human_step(s):
-    """Gate: class. Irreversible writes are proposed by an agent, landed by a person."""
+def test_recordable_op_lets_an_agent_propose_but_not_land(s):
+    """An agent has proposal rights, not landing rights. A refusal with nowhere
+    to go is a dead end; a proposal is the gate done properly."""
     s.ops["标记可资本化"]["class"] = "RecordableOp"
-    with pytest.raises(apply_mod.Refused, match="human has to land it"):
+    before = compile_mod.compile_spec(s).values["委外cap"]
+
+    edit = apply_mod.apply_op(
+        s, "标记可资本化", "委外合同", "C-003", {"可资本化": "是"},
+        intent="OCR revealed the clause", refs=["R-CONTRACT"],
+        by="agent:test", actor="agent",
+    )
+    assert edit.status == "proposed"
+    assert compile_mod.compile_spec(s).values["委外cap"] == before, "a proposal must not move the figures"
+
+    apply_mod.approve(s, edit, by="human:partner", note="checked the scan")
+    assert edit.status == "landed"
+    assert edit.decided_by == "human:partner"
+    assert compile_mod.compile_spec(s).values["委外cap"] > before, "approval lands it"
+
+
+def test_a_proposal_is_validated_as_strictly_as_a_landing(s):
+    """Otherwise 'propose' becomes a way to record something unapplicable."""
+    s.ops["标记可资本化"]["class"] = "RecordableOp"
+    with pytest.raises(apply_mod.Refused, match="is not in"):
         apply_mod.apply_op(
-            s, "标记可资本化", "委外合同", "C-003", {"可资本化": "是"},
+            s, "标记可资本化", "委外合同", "C-003", {"可资本化": "也许"},
             intent="reason", refs=["R-CONTRACT"], by="agent:test", actor="agent",
         )
+
+
+def test_a_stale_proposal_is_refused_rather_than_overwriting(s):
+    """Between proposal and approval someone else may have moved the value.
+    Landing anyway would silently discard their decision."""
+    s.ops["标记可资本化"]["class"] = "RecordableOp"
+    edit = apply_mod.apply_op(
+        s, "标记可资本化", "委外合同", "C-003", {"可资本化": "是"},
+        intent="reason", refs=["R-CONTRACT"], by="agent:test", actor="agent",
+    )
+    row = next(r for r in s.instances["委外合同"] if r["合同编号"] == "C-003")
+    row["可资本化"] = "否"  # somebody else decided meanwhile
+
+    with pytest.raises(apply_mod.Refused, match="stale"):
+        apply_mod.approve(s, edit, by="human:partner")
+
+
+def test_an_approved_proposal_replaces_its_own_log_entry(tmp_path, s):
+    """Two records of one decision read as two decisions."""
+    s.ops["标记可资本化"]["class"] = "RecordableOp"
+    log = str(tmp_path / "x.edits.yaml")
+    e = apply_mod.apply_op(
+        s, "标记可资本化", "委外合同", "C-003", {"可资本化": "是"},
+        intent="reason", refs=["R-CONTRACT"], by="agent:test", actor="agent",
+    )
+    apply_mod.append_edit(log, e)
+    apply_mod.approve(s, e, by="human:partner")
+    apply_mod.append_edit(log, e)
+
+    entries = yaml.safe_load(io.open(log, encoding="utf-8"))
+    assert len(entries) == 1, "the proposal and its approval are one decision"
+    assert entries[0]["status"] == "landed"
+    assert entries[0]["decided_by"] == "human:partner"
+
+
+def test_approving_something_already_landed_is_refused(s):
+    edit = apply_mod.apply_op(
+        s, "标记可资本化", "委外合同", "C-003", {"可资本化": "是"},
+        intent="reason", refs=["R-CONTRACT"], by="agent:test",
+    )
+    assert edit.status == "landed"
+    with pytest.raises(apply_mod.Refused, match="not awaiting a decision"):
+        apply_mod.approve(s, edit, by="human:partner")
 
 
 def test_blocked_op_refuses_everyone(s):
