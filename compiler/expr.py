@@ -38,7 +38,7 @@ _TOKEN = re.compile(
   | (?P<string>'[^']*')
   | (?P<arrow>->)
   | (?P<op><=|>=|==|!=|[<>+\-*/()])
-  | (?P<name>[^\s'()<>=!+\-*/]+)
+  | (?P<name>[^\s'()<>=!+\-*/.,;:]+)
     """,
     re.VERBOSE,
 )
@@ -301,6 +301,24 @@ def evaluate(node: Any, scope: dict[str, Any], instances: dict[str, list[dict]])
                 raise ExprError("division by zero")
             return a / b
     raise ExprError(f"cannot evaluate node: {node!r}")
+
+
+def aggregated_types(node: Any) -> set[str]:
+    """Which instance types this expression aggregates over.
+
+    Read from the AST rather than by substring-matching the source: a type whose
+    name is a substring of another would otherwise produce a phantom edge, and a
+    graph that draws relationships nobody declared is worse than one that draws
+    too few.
+    """
+    if isinstance(node, Agg):
+        inner = aggregated_types(node.where) if node.where is not None else set()
+        return {node.type_name} | inner
+    if isinstance(node, (Not, Neg)):
+        return aggregated_types(node.operand)
+    if isinstance(node, Bin):
+        return aggregated_types(node.left) | aggregated_types(node.right)
+    return set()
 
 
 def referenced_names(node: Any) -> set[str]:

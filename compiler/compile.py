@@ -178,6 +178,15 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20) -> dict[str, Any]:
             }
         )
 
+    # Which derived nodes aggregate over which type, read from the AST rather
+    # than by matching substrings of the op source.
+    aggregated_by: dict[str, list[str]] = {}
+    for name, d in s.nodes.items():
+        if d.get("kind") != "derived" or not d.get("op"):
+            continue
+        for tname in expr.aggregated_types(expr.parse(d["op"])):
+            aggregated_by.setdefault(tname, []).append(name)
+
     # Instances are grouped, not listed: a business graph has more rows than a
     # canvas has room. Folding is a view decision, which is why it is here.
     groups: list[dict] = []
@@ -196,9 +205,8 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20) -> dict[str, Any]:
                 "owners": {p: d.get("owner") for p, d in (t.get("props") or {}).items()},
             }
         )
-        for name, d in s.nodes.items():
-            if d.get("kind") == "derived" and tname in (d.get("op") or ""):
-                edges.append({"from": tname, "to": name, "rel": "aggregates"})
+        for name in aggregated_by.get(tname, ()):
+            edges.append({"from": tname, "to": name, "rel": "aggregates"})
 
     return {
         "ontology": s.name,
