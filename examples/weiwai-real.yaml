@@ -1,0 +1,102 @@
+# Real-scale fixture: the outsourcing capitalisation ledger.
+#
+# Generated from 09_委外资本化台账/, where the filename IS the data
+# (供应商__认定__状态[__期=额]…). Supplier names are replaced by codes; the
+# determination, status and amounts are real, because those are what the
+# compiler has to get right.
+ontology: 委外资本化-实测
+
+types:
+  委外合同:
+    label: 委外开发合同（按期间拆分）
+    description: 一家供应商在一个报告期内的委外开发投入，是资本化判定的最小单位
+    id: 合同编号
+    props:
+      合同编号:    { type: string, owner: source,   from: R-LEDGER }
+      供应商:      { type: string, owner: source,   from: R-LEDGER }
+      期间:        { type: string, owner: source,   from: R-LEDGER }
+      认定:        { type: enum,   owner: ontology, values: [资本化, 费用化, 待坐实] }
+      状态:        { type: enum,   owner: ontology, values: [已确认, 估, 未坐实, 已否, 待合同HOOK, 待IP条款] }
+      金额_不含税:  { type: money,  owner: ontology, nullable: true, note: "万元转元；含税口径已按 6% 专票进项调减" }
+      缺口:        { type: ref,    owner: ontology, to: hook, nullable: true }
+
+raw:
+  R-LEDGER:
+    label: 委外资本化台账（文件名即数据）
+    connector: "python -m ledger.parse --dir 05_研发资本化底料/09_委外资本化台账"
+    provides: [合同编号, 供应商, 期间]
+
+hooks:
+  H-待合同:
+    label: 合同原件未到，金额为估
+    blocked_on: R-LEDGER
+    resolve_when: "取得合同原件并读出 IP 条款"
+    owner: 供应商对接人
+    affects: [委外cap, 待坐实金额]
+  H-待IP条款:
+    label: 合同已到但未约定知识产权归属
+    blocked_on: R-LEDGER
+    resolve_when: "取得补充协议明确 IP 归甲方"
+    owner: 供应商对接人
+    affects: [委外cap, 待坐实金额]
+
+instances:
+  委外合同:
+    - { 合同编号: W-001, 供应商: 供应商01, 期间: 26H1, 认定: 资本化, 状态: 已确认, 金额_不含税: 790000 }
+    - { 合同编号: W-002, 供应商: 供应商02, 期间: 26H1, 认定: 资本化, 状态: 已确认, 金额_不含税: 1899000 }
+    - { 合同编号: W-003, 供应商: 供应商03, 期间: 26H1, 认定: 资本化, 状态: 已确认, 金额_不含税: 280000 }
+    - { 合同编号: W-004, 供应商: 供应商04, 期间: 26H1, 认定: 资本化, 状态: 待合同HOOK, 金额_不含税: 4036000, 缺口: H-待合同 }
+    - { 合同编号: W-005, 供应商: 供应商05, 期间: 2025, 认定: 资本化, 状态: 已确认, 金额_不含税: 4315000 }
+    - { 合同编号: W-006, 供应商: 供应商06, 期间: 2025, 认定: 资本化, 状态: 已确认, 金额_不含税: 4366000 }
+    - { 合同编号: W-007, 供应商: 供应商07, 期间: 2025, 认定: 资本化, 状态: 已确认, 金额_不含税: 817000 }
+    - { 合同编号: W-008, 供应商: 供应商07, 期间: 26H1, 认定: 资本化, 状态: 已确认, 金额_不含税: 1226000 }
+    - { 合同编号: W-009, 供应商: 供应商08, 期间: 未列期, 认定: 费用化, 状态: 已否, 金额_不含税: null }
+    - { 合同编号: W-010, 供应商: 供应商09, 期间: 26H1, 认定: 资本化, 状态: 待合同HOOK, 金额_不含税: 500000, 缺口: H-待合同 }
+    - { 合同编号: W-011, 供应商: 供应商10, 期间: 26H1, 认定: 费用化, 状态: 已否, 金额_不含税: 0 }
+    - { 合同编号: W-012, 供应商: 供应商11, 期间: 26H1, 认定: 资本化, 状态: 待IP条款, 金额_不含税: 1297000, 缺口: H-待IP条款 }
+    - { 合同编号: W-013, 供应商: 供应商12, 期间: 2023, 认定: 资本化, 状态: 已确认, 金额_不含税: 3774000 }
+    - { 合同编号: W-014, 供应商: 供应商13, 期间: 未列期, 认定: 费用化, 状态: 已否, 金额_不含税: null }
+    - { 合同编号: W-015, 供应商: 供应商14, 期间: 26H1, 认定: 资本化, 状态: 待IP条款, 金额_不含税: 792000, 缺口: H-待IP条款 }
+    - { 合同编号: W-016, 供应商: 供应商15, 期间: 2023, 认定: 资本化, 状态: 已确认, 金额_不含税: 3396000 }
+
+nodes:
+  委外cap:
+    kind: derived
+    label: 委外资本化额（已确认）
+    op: "sum(委外合同 where 认定 == '资本化' and 状态 == '已确认' -> 金额_不含税)"
+  待坐实金额:
+    kind: derived
+    label: 尚待材料坐实的金额
+    op: "sum(委外合同 where 认定 == '资本化' and 状态 != '已确认' -> 金额_不含税)"
+  委外合计:
+    kind: derived
+    label: 台账口径合计（含待坐实）
+    op: "委外cap + 待坐实金额"
+  费用化金额:
+    kind: derived
+    label: 判定为费用化的金额
+    op: "sum(委外合同 where 认定 == '费用化' -> 金额_不含税)"
+  合同笔数:
+    kind: derived
+    label: 台账条目数
+    op: "count(委外合同)"
+
+ops:
+  坐实资本化:
+    label: 材料补齐后把一条从待坐实改为已确认
+    class: DerivedOp
+    params:
+      合同:  { type: ref,  to: 委外合同 }
+      状态:  { type: enum, values: [已确认, 已否] }
+      依据:  { type: ref,  to: [raw, hook] }
+    writes: [状态, 缺口]
+    intent: required
+  更正金额:
+    label: 按含税口径更正金额（不可逆，需人确认）
+    class: RecordableOp
+    params:
+      合同:    { type: ref,   to: 委外合同 }
+      新金额:  { type: money }
+      依据:    { type: ref,   to: [raw, hook] }
+    writes: [金额_不含税]
+    intent: required
