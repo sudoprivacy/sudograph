@@ -64,6 +64,87 @@ def _restrict(s: Spec, period: str) -> Spec:
     )
 
 
+def _corroborate(s: Spec, c: Compiled) -> Spec:
+    """Resolve each corroborated figure from its independent sources.
+
+    A figure asserted by one system is a figure taken on trust. Audit evidence is
+    two systems that do not talk to each other saying the same thing, so a
+    corroborated property is written once per source and the compiler decides
+    what it is worth:
+
+      * they agree            -> that value, and the check passes
+      * they disagree         -> the check fails unless the row cites a hook AND
+                                 the spec says which source governs
+      * too few of them spoke -> the check fails against `at_least`
+
+    Declaring `prefer` is deliberately not enough on its own. A preference
+    written once would otherwise bury every future disagreement behind it, which
+    is the same silent absorption a plug without a `residual_to` commits.
+    """
+    if not any(s.corroborated(t) for t in s.instances):
+        return s
+
+    resolved: dict[str, list[dict]] = {}
+    for tname, rows in s.instances.items():
+        corr = s.corroborated(tname)
+        if not corr:
+            resolved[tname] = rows
+            continue
+        props = s.types[tname]["props"]
+        idp = s.types[tname]["id"]
+        gap_refs = [
+            p for p, d in props.items() if d.get("type") == "ref" and d.get("to") == "hook"
+        ]
+        out_rows: list[dict] = []
+        for row in rows:
+            new = dict(row)
+            for prop, sources in corr.items():
+                rules = props[prop].get("corroboration") or {}
+                spoke = {
+                    src: row[f"{prop}@{src}"]
+                    for src in sources
+                    if row.get(f"{prop}@{src}") is not None
+                }
+                distinct = set(spoke.values())
+                agree = len(distinct) <= 1
+                enough = len(spoke) >= rules.get("at_least", 1)
+                hooked = any(row.get(g) for g in gap_refs)
+                prefer = rules.get("prefer")
+
+                if agree:
+                    new[prop] = next(iter(distinct)) if distinct else None
+                elif hooked and prefer in spoke:
+                    new[prop] = spoke[prefer]
+                else:
+                    new[prop] = None
+
+                said = ", ".join(f"{k}={v}" for k, v in sorted(spoke.items()))
+                if not agree and not hooked:
+                    detail = f"{said} — they disagree and the row cites no hook"
+                elif not agree and prefer not in spoke:
+                    detail = (
+                        f"{said} — they disagree; declare corroboration.prefer to say "
+                        f"which source governs"
+                    )
+                elif not enough:
+                    detail = (
+                        f"corroborated by {len(spoke)} of {len(sources)} sources, "
+                        f"needs {rules.get('at_least', 1)}"
+                    )
+                else:
+                    detail = ""
+                c.checks.append(
+                    Check(f"corroboration/{tname}/{row.get(idp)}/{prop}", not detail, detail)
+                )
+            out_rows.append(new)
+        resolved[tname] = out_rows
+
+    return Spec(
+        name=s.name, types=s.types, raw=s.raw, hooks=s.hooks,
+        instances=resolved, nodes=s.nodes, ops=s.ops, checks=s.checks, bases=s.bases,
+    )
+
+
 def op_for(node: dict, basis: str | None) -> str | None:
     """The expression this node uses under `basis`.
 
@@ -134,6 +215,7 @@ def compile_spec(
     c = Compiled(ontology=s.name, period=period, basis=basis)
     if period is not None:
         s = _restrict(s, period)
+    s = _corroborate(s, c)
 
     # ── values ────────────────────────────────────────────────────────
     for name in _order(s, basis):
@@ -176,15 +258,19 @@ def compile_spec(
         for pname, p in (t.get("props") or {}).items():
             if p.get("owner") != "source":
                 continue
-            r = s.raw.get(p.get("from", ""))
-            declared = pname in (r.get("provides") or []) if r else False
-            c.checks.append(
-                Check(
-                    f"provenance/{tname}.{pname}",
-                    declared,
-                    "" if declared else f"raw {p.get('from')!r} does not list it in 'provides'",
+            # Every declared source must own up to supplying it. A corroborated
+            # figure whose second source never claimed to provide it is not
+            # corroborated; it is one source and a hopeful entry in a list.
+            for src in s.sources_of(tname, pname):
+                r = s.raw.get(src)
+                declared = pname in (r.get("provides") or []) if r else False
+                c.checks.append(
+                    Check(
+                        f"provenance/{tname}.{pname}@{src}",
+                        declared,
+                        "" if declared else f"raw {src!r} does not list it in 'provides'",
+                    )
                 )
-            )
 
     # An instance carrying a gap must point at a hook that exists, and that hook
     # must say what clears it. A gap with no exit is how a number goes stale.

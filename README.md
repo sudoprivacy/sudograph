@@ -45,11 +45,48 @@ See `examples/weiwai-capitalisation.yaml`.
 
 - `types` declare object types; every property carries an `owner`
   (`source` or `ontology`)
+- a `ref` property points at another type (a **link**) or at `hook` (a **gap**)
+- a `source` property whose `from` is a **list** is corroborated — see below
 - `raw` entries are fetch points holding **one executable command**, not data
 - `hooks` register gaps by name, with a `resolve_when` and an `owner`
 - `nodes` of `kind: derived` carry an `op` expression
 - `ops` are write-back actions; `intent` is required
 - `bases` hold two sets of figures over one structure — see below
+
+## Links and corroboration
+
+A `ref` points at another type or at `hook`. A link to a type is how one object
+reaches another — this payment against that supplier — which is most of what an
+audit is. Because a ref stores the target's id, `where 供应商 = '供应商07'` is
+plain equality and needs no join.
+
+A figure asserted by one system is a figure taken on trust. Two systems that do
+not talk to each other saying the same thing is what audit evidence actually is,
+so `from` may be a list, and each source writes the figure on the row:
+
+```yaml
+金额:
+  type: money
+  owner: source
+  from: [R-KINGDEE, R-LEDGER]
+  corroboration: { at_least: 2, prefer: R-KINGDEE }
+
+# ...and on the rows
+- { 科目: "5301-委外开发-2023", 金额@R-KINGDEE: 7170000,  金额@R-LEDGER: 7170000 }
+- { 科目: "5301-委外开发-26H1", 金额@R-KINGDEE: 10152000, 金额@R-LEDGER: 10820000,
+    缺口: H-台账账面差 }
+```
+
+| Outcome | What the compiler does |
+|---|---|
+| they agree | that value, check passes |
+| they disagree | fails, **unless** the row cites a hook *and* `prefer` says which source governs |
+| too few spoke | fails against `at_least` |
+
+`prefer` is deliberately not enough on its own: a preference written once would
+bury every future disagreement behind it, which is the same silent absorption a
+plug with no `residual_to` commits. Writing the figure bare alongside the
+per-source values is refused — that would be a third figure with no source.
 
 ## Two bases, one structure
 

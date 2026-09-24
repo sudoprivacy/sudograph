@@ -153,8 +153,20 @@
           "description": "Hard rule: never both. Ops may only write owner=ontology."
         },
         "from": {
-          "type": "string",
-          "description": "Required when owner=source: which raw supplies it."
+          "description": "Which raw supplies this property. A list means the figure is corroborated: each source writes it as `<prop>@<raw>` on the row, and the compiler decides what their agreement is worth.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "uniqueItems": true
+            }
+          ]
         },
         "values": {
           "type": "array",
@@ -179,6 +191,22 @@
             "none"
           ],
           "description": "What a null means. For a nullable number: 'gap' = not recorded yet (chase it), 'zero' = determined to be none (a finding). For a nullable link: 'gap' = not matched yet, 'none' = determined to have no counterpart. Required, because the two are indistinguishable in the data and opposite in the business."
+        },
+        "corroboration": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Only with a list-valued `from`. A disagreement fails unless the row cites a hook AND `prefer` says which source governs — a preference alone would bury every future disagreement behind it.",
+          "properties": {
+            "at_least": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "How many of the declared sources must actually have spoken."
+            },
+            "prefer": {
+              "type": "string",
+              "description": "Which source governs when they disagree. Never sufficient on its own."
+            }
+          }
         }
       },
       "allOf": [

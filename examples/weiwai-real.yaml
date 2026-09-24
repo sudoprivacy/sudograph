@@ -46,13 +46,21 @@ types:
       联系:   { type: string, owner: source,   from: R-ROSTER }
 
   账面委外:
-    label: 金蝶账面的委外投入行
+    label: 每期委外投入（两个独立系统各说一遍）
+    description: >
+      金额由金蝶 GL 与台账分别提供。一家系统说的数是"信了"，两家不通气的系统说同一个数
+      才是"证得住"——这就是审计证据本身。26H1 两家不一致，差额挂在 H-台账账面差 上。
     id: 科目
     period: 期间
     props:
       科目:  { type: string, owner: source, from: R-KINGDEE }
       期间:  { type: string, owner: source, from: R-KINGDEE }
-      金额:  { type: money,  owner: source, from: R-KINGDEE }
+      金额:
+        type: money
+        owner: source
+        from: [R-KINGDEE, R-LEDGER]
+        corroboration: { at_least: 2, prefer: R-KINGDEE }
+      缺口:  { type: ref, owner: ontology, to: hook, nullable: true }
 
 raw:
   R-ROSTER:
@@ -66,7 +74,7 @@ raw:
   R-LEDGER:
     label: 委外资本化台账（文件名即数据）
     connector: "python -m ledger.parse --dir 05_研发资本化底料/09_委外资本化台账"
-    provides: [合同编号, 供应商, 期间, 供应商编号]
+    provides: [合同编号, 供应商, 期间, 供应商编号, 金额]
 
 hooks:
   H-待合同:
@@ -123,9 +131,10 @@ instances:
     - { 工号: P-02, 姓名: 合伙人乙, 角色: 项目合伙人, 联系: "wecom:yi" }
 
   账面委外:
-    - { 科目: "5301-委外开发-2023", 期间: '2023', 金额: 7170000 }
-    - { 科目: "5301-委外开发-2025", 期间: '2025', 金额: 9498000 }
-    - { 科目: "5301-委外开发-26H1", 期间: '26H1', 金额: 10152000 }
+    # 两期对得上；26H1 台账比账面多 668,000，这是真的，不是造的。
+    - { 科目: "5301-委外开发-2023", 期间: '2023', 金额@R-KINGDEE: 7170000,  金额@R-LEDGER: 7170000 }
+    - { 科目: "5301-委外开发-2025", 期间: '2025', 金额@R-KINGDEE: 9498000,  金额@R-LEDGER: 9498000 }
+    - { 科目: "5301-委外开发-26H1", 期间: '26H1', 金额@R-KINGDEE: 10152000, 金额@R-LEDGER: 10820000, 缺口: H-台账账面差 }
   委外合同:
     - { 合同编号: W-001, 供应商: 供应商01, 期间: 26H1, 认定: 资本化, 状态: 已确认, 金额_不含税: 790000 }
     - { 合同编号: W-002, 供应商: 供应商02, 期间: 26H1, 认定: 资本化, 状态: 已确认, 金额_不含税: 1899000 }

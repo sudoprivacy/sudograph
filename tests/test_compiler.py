@@ -859,3 +859,111 @@ def test_filtering_by_a_link_needs_no_join():
         s.instances,
     )
     assert total == 817_000 + 1_226_000
+
+
+# ── corroboration: two systems, or it is only an assertion ─────────────
+
+def test_agreeing_sources_resolve_to_the_agreed_figure():
+    """A figure asserted by one system is a figure taken on trust. Two systems
+    that do not talk to each other saying the same thing is what audit evidence
+    actually is, so the model holds both."""
+    c = _real()
+    agreed = [k for k in c.checks if k.name.startswith("corroboration/账面委外")]
+    assert len(agreed) == 3 and all(k.ok for k in agreed)
+    assert c.values["账面委外投入"] == 26_820_000
+
+
+def test_a_disagreement_with_no_hook_fails_and_quotes_both_sides():
+    """The 26H1 figures genuinely differ by 668,000. Removing the hook that
+    tracks it must turn the check red rather than let a preference bury it."""
+    bad = _mutated_real(**{"instances/账面委外/2": {
+        "科目": "5301-委外开发-26H1", "期间": "26H1",
+        "金额@R-KINGDEE": 10152000, "金额@R-LEDGER": 10820000,
+    }})
+    c = compile_mod.compile_spec(bad, basis=RESTATED)
+    failed = [k for k in c.checks if k.name.startswith("corroboration/") and not k.ok]
+    assert len(failed) == 1
+    assert "10152000" in failed[0].detail and "10820000" in failed[0].detail
+    assert "cites no hook" in failed[0].detail
+    # The disputed figure is unusable, so the total drops it rather than picking
+    # a side — and the red check is what stops that reading as the answer.
+    assert c.values["账面委外投入"] == 16_668_000
+
+
+def test_prefer_alone_does_not_bury_a_disagreement():
+    """A preference written once would otherwise absorb every future
+    disagreement silently — the same fault as a plug with no residual_to."""
+    s = spec_mod.load(REAL_FIXTURE)
+    rules = s.types["账面委外"]["props"]["金额"]["corroboration"]
+    assert rules["prefer"] == "R-KINGDEE"
+    bad = _mutated_real(**{"instances/账面委外/2": {
+        "科目": "5301-委外开发-26H1", "期间": "26H1",
+        "金额@R-KINGDEE": 10152000, "金额@R-LEDGER": 10820000,
+    }})
+    c = compile_mod.compile_spec(bad, basis=RESTATED)
+    assert not c.passed, "prefer is declared, yet the unhooked disagreement must still fail"
+
+
+def test_a_disagreement_needs_prefer_to_say_which_source_governs():
+    bad = _mutated_real(**{
+        "types/账面委外/props/金额/corroboration": {"at_least": 2},
+    })
+    c = compile_mod.compile_spec(bad, basis=RESTATED)
+    failed = [k for k in c.checks if k.name.startswith("corroboration/") and not k.ok]
+    assert failed and "which source governs" in failed[0].detail
+
+
+def test_too_few_sources_spoke():
+    bad = _mutated_real(**{"instances/账面委外/0": {
+        "科目": "5301-委外开发-2023", "期间": "2023", "金额@R-KINGDEE": 7170000,
+    }})
+    c = compile_mod.compile_spec(bad, basis=RESTATED)
+    failed = [k for k in c.checks if k.name.endswith("/5301-委外开发-2023/金额")]
+    assert failed and not failed[0].ok
+    assert "1 of 2 sources" in failed[0].detail
+
+
+def test_a_corroborated_figure_may_not_also_be_written_bare():
+    """A bare value alongside the per-source ones is a third figure with no
+    source — exactly what corroboration exists to prevent."""
+    bad = _mutated_real(**{"instances/账面委外/0/金额": 7170000})
+    problems = spec_mod.check(bad)
+    assert any("written bare" in p for p in problems), problems
+
+
+def test_a_per_source_value_must_name_a_declared_source():
+    bad = _mutated_real(**{"instances/账面委外/0/金额@R-ROSTER": 1})
+    problems = spec_mod.check(bad)
+    assert any("not among the sources declared" in p for p in problems), problems
+
+
+def test_corroboration_needs_more_than_one_source():
+    bad = _mutated_real(**{"types/账面委外/props/金额": {
+        "type": "money", "owner": "source", "from": "R-KINGDEE",
+        "corroboration": {"at_least": 1},
+    }})
+    problems = spec_mod.check(bad)
+    assert any("agreeing with itself" in p for p in problems), problems
+
+
+def test_an_unreachable_at_least_is_refused_at_load():
+    bad = _mutated_real(**{"types/账面委外/props/金额/corroboration": {"at_least": 5}})
+    problems = spec_mod.check(bad)
+    assert any("can never be met" in p for p in problems), problems
+
+
+def test_prefer_must_be_one_of_the_sources():
+    bad = _mutated_real(**{
+        "types/账面委外/props/金额/corroboration": {"at_least": 2, "prefer": "R-ROSTER"},
+    })
+    problems = spec_mod.check(bad)
+    assert any("not among its sources" in p for p in problems), problems
+
+
+def test_every_declared_source_must_own_up_to_providing_it():
+    """A second source that never claimed to supply the figure is not
+    corroboration; it is one source and a hopeful entry in a list."""
+    bad = _mutated_real(**{"raw/R-LEDGER/provides": ["合同编号", "供应商", "期间", "供应商编号"]})
+    c = compile_mod.compile_spec(bad, basis=RESTATED)
+    failed = [k for k in c.checks if k.name == "provenance/账面委外.金额@R-LEDGER"]
+    assert failed and not failed[0].ok

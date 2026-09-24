@@ -60,6 +60,25 @@ class Spec:
     def types_with(self, prop: str) -> list[str]:
         return [tn for tn, t in self.types.items() if prop in (t.get("props") or {})]
 
+    def sources_of(self, type_name: str, prop: str) -> list[str]:
+        """The raws that supply this property. More than one means corroborated."""
+        p = ((self.types.get(type_name) or {}).get("props") or {}).get(prop) or {}
+        f = p.get("from")
+        if isinstance(f, list):
+            return list(f)
+        return [f] if f else []
+
+    def corroborated(self, type_name: str) -> dict[str, list[str]]:
+        """prop -> its independent sources, for the properties that have several.
+
+        A figure asserted by one system is a figure you have taken on trust. The
+        whole of audit evidence is that two systems which do not talk to each
+        other say the same thing, so the model has to be able to hold both — and
+        to notice when they disagree.
+        """
+        props = (self.types.get(type_name) or {}).get("props") or {}
+        return {p: list(d["from"]) for p, d in props.items() if isinstance(d.get("from"), list)}
+
     def links_of(self, type_name: str) -> dict[str, str]:
         """prop -> the type it points at. Refs to hooks are gaps, not links."""
         props = (self.types.get(type_name) or {}).get("props") or {}
@@ -149,11 +168,37 @@ def check(s: Spec) -> list[str]:
             if owner not in OWNERS:
                 out.append(f"{where}: owner must be 'source' or 'ontology', got {owner!r}")
             # Hard rule: a source property must name the raw that supplies it.
+            # `from` may be a list, which is how a figure says it is corroborated
+            # rather than merely asserted.
             if owner == "source":
-                if not p.get("from"):
+                srcs = s.sources_of(tname, pname)
+                if not srcs:
                     out.append(f"{where}: source property needs 'from' naming its raw")
-                elif p["from"] not in s.raw:
-                    out.append(f"{where}: 'from' points at unknown raw {p['from']!r}")
+                for src in srcs:
+                    if src not in s.raw:
+                        out.append(f"{where}: 'from' points at unknown raw {src!r}")
+                corr = p.get("corroboration") or {}
+                if corr and not isinstance(p.get("from"), list):
+                    out.append(
+                        f"{where}: 'corroboration' needs more than one source in 'from' — "
+                        f"one system agreeing with itself corroborates nothing"
+                    )
+                extra = set(corr) - {"at_least", "prefer"}
+                if extra:
+                    out.append(f"{where}: corroboration has unknown keys: {sorted(extra)}")
+                at_least = corr.get("at_least", 1)
+                if not isinstance(at_least, int) or at_least < 1:
+                    out.append(f"{where}: corroboration.at_least must be a positive integer")
+                elif at_least > len(srcs):
+                    out.append(
+                        f"{where}: corroboration.at_least is {at_least} but only "
+                        f"{len(srcs)} source(s) are declared — it can never be met"
+                    )
+                if corr.get("prefer") and corr["prefer"] not in srcs:
+                    out.append(
+                        f"{where}: corroboration.prefer names {corr['prefer']!r}, "
+                        f"which is not among its sources"
+                    )
             if owner == "ontology" and p.get("from"):
                 out.append(f"{where}: ontology property cannot have 'from' — it is not upstream")
             if p.get("type") == "enum" and not p.get("values"):
@@ -233,8 +278,33 @@ def check(s: Spec) -> list[str]:
         t = s.types[tname]
         idp = t.get("id")
         seen: set[Any] = set()
+        corr = s.corroborated(tname)
         for i, row in enumerate(rows):
-            unknown = set(row) - set(t.get("props") or {})
+            # A corroborated figure is written once per source — 金额@R-KINGDEE,
+            # 金额@R-LEDGER — because the point is that two systems said it
+            # independently. Writing it bare as well would create a third value
+            # with no source, which is the thing corroboration exists to prevent.
+            per_source: set[str] = set()
+            for key in row:
+                if "@" not in key:
+                    continue
+                prop, _, src = key.partition("@")
+                if prop not in corr:
+                    continue
+                per_source.add(key)
+                if src not in corr[prop]:
+                    out.append(
+                        f"{tname}[{i}].{key}: {src!r} is not among the sources declared "
+                        f"for {prop} ({corr[prop]})"
+                    )
+            for prop in corr:
+                if prop in row:
+                    out.append(
+                        f"{tname}[{i}].{prop} is written bare, but it is corroborated by "
+                        f"{corr[prop]} — write {prop}@<raw> per source, so the compiler can "
+                        f"tell whether they agree"
+                    )
+            unknown = set(row) - set(t.get("props") or {}) - per_source
             if unknown:
                 out.append(f"{tname}[{i}] has undeclared properties: {sorted(unknown)}")
             if idp and idp in row:
