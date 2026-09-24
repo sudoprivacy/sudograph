@@ -142,38 +142,25 @@ open.
 
 ## The expression language is a SQL subset
 
-The compiler parses it. It never calls `eval`, because a spec that can eval hands
+The compiler parses it and never calls `eval`, because a spec that can eval hands
 execution to the model that wrote it.
-
-It is **SQL**, not a language of our own. An earlier version used an invented
-syntax (`sum(T where c -> p)`); it parsed fine and nobody could read it. The
-expressions are the part of a spec a business reviewer actually has to check, so
-the syntax has to be one both a person and a model already know.
 
 ```sql
 select sum(金额_不含税) from 委外合同 where 认定 = '资本化' and 状态 = '已确认'
 select count(*) from 委外合同
 委外cap + 待坐实金额                                   -- node values are bare names
 (select sum(金额) from 账面委外) - 委外合计             -- nested = scalar subquery
+select sum(金额) from 委外合同 where 供应商 = '供应商07' -- a link needs no join
 ```
 
 A node's whole expression may be a bare `select`; anywhere else an aggregate is a
-**scalar subquery in parentheses**, exactly as in SQL. That is not ceremony —
-without them, `select sum(x) from T where c + 1` has two readings.
+parenthesised scalar subquery, as in SQL. Keywords are case-insensitive.
 
-**Subtracted from SQL**, each because it would let a figure mean two things: no
-joins or subqueries in `FROM` (one type per aggregate), no `GROUP BY` (grouping is
-a view decision and lives in the compiler), no `ORDER BY` / `LIMIT` (a total does
-not depend on row order), no `DISTINCT`, no `CASE`, no functions beyond `SUM` and
-`COUNT`. Keywords are case-insensitive, as in SQL.
-
-**SQL's semantics kept**: `SUM` skips nulls and `COUNT(<prop>)` counts the
-non-null. The risk that creates — a total silently understated by a missing
-figure — is not fixed by changing the arithmetic, which would surprise every
-reader; it is caught one level up by `absent: gap`.
-
-**One refused instead**: `x = null` is never true in SQL, which reads as "no such
-row" and means "the question was malformed". It is rejected, naming `is null`.
+- **the grammar** is defined in `compiler/expr.py` — one place, and the parser is
+  built from it
+- **why SQL, what is subtracted, and why each subtraction** is [§7.8](https://s.shareone.vip/s/sudo-cloud-plan)
+- every subtraction refuses **by name and says where the capability lives**, so
+  you meet it at the point of use rather than by reading either of the above
 
 ## Three gates on every write
 
