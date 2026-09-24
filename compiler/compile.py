@@ -17,7 +17,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import expr
+from . import expr, lineage as lin_mod
 from .spec import Spec
 
 
@@ -31,6 +31,7 @@ class Check:
 @dataclass
 class Compiled:
     ontology: str
+    period: str | None = None
     values: dict[str, Any] = field(default_factory=dict)
     checks: list[Check] = field(default_factory=list)
     view: dict[str, Any] = field(default_factory=dict)
@@ -42,6 +43,23 @@ class Compiled:
     def summary(self) -> str:
         good = sum(1 for c in self.checks if c.ok)
         return f"{good}/{len(self.checks)} checks passed"
+
+
+def _restrict(s: Spec, period: str) -> Spec:
+    """A copy whose instances are only those of one period.
+
+    Types that declare no period property are left whole: reference data such
+    as people or suppliers is not per-period, and dropping it would break every
+    row that points at it.
+    """
+    kept: dict[str, list[dict]] = {}
+    for tname, rows in s.instances.items():
+        col = (s.types.get(tname) or {}).get("period")
+        kept[tname] = [r for r in rows if r.get(col) == period] if col else list(rows)
+    return Spec(
+        name=s.name, types=s.types, raw=s.raw, hooks=s.hooks,
+        instances=kept, nodes=s.nodes, ops=s.ops, checks=s.checks,
+    )
 
 
 def _order(s: Spec) -> list[str]:
@@ -72,8 +90,19 @@ def _order(s: Spec) -> list[str]:
     return out
 
 
-def compile_spec(s: Spec, *, fold_over: int = 20, top_n: int = 5) -> Compiled:
-    c = Compiled(ontology=s.name)
+def compile_spec(
+    s: Spec, *, fold_over: int = 20, top_n: int = 5, period: str | None = None
+) -> Compiled:
+    """Compile, optionally restricted to one reporting period.
+
+    Filtering happens before anything is computed, so every figure, check and
+    bucket describes that period alone. The alternative — carrying a column per
+    period on each node — makes the spec grow with time and makes "which period
+    is this total" a question the reader has to keep answering.
+    """
+    c = Compiled(ontology=s.name, period=period)
+    if period is not None:
+        s = _restrict(s, period)
 
     # ── values ────────────────────────────────────────────────────────
     for name in _order(s):
@@ -82,6 +111,29 @@ def compile_spec(s: Spec, *, fold_over: int = 20, top_n: int = 5) -> Compiled:
             c.values[name] = expr.evaluate(expr.parse(node["op"]), dict(c.values), s.instances)
         except expr.ExprError as e:
             c.checks.append(Check(f"node/{name}", False, str(e)))
+
+    # ── articulation checks: the unit tier ────────────────────────────
+    # Assertions the author wrote, evaluated over the node values this same
+    # pass produced. There is no separate reconciliation script by design: if
+    # the check ran against anything else, the two could disagree.
+    for cname, spec_ in s.checks.items():
+        src = spec_.get("expr") if isinstance(spec_, dict) else spec_
+        # Presence of the key is what scopes a check, not its value: `period:
+        # null` means "only when no period is selected", which is a real scope
+        # and not the absence of one. Testing the value would have let a
+        # whole-ledger assertion run against a single period and fail there.
+        scoped = isinstance(spec_, dict) and "period" in spec_
+        if scoped and spec_["period"] != period:
+            # A check scoped elsewhere is not asked here. Not asked is neither
+            # pass nor fail: it is not counted, because a check that did not run
+            # must never read as evidence.
+            continue
+        try:
+            ok = bool(expr.evaluate(expr.parse(src), dict(c.values), s.instances))
+            detail = "" if ok else f"{src} is false"
+        except expr.ExprError as e:
+            ok, detail = False, str(e)
+        c.checks.append(Check(f"articulation/{cname}", ok, detail))
 
     # ── checks ────────────────────────────────────────────────────────
     # Every source property must be reachable from some raw connector, or the
@@ -169,22 +221,40 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
     nodes: list[dict] = []
     edges: list[dict] = []
 
+    # Derived once, read three ways: where a figure comes from, which hooks make
+    # it provisional, and how complete it is. None of the three is authored.
+    lin = lin_mod.lineage(s)
+    prov = lin_mod.provisional(s, lin)
+    grade = lin_mod.completeness(s, c.values, prov)
+
+    #: Rank for layout: sources at the top, conclusions at the bottom. A hint
+    #: for the renderer, not a fact about the ontology.
+    LAYER = {"raw": 0, "hook": 1, "derived": 2}
+
     for name, d in s.nodes.items():
         nodes.append(
             {
                 "id": name,
                 "kind": d.get("kind"),
+                "layer": LAYER.get(d.get("kind"), 2),
                 "label": d.get("label", name),
                 "value": c.values.get(name),
                 "op": d.get("op"),
+                "lineage": lin[name],
+                "provisional_because": prov[name],
+                "completeness": grade[name],
             }
         )
+        # Lineage as edges too, so a renderer can draw the path a reviewer walks.
+        for src in lin[name]["inputs"]:
+            edges.append({"from": src, "to": name, "rel": "feeds"})
 
     for hname, h in s.hooks.items():
         nodes.append(
             {
                 "id": hname,
                 "kind": "hook",
+                "layer": 1,
                 "label": h.get("label", hname),
                 "resolve_when": h.get("resolve_when"),
                 "owner": h.get("owner"),
@@ -199,6 +269,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
             {
                 "id": rname,
                 "kind": "raw",
+                "layer": 0,
                 "label": r.get("label", rname),
                 "connector": r.get("connector"),
             }
@@ -258,6 +329,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         groups.append(
             {
                 "type": tname,
+                "completeness": lin_mod.instance_completeness(s, rows, tname),
                 "label": t.get("label", tname),
                 "count": len(members),
                 "folded": folded,
@@ -273,6 +345,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
 
     return {
         "ontology": s.name,
+        "period": c.period,
         "nodes": nodes,
         "edges": edges,
         "groups": groups,

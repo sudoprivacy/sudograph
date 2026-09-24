@@ -74,6 +74,10 @@
           "type": "string",
           "description": "Name of the identifying property. Immutable."
         },
+        "period": {
+          "type": "string",
+          "description": "Which property carries the reporting period. One spec then serves every period: the compiler feeds it different leaves instead of the author duplicating nodes."
+        },
         "props": {
           "type": "object",
           "additionalProperties": {

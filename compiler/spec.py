@@ -26,7 +26,7 @@ NODE_KINDS = ("raw", "hook", "derived")
 OP_CLASSES = ("DerivedOp", "RecordableOp", "BlockedOp")
 PROP_TYPES = ("string", "money", "number", "date", "enum", "ref", "bool")
 
-TOP_LEVEL = {"ontology", "types", "raw", "hooks", "instances", "nodes", "ops"}
+TOP_LEVEL = {"ontology", "types", "raw", "hooks", "instances", "nodes", "ops", "checks"}
 
 
 class SpecError(ValueError):
@@ -42,6 +42,10 @@ class Spec:
     instances: dict[str, list[dict]] = field(default_factory=dict)
     nodes: dict[str, dict] = field(default_factory=dict)
     ops: dict[str, dict] = field(default_factory=dict)
+    #: name -> a boolean expression that must hold. These are the unit tier:
+    #: pure computation over node values, run on every compile. The integration
+    #: tier (can an agent actually use this ontology) is a separate harness.
+    checks: dict[str, str] = field(default_factory=dict)
 
     def owner_of(self, type_name: str, prop: str) -> str | None:
         t = self.types.get(type_name)
@@ -72,6 +76,7 @@ def load(path: str) -> Spec:
         instances=doc.get("instances") or {},
         nodes=doc.get("nodes") or {},
         ops=doc.get("ops") or {},
+        checks=doc.get("checks") or {},
     )
     problems = check(s)
     if problems:
@@ -88,6 +93,12 @@ def check(s: Spec) -> list[str]:
     out: list[str] = []
 
     for tname, t in s.types.items():
+        # A type may name the property that carries its reporting period. One
+        # spec then serves every period: the compiler feeds it different leaves
+        # rather than the author duplicating nodes per period.
+        per = t.get("period")
+        if per and per not in (t.get("props") or {}):
+            out.append(f"type {tname}: period property {per!r} is not among its props")
         for req in ("label", "id", "props"):
             if req not in t:
                 out.append(f"type {tname} is missing '{req}'")
@@ -158,6 +169,15 @@ def check(s: Spec) -> list[str]:
                 p = (t.get("props") or {}).get(pname)
                 if p and p.get("type") == "enum" and v is not None and v not in p["values"]:
                     out.append(f"{tname}[{i}].{pname} = {v!r} is not in {p['values']}")
+                # YAML types bare tokens for you: 2025 becomes an int, 26H1
+                # stays a string, and a period filter then matches one and not
+                # the other. Refusing here beats coercing, because coercion
+                # would hide that the spec and the data disagree.
+                if p and p.get("type") == "string" and v is not None and not isinstance(v, str):
+                    out.append(
+                        f"{tname}[{i}].{pname} = {v!r} is a {type(v).__name__}, not a string — "
+                        f"quote it in the YAML, or the value will not match anything"
+                    )
 
     for nname, n in s.nodes.items():
         if n.get("kind") not in NODE_KINDS:
@@ -170,6 +190,24 @@ def check(s: Spec) -> list[str]:
                     expr.parse(n["op"])
                 except expr.ExprError as e:
                     out.append(f"node {nname}: op does not parse: {e}")
+
+    for cname, spec_ in s.checks.items():
+        # Either a bare expression (must hold in every period) or a mapping
+        # {expr, period}. A total that is only true for the whole ledger would
+        # otherwise turn red the moment anyone compiles one period, and a check
+        # that cries wolf gets switched off.
+        src = spec_.get("expr") if isinstance(spec_, dict) else spec_
+        if not isinstance(src, str):
+            out.append(f"check {cname} needs an expression (a string, or {{expr, period}})")
+            continue
+        if isinstance(spec_, dict):
+            extra = set(spec_) - {"expr", "period"}
+            if extra:
+                out.append(f"check {cname} has unknown keys: {sorted(extra)}")
+        try:
+            expr.parse(src)
+        except expr.ExprError as e:
+            out.append(f"check {cname} does not parse: {e}")
 
     for oname, o in s.ops.items():
         if o.get("class") not in OP_CLASSES:

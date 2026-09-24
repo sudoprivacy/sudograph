@@ -44,13 +44,21 @@ def s() -> spec_mod.Spec:
     return spec_mod.load(FIXTURE)
 
 
+def _mutated_real(**edits) -> spec_mod.Spec:
+    return _mutate(REAL_FIXTURE, edits)
+
+
 def _mutated(**edits) -> spec_mod.Spec:
+    return _mutate(FIXTURE, edits)
+
+
+def _mutate(path: str, edits: dict) -> spec_mod.Spec:
     """Build a Spec straight from a mutated document, bypassing load()'s check.
 
     Bypassing is the point: these tests call check() themselves so they can
     assert on the specific problem rather than on "it raised".
     """
-    with io.open(FIXTURE, encoding="utf-8") as fh:
+    with io.open(path, encoding="utf-8") as fh:
         doc = yaml.safe_load(fh)
     doc = copy.deepcopy(doc)
     for path, value in edits.items():
@@ -71,6 +79,7 @@ def _mutated(**edits) -> spec_mod.Spec:
         instances=doc.get("instances") or {},
         nodes=doc.get("nodes") or {},
         ops=doc.get("ops") or {},
+        checks=doc.get("checks") or {},
     )
 
 
@@ -420,3 +429,76 @@ def test_cycles_among_derived_nodes_are_reported_not_hung():
     })
     with pytest.raises(ValueError, match="cycle"):
         compile_mod.compile_spec(bad)
+
+
+# ── lineage, provisionality, completeness ──────────────────────────────
+
+def test_provisionality_travels_along_lineage():
+    """A total whose input is provisional is provisional too. Nobody propagates
+    that by hand, which is why it is derived rather than declared."""
+    s = spec_mod.load(REAL_FIXTURE)
+    nodes = {n["id"]: n for n in compile_mod.compile_spec(s).view["nodes"]}
+    total = nodes["委外合计"]
+    assert set(total["lineage"]["inputs"]) == {"委外cap", "待坐实金额"}
+    # No hook names 委外合计 directly; it inherits both from its inputs.
+    assert set(total["provisional_because"]) == {"H-待IP条款", "H-待合同"}
+    assert total["completeness"] == "partial"
+
+
+def test_a_node_no_hook_reaches_is_complete():
+    s = spec_mod.load(REAL_FIXTURE)
+    nodes = {n["id"]: n for n in compile_mod.compile_spec(s).view["nodes"]}
+    assert nodes["合同笔数"]["completeness"] == "full"
+    assert nodes["合同笔数"]["provisional_because"] == []
+
+
+def test_lineage_is_exposed_as_edges_a_renderer_can_draw():
+    s = spec_mod.load(REAL_FIXTURE)
+    edges = compile_mod.compile_spec(s).view["edges"]
+    feeds = {(e["from"], e["to"]) for e in edges if e["rel"] == "feeds"}
+    assert ("委外cap", "委外合计") in feeds
+    assert ("待坐实金额", "委外合计") in feeds
+
+
+# ── articulation checks: the unit tier ─────────────────────────────────
+
+def test_a_false_articulation_check_fails_and_quotes_itself():
+    bad = _mutated_real(**{"checks/合计闭合": "委外合计 == 1"})
+    c = compile_mod.compile_spec(bad)
+    failed = [k for k in c.checks if k.name == "articulation/合计闭合"]
+    assert failed and not failed[0].ok
+    assert "is false" in failed[0].detail
+
+
+def test_a_check_scoped_to_another_period_is_not_counted_either_way():
+    """Skipping is not passing. A check that did not run must never read as
+    evidence, so it is absent from the tally rather than marked ok."""
+    s = spec_mod.load(REAL_FIXTURE)
+    names = lambda c: {k.name for k in c.checks}
+    whole = names(compile_mod.compile_spec(s))
+    only_2023 = names(compile_mod.compile_spec(s, period="2023"))
+    assert "articulation/台账总额" in whole
+    assert "articulation/台账总额" not in only_2023
+    assert "articulation/二三年合计" in only_2023
+    assert "articulation/二三年合计" not in whole
+
+
+# ── periods ────────────────────────────────────────────────────────────
+
+def test_one_spec_serves_every_period_without_duplicating_nodes():
+    """The figures come from the real ledger; each period must match it."""
+    s = spec_mod.load(REAL_FIXTURE)
+    for period, expected in [("2023", 7_170_000), ("2025", 9_498_000), ("26H1", 10_820_000)]:
+        c = compile_mod.compile_spec(s, period=period)
+        assert c.values["委外合计"] == expected, period
+        assert c.passed, [(k.name, k.detail) for k in c.checks if not k.ok]
+    assert compile_mod.compile_spec(s).values["委外合计"] == 27_488_000
+
+
+def test_an_unquoted_year_is_refused_rather_than_silently_matching_nothing():
+    """YAML types bare tokens: 2025 becomes an int while 26H1 stays a string,
+    so a period filter would match one and not the other. Coercing would hide
+    that the spec and the data disagree."""
+    bad = _mutated_real(**{"instances/委外合同/4/期间": 2025})
+    problems = spec_mod.check(bad)
+    assert any("not a string" in p for p in problems), problems

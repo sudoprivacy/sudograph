@@ -35,6 +35,10 @@ def main(argv: list[str] | None = None) -> int:
         default=5,
         help="how many rows a folded group surfaces per money column (default 5)",
     )
+    ap.add_argument(
+        "--period",
+        help="restrict to one reporting period; the spec is written once and fed different leaves",
+    )
     args = ap.parse_args(argv)
 
     try:
@@ -43,13 +47,13 @@ def main(argv: list[str] | None = None) -> int:
         print(str(e), file=sys.stderr)
         return 2
 
-    c = compile_mod.compile_spec(s, fold_over=args.fold_over, top_n=args.top_n)
+    c = compile_mod.compile_spec(s, fold_over=args.fold_over, top_n=args.top_n, period=args.period)
 
     if args.view:
         print(compile_mod.to_json(c))
         return 0 if c.passed else 3
 
-    print(f"{s.name}")
+    print(f"{s.name}" + (f"  [{args.period}]" if args.period else ""))
     for name, value in c.values.items():
         shown = f"{value:,}" if isinstance(value, (int, float)) else value
         print(f"  {name} = {shown}")
