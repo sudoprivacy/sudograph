@@ -118,8 +118,8 @@ nodes:
     label: 委外资本化额
     # 账面：凡判定资本化的全部入账。重述：只认材料坐实的那部分。
     # 差额 = 本次重分类的金额，由 compiler 算，不手写。
-    op@账面: "sum(委外合同 where 认定 == '资本化' -> 金额_不含税)"
-    op@重述: "sum(委外合同 where 认定 == '资本化' and 状态 == '已确认' -> 金额_不含税)"
+    op@账面: "select sum(金额_不含税) from 委外合同 where 认定 = '资本化'"
+    op@重述: "select sum(金额_不含税) from 委外合同 where 认定 = '资本化' and 状态 = '已确认'"
     because: H-待合同
     entry:
       debit: 研发费用-委外
@@ -129,7 +129,7 @@ nodes:
     label: 尚待材料坐实的金额
     # 账面上没有这个桶——所以是 "0"，不是留空。留空和「还没算」长得一样。
     op@账面: "0"
-    op@重述: "sum(委外合同 where 认定 == '资本化' and 状态 != '已确认' -> 金额_不含税)"
+    op@重述: "select sum(金额_不含税) from 委外合同 where 认定 = '资本化' and 状态 <> '已确认'"
     because: H-待合同
   委外合计:
     kind: derived
@@ -138,11 +138,11 @@ nodes:
   费用化金额:
     kind: derived
     label: 判定为费用化的金额
-    op: "sum(委外合同 where 认定 == '费用化' -> 金额_不含税)"
+    op: "select sum(金额_不含税) from 委外合同 where 认定 = '费用化'"
   账面委外投入:
     kind: derived
     label: 金蝶账面的委外投入（独立度量）
-    op: "sum(账面委外 -> 金额)"
+    op: "select sum(金额) from 账面委外"
   台账账面差:
     kind: derived
     label: 台账合计与账面之差（平衡项）
@@ -152,7 +152,7 @@ nodes:
   合同笔数:
     kind: derived
     label: 台账条目数
-    op: "count(委外合同)"
+    op: "select count(*) from 委外合同"
 
 ops:
   坐实资本化:
@@ -177,11 +177,11 @@ ops:
 # Articulation assertions — the unit tier. Pure computation over node values,
 # run on every compile. Failing one means the ontology disagrees with itself.
 checks:
-  合计闭合: "委外合计 == 委外cap + 待坐实金额"
+  合计闭合: "委外合计 = 委外cap + 待坐实金额"
   # Whole-ledger figures are asserted only when no period is selected.
-  台账总额: { expr: "委外合计 == 27488000", period: null }
-  二三年合计: { expr: "委外合计 == 7170000", period: "2023" }
-  二五年合计: { expr: "委外合计 == 9498000", period: "2025" }
-  二六上半年合计: { expr: "委外合计 == 10820000", period: "26H1" }
+  台账总额: { expr: "委外合计 = 27488000", period: null }
+  二三年合计: { expr: "委外合计 = 7170000", period: "2023" }
+  二五年合计: { expr: "委外合计 = 9498000", period: "2025" }
+  二六上半年合计: { expr: "委外合计 = 10820000", period: "26H1" }
   资本化非负: "委外cap >= 0"
   待坐实不超总额: "待坐实金额 <= 委外合计"

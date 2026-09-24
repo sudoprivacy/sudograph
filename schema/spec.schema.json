@@ -331,7 +331,7 @@
         },
         "op": {
           "type": "string",
-          "description": "Restricted expression. Parsed by the compiler, never eval'd."
+          "description": "A restricted SQL subset, parsed by the compiler and never eval'd: `select sum(<prop>) from <Type> [where <cond>]`, `select count(*) from <Type>`, arithmetic over bare node names, and nested aggregates as parenthesised scalar subqueries. No joins, GROUP BY, ORDER BY, LIMIT, DISTINCT, CASE, or other functions."
         },
         "plug_against": {
           "type": "string",
@@ -395,7 +395,7 @@
       "patternProperties": {
         "^op@.+": {
           "type": "string",
-          "description": "This node's expression under one declared basis. Overrides 'op' for that basis alone."
+          "description": "This node's expression under one declared basis, same SQL subset as `op`. Overrides `op` for that basis alone."
         }
       }
     },

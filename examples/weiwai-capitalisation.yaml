@@ -53,15 +53,15 @@ nodes:
   委外cap:
     kind: derived
     label: 委外资本化额
-    op: "sum(委外合同 where 可资本化 == '是' -> 金额_不含税)"
+    op: "select sum(金额_不含税) from 委外合同 where 可资本化 = '是'"
   委外待补金额:
     kind: derived
     label: 待补材料的合同金额
-    op: "sum(委外合同 where 可资本化 == '待补' -> 金额_不含税)"
+    op: "select sum(金额_不含税) from 委外合同 where 可资本化 = '待补'"
   委外合同数:
     kind: derived
     label: 合同份数
-    op: "count(委外合同)"
+    op: "select count(*) from 委外合同"
 
 ops:
   标记可资本化:

@@ -306,17 +306,89 @@ def test_expressions_are_parsed_not_evaluated():
             expr.parse(src)
 
 
-def test_aggregate_without_a_property_to_sum_is_rejected():
-    with pytest.raises(expr.ExprError, match="which property"):
-        expr.parse("sum(委外合同 where 可资本化 == '是')")
+def test_sum_needs_a_named_property():
+    with pytest.raises(expr.ExprError, match="name the property"):
+        expr.parse("select sum(*) from 委外合同")
 
 
 def test_aggregated_types_come_from_the_ast_not_from_substring_matching():
     """Regression: a type whose name is a substring of another drew a phantom edge."""
-    node = expr.parse("sum(合同 where x == 1 -> y) + count(委外合同)")
+    node = expr.parse(
+        "(select sum(y) from 合同 where x = 1) + (select count(*) from 委外合同)"
+    )
     assert expr.aggregated_types(node) == {"合同", "委外合同"}
     # The substring approach would have matched 合同 inside 委外合同 as well.
-    assert "委外合同" not in expr.aggregated_types(expr.parse("sum(合同 -> y)"))
+    assert "委外合同" not in expr.aggregated_types(expr.parse("select sum(y) from 合同"))
+
+
+def test_the_syntax_is_sql_and_the_old_spellings_say_so():
+    """An invented syntax nobody could read was replaced by a SQL subset. The
+    spellings it used are still recognised — only so the error can name the SQL
+    that takes their place, rather than leaving the author to guess."""
+    with pytest.raises(expr.ExprError, match="projection arrow is gone"):
+        expr.parse("sum(委外合同 where 认定 = '资本化' -> 金额)")
+    with pytest.raises(expr.ExprError, match="use `=` for equality"):
+        expr.parse("委外cap == 1")
+
+
+def test_an_aggregate_outside_a_select_is_refused_with_the_form_to_use():
+    with pytest.raises(expr.ExprError, match="needs a select around it"):
+        expr.parse("sum(金额) + 1")
+
+
+def test_a_bare_select_is_a_whole_expression_but_nests_only_in_parentheses():
+    """Without the parentheses `select sum(x) from T where c + 1` has two
+    readings, and a figure whose value depends on how the reader groups it is
+    the opposite of the point."""
+    expr.parse("select sum(金额) from 委外合同 where 认定 = '资本化'")
+    expr.parse("(select sum(金额) from 委外合同) + 1")
+    with pytest.raises(expr.ExprError, match="trailing input"):
+        expr.parse("select sum(金额) from 委外合同 + 1")
+
+
+def test_keywords_are_case_insensitive_as_in_sql():
+    rows = {"T": [{"a": 3}, {"a": 4}]}
+    for src in [
+        "select sum(a) from T",
+        "SELECT SUM(a) FROM T",
+        "Select Sum(a) From T Where a > 0",
+    ]:
+        assert expr.evaluate(expr.parse(src), {}, rows) == 7
+
+
+def test_comparing_with_null_is_refused_rather_than_silently_false():
+    """`x = null` is never true in SQL, which reads as 'no such row' and means
+    'the question was malformed'. Evaluating it to false would hide the mistake
+    behind a plausible figure."""
+    for src in ["select sum(a) from T where a = null", "select sum(a) from T where null <> a"]:
+        with pytest.raises(expr.ExprError, match="is null"):
+            expr.parse(src)
+
+
+def test_is_null_selects_the_rows_a_gap_lives_in():
+    rows = {"T": [{"a": 1}, {"a": None}, {"a": 2}]}
+    n = lambda src: expr.evaluate(expr.parse(src), {}, rows)  # noqa: E731
+    assert n("select count(*) from T where a is null") == 1
+    assert n("select count(*) from T where a is not null") == 2
+    # SQL's own semantics: SUM skips nulls, COUNT(<prop>) counts the non-null.
+    assert n("select sum(a) from T") == 3
+    assert n("select count(a) from T") == 2
+
+
+def test_sql_is_subtracted_from_not_dialected():
+    """Each of these would let a figure mean two things. The refusal names where
+    the capability actually lives, because a restriction with no redirection
+    reads as an omission — and "trailing input 'group'" reads as a typo."""
+    for src, says in [
+        ("select sum(a) from T group by b", "grouping is a view decision"),
+        ("select sum(a) from T order by b", "must not depend on row order"),
+        ("select sum(a) from T limit 1", "not the figure"),
+        ("select sum(a) from T having a > 1", "filter in WHERE"),
+        ("select sum(a) from T join U on x = y", "modelled as a link"),
+        ("select sum(a) from T union select sum(b) from U", "add the two selects"),
+    ]:
+        with pytest.raises(expr.ExprError, match=says):
+            expr.parse(src)
 
 
 def test_division_by_zero_is_an_error_not_an_exception_from_python():
@@ -478,7 +550,7 @@ def test_lineage_is_exposed_as_edges_a_renderer_can_draw():
 # ── articulation checks: the unit tier ─────────────────────────────────
 
 def test_a_false_articulation_check_fails_and_quotes_itself():
-    bad = _mutated_real(**{"checks/合计闭合": "委外合计 == 1"})
+    bad = _mutated_real(**{"checks/合计闭合": "委外合计 = 1"})
     c = compile_mod.compile_spec(bad, basis=RESTATED)
     failed = [k for k in c.checks if k.name == "articulation/合计闭合"]
     assert failed and not failed[0].ok
@@ -610,8 +682,8 @@ def test_the_adjusting_entry_is_computed_from_the_difference():
     assert booked["委外cap"].credit == "开发支出-委外"
     assert booked["委外cap"].because == "H-待合同"
     assert booked["委外cap"].ops == {
-        BOOK: "sum(委外合同 where 认定 == '资本化' -> 金额_不含税)",
-        RESTATED: "sum(委外合同 where 认定 == '资本化' and 状态 == '已确认' -> 金额_不含税)",
+        BOOK: "select sum(金额_不含税) from 委外合同 where 认定 = '资本化'",
+        RESTATED: "select sum(金额_不含税) from 委外合同 where 认定 = '资本化' and 状态 = '已确认'",
     }
     # Only what actually posts is totalled: the holdback is a memo figure and no
     # account moves for it, so adding it would report a net effect nothing shows.
