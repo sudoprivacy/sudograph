@@ -25,6 +25,9 @@ compiler/
   expr.py                 restricted expression language: parsed, never eval'd
   spec.py                 loading + validation; the owner rule refuses at load
   compile.py              dependency order, values, checks, view model
+  diff.py                 two bases -> derived adjusting entries
+  lineage.py              lineage, provisionality, completeness — all derived
+  history.py              edit timelines, pending proposals
   apply.py                the only path by which anything changes
 ```
 
@@ -45,6 +48,59 @@ See `examples/weiwai-capitalisation.yaml`.
 - `hooks` register gaps by name, with a `resolve_when` and an `owner`
 - `nodes` of `kind: derived` carry an `op` expression
 - `ops` are write-back actions; `intent` is required
+- `bases` hold two sets of figures over one structure — see below
+
+## Two bases, one structure
+
+A restatement is two sets of figures over the same business: what the books say,
+and what they should say. The usual shape is two documents plus a hand-written
+list of adjusting entries. Then it drifts — a figure moves on one side, the entry
+still reads as it did, and the reconciliation is fiction that balances.
+
+Here both live in one spec. Only the expressions that genuinely differ are
+written twice:
+
+```yaml
+bases: [账面, 重述]
+
+nodes:
+  委外cap:
+    kind: derived
+    op@账面:  "sum(委外合同 where 认定 == '资本化' -> 金额_不含税)"
+    op@重述:  "sum(委外合同 where 认定 == '资本化' and 状态 == '已确认' -> 金额_不含税)"
+    because: H-待合同          # must cite a raw or a hook, not free text
+    entry:
+      debit:  研发费用-委外
+      credit: 开发支出-委外
+```
+
+```bash
+python -m compiler.cli examples/weiwai-real.yaml --basis 重述
+python -m compiler.cli examples/weiwai-real.yaml --diff 账面:重述
+python -m compiler.cli examples/weiwai-real.yaml --diff 账面:重述 --period 26H1
+```
+
+The entries are **computed from the difference**, never transcribed. Change
+either side and the amount moves with it.
+
+| | What it is | Why it is separate |
+|---|---|---|
+| **entry** | a node whose *expression* differs between bases | this is where the restatement was decided, so this is where it is booked |
+| **carried** | a node whose expression is identical but whose value moved anyway | a consequence, not a decision. Booking it would double-count every level of the graph. `origins` names the entries that moved it |
+| **unexplained** | a difference with no entry above it | the one outcome this exists to prevent. Reported, and fails CI |
+
+Four refusals hold the shape:
+
+- a node that diverges but declares no `because` — an entry needs a reason
+- a `because` that is not a raw or a hook — free text is not provenance
+- an `entry` with only one side — half an entry does not balance
+- **silence under one basis** — write `op@账面: "0"` if it is genuinely nil
+  there. "Nil in the books" and "we have not worked this out" look identical and
+  mean opposite things; this is `absent: gap|zero` one level up
+
+And compiling a spec that declares `bases` without naming one is refused
+outright. "Which set of figures is this" is not a question a caller may leave
+open.
 
 ## The expression language
 
@@ -96,6 +152,10 @@ python -m compiler.cli examples/weiwai-capitalisation.yaml        # values + che
 python -m compiler.cli examples/weiwai-capitalisation.yaml --view # view model JSON
 python -m pytest                                                  # tests
 ```
+
+Exit codes are a branching protocol, so a calling agent can tell the cases apart
+without parsing prose: `0` green · `2` the spec (or the invocation) is wrong ·
+`3` the spec is valid but a check failed · `1` a bug in the tool.
 
 ## References
 

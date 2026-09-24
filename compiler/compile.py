@@ -32,6 +32,7 @@ class Check:
 class Compiled:
     ontology: str
     period: str | None = None
+    basis: str | None = None
     values: dict[str, Any] = field(default_factory=dict)
     checks: list[Check] = field(default_factory=list)
     view: dict[str, Any] = field(default_factory=dict)
@@ -58,15 +59,27 @@ def _restrict(s: Spec, period: str) -> Spec:
         kept[tname] = [r for r in rows if r.get(col) == period] if col else list(rows)
     return Spec(
         name=s.name, types=s.types, raw=s.raw, hooks=s.hooks,
-        instances=kept, nodes=s.nodes, ops=s.ops, checks=s.checks,
+        instances=kept, nodes=s.nodes, ops=s.ops, checks=s.checks, bases=s.bases,
     )
 
 
-def _order(s: Spec) -> list[str]:
+def op_for(node: dict, basis: str | None) -> str | None:
+    """The expression this node uses under `basis`.
+
+    A basis-specific expression wins; otherwise the shared one applies. Writing
+    only the expressions that genuinely differ is the point: everything else
+    stays single-sourced and cannot drift between the two sets of figures.
+    """
+    if basis and f"op@{basis}" in node:
+        return node[f"op@{basis}"]
+    return node.get("op")
+
+
+def _order(s: Spec, basis: str | None = None) -> list[str]:
     """Topologically order derived nodes; raise on a cycle."""
     derived = {n: d for n, d in s.nodes.items() if d.get("kind") == "derived"}
     deps = {
-        n: expr.referenced_names(expr.parse(d["op"])) & set(derived)
+        n: expr.referenced_names(expr.parse(op_for(d, basis) or "0")) & set(derived)
         for n, d in derived.items()
     }
     out: list[str] = []
@@ -91,7 +104,12 @@ def _order(s: Spec) -> list[str]:
 
 
 def compile_spec(
-    s: Spec, *, fold_over: int = 20, top_n: int = 5, period: str | None = None
+    s: Spec,
+    *,
+    fold_over: int = 20,
+    top_n: int = 5,
+    period: str | None = None,
+    basis: str | None = None,
 ) -> Compiled:
     """Compile, optionally restricted to one reporting period.
 
@@ -100,15 +118,30 @@ def compile_spec(
     period on each node — makes the spec grow with time and makes "which period
     is this total" a question the reader has to keep answering.
     """
-    c = Compiled(ontology=s.name, period=period)
+    # No implicit basis. A spec that holds the book figures and the restated
+    # ones answers "how much was capitalised" twice, and a caller who did not
+    # say which one they meant would get whichever the author happened to write
+    # first. That is the one ambiguity a restatement cannot survive.
+    if s.bases and basis is None:
+        raise ValueError(
+            f"{s.name} computes under a basis; pass one of {s.bases} — "
+            f"the figures differ, so the answer is not defined without it"
+        )
+    if basis is not None and s.bases and basis not in s.bases:
+        raise ValueError(f"unknown basis {basis!r}; the spec declares {s.bases}")
+
+    c = Compiled(ontology=s.name, period=period, basis=basis)
     if period is not None:
         s = _restrict(s, period)
 
     # ── values ────────────────────────────────────────────────────────
-    for name in _order(s):
+    for name in _order(s, basis):
         node = s.nodes[name]
+        src = op_for(node, basis)
+        if not src:
+            continue
         try:
-            c.values[name] = expr.evaluate(expr.parse(node["op"]), dict(c.values), s.instances)
+            c.values[name] = expr.evaluate(expr.parse(src), dict(c.values), s.instances)
         except expr.ExprError as e:
             c.checks.append(Check(f"node/{name}", False, str(e)))
 
@@ -244,7 +277,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
 
     # Derived once, read three ways: where a figure comes from, which hooks make
     # it provisional, and how complete it is. None of the three is authored.
-    lin = lin_mod.lineage(s)
+    lin = lin_mod.lineage(s, c.basis)
     prov = lin_mod.provisional(s, lin)
     grade = lin_mod.completeness(s, c.values, prov)
 
@@ -311,9 +344,10 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
     # than by matching substrings of the op source.
     aggregated_by: dict[str, list[str]] = {}
     for name, d in s.nodes.items():
-        if d.get("kind") != "derived" or not d.get("op"):
+        src = op_for(d, c.basis)
+        if d.get("kind") != "derived" or not src:
             continue
-        for tname in expr.aggregated_types(expr.parse(d["op"])):
+        for tname in expr.aggregated_types(expr.parse(src)):
             aggregated_by.setdefault(tname, []).append(name)
 
     # Instances are grouped, not listed: a business graph has more rows than a
@@ -378,6 +412,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
     return {
         "ontology": s.name,
         "period": c.period,
+        "basis": c.basis,
         "nodes": nodes,
         "edges": edges,
         "groups": groups,

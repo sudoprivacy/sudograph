@@ -14,6 +14,15 @@
       "type": "string",
       "minLength": 1
     },
+    "bases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2,
+      "uniqueItems": true,
+      "description": "Named sets of figures over one structure — the book basis and the restated one, say. A node writes op@<basis> only where the two genuinely differ; everything else stays single-sourced. The adjusting entries between two bases are derived, never authored."
+    },
     "types": {
       "type": "object",
       "additionalProperties": {
@@ -51,6 +60,37 @@
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/op"
+      }
+    },
+    "checks": {
+      "type": "object",
+      "description": "Articulation assertions — the unit tier. Pure computation over node values, run on every compile. There is no separate reconciliation script by design: if a check ran against anything else, the two could disagree.",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string",
+            "description": "Must hold in every period."
+          },
+          {
+            "type": "object",
+            "required": [
+              "expr"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "expr": {
+                "type": "string"
+              },
+              "period": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Scoped by the key's presence, not its value: `period: null` means 'only when no period is selected', which is a real scope and not the absence of one."
+              }
+            }
+          }
+        ]
       }
     }
   },
@@ -300,6 +340,27 @@
         "residual_to": {
           "type": "string",
           "description": "Where the divergence from plug_against is registered. A plug with nowhere to put its difference absorbs it silently."
+        },
+        "because": {
+          "type": "string",
+          "description": "Names the raw or hook that authorises this node's divergence between bases. Required whenever a node carries any op@<basis>: the difference becomes an adjusting entry, and an entry needs a reason."
+        },
+        "entry": {
+          "type": "object",
+          "required": [
+            "debit",
+            "credit"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "debit": {
+              "type": "string"
+            },
+            "credit": {
+              "type": "string"
+            }
+          },
+          "description": "Where the derived difference posts. Both sides or neither — half an entry does not balance."
         }
       },
       "if": {
@@ -313,9 +374,29 @@
         ]
       },
       "then": {
-        "required": [
-          "op"
+        "anyOf": [
+          {
+            "required": [
+              "op"
+            ]
+          },
+          {
+            "not": {
+              "propertyNames": {
+                "not": {
+                  "pattern": "^op@.+"
+                }
+              }
+            },
+            "description": "reads as: at least one property name matches ^op@"
+          }
         ]
+      },
+      "patternProperties": {
+        "^op@.+": {
+          "type": "string",
+          "description": "This node's expression under one declared basis. Overrides 'op' for that basis alone."
+        }
       }
     },
     "op": {

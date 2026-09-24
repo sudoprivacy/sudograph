@@ -26,14 +26,15 @@ PARTIAL = "partial"
 MISSING = "missing"
 
 
-def direct_inputs(s: Spec) -> dict[str, set[str]]:
-    """node -> the nodes its expression reads directly."""
+def direct_inputs(s: Spec, basis: str | None = None) -> dict[str, set[str]]:
+    """node -> the nodes its expression reads directly, under `basis`."""
     out: dict[str, set[str]] = {}
     for name, d in s.nodes.items():
-        if d.get("kind") != "derived" or not d.get("op"):
+        src = d.get(f"op@{basis}") if basis and f"op@{basis}" in d else d.get("op")
+        if d.get("kind") != "derived" or not src:
             out[name] = set()
             continue
-        ast = expr.parse(d["op"])
+        ast = expr.parse(src)
         out[name] = expr.referenced_names(ast) & set(s.nodes)
     return out
 
@@ -50,9 +51,9 @@ def _closure(seed: set[str], step: dict[str, set[str]]) -> set[str]:
     return seen
 
 
-def lineage(s: Spec) -> dict[str, dict[str, Any]]:
+def lineage(s: Spec, basis: str | None = None) -> dict[str, dict[str, Any]]:
     """Per node: direct inputs, the full ancestor set, and the leaves beneath it."""
-    inputs = direct_inputs(s)
+    inputs = direct_inputs(s, basis)
     out: dict[str, dict[str, Any]] = {}
     for name in s.nodes:
         ancestors = _closure(inputs.get(name, set()), inputs) - {name}

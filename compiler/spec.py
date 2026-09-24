@@ -26,7 +26,7 @@ NODE_KINDS = ("raw", "hook", "derived")
 OP_CLASSES = ("DerivedOp", "RecordableOp", "BlockedOp")
 PROP_TYPES = ("string", "money", "number", "date", "enum", "ref", "bool")
 
-TOP_LEVEL = {"ontology", "types", "raw", "hooks", "instances", "nodes", "ops", "checks"}
+TOP_LEVEL = {"ontology", "bases", "types", "raw", "hooks", "instances", "nodes", "ops", "checks"}
 
 
 class SpecError(ValueError):
@@ -46,6 +46,10 @@ class Spec:
     #: pure computation over node values, run on every compile. The integration
     #: tier (can an agent actually use this ontology) is a separate harness.
     checks: dict[str, str] = field(default_factory=dict)
+    #: Named bases the same structure is computed under — the book figures and
+    #: the restated ones, say. One spec, one set of nodes; only the expressions
+    #: that actually differ are written twice. Two files would drift.
+    bases: list[str] = field(default_factory=list)
 
     def owner_of(self, type_name: str, prop: str) -> str | None:
         t = self.types.get(type_name)
@@ -77,6 +81,7 @@ def load(path: str) -> Spec:
         nodes=doc.get("nodes") or {},
         ops=doc.get("ops") or {},
         checks=doc.get("checks") or {},
+        bases=doc.get("bases") or [],
     )
     problems = check(s)
     if problems:
@@ -231,10 +236,52 @@ def check(s: Spec) -> list[str]:
                 out.append(f"node {nname}: residual_to {residual!r} is not a hook")
         if n.get("kind") not in NODE_KINDS:
             out.append(f"node {nname}: kind {n.get('kind')!r} is not one of {NODE_KINDS}")
+        # A node may compute differently under each basis. Everything about a
+        # divergence is refused unless it is explained, because a divergence is
+        # exactly what becomes an adjusting entry: an unexplained one is an
+        # unexplained restatement, and those are what an auditor is looking for.
+        for k in n:
+            if k.startswith("op@") and k[3:] not in s.bases:
+                out.append(f"node {nname}: {k} names a basis not listed in 'bases'")
+        diverges = any(f"op@{b}" in n for b in s.bases)
+        for b in s.bases:
+            key = f"op@{b}"
+            if key in n:
+                try:
+                    expr.parse(n[key])
+                except expr.ExprError as e:
+                    out.append(f"node {nname}: {key} does not parse: {e}")
+            elif diverges and not n.get("op"):
+                # Silence under one basis is ambiguous in the same way a null
+                # money column is: "nil under the book figures" and "we have not
+                # worked this one out" look identical and mean opposite things.
+                # Writing op@<basis>: "0" says the first out loud.
+                out.append(
+                    f"node {nname}: diverges by basis but has no expression under {b!r} — "
+                    f"give it one, or write op@{b}: \"0\" if it is genuinely nil there"
+                )
+        because = n.get("because")
+        if diverges and not because:
+            out.append(
+                f"node {nname}: computes differently by basis but declares no 'because' — "
+                f"the difference becomes an adjusting entry, and an entry needs a reason"
+            )
+        if because:
+            if not diverges:
+                out.append(f"node {nname}: has 'because' but computes the same under every basis")
+            elif because not in set(s.raw) | set(s.hooks):
+                out.append(f"node {nname}: because {because!r} is not a raw or a hook")
+        # Both sides or neither: a one-sided entry does not balance, and half an
+        # entry posted into a ledger is worse than none.
+        entry = n.get("entry") or {}
+        if entry and not (entry.get("debit") and entry.get("credit")):
+            out.append(f"node {nname}: entry needs both 'debit' and 'credit'")
+        if entry and not diverges:
+            out.append(f"node {nname}: has 'entry' but computes the same under every basis")
         if n.get("kind") == "derived":
-            if not n.get("op"):
+            if not n.get("op") and not diverges:
                 out.append(f"derived node {nname} needs an 'op'")
-            else:
+            elif n.get("op"):
                 try:
                     expr.parse(n["op"])
                 except expr.ExprError as e:

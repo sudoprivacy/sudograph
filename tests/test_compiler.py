@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from compiler import apply as apply_mod  # noqa: E402
 from compiler import compile as compile_mod  # noqa: E402
+from compiler import diff as diff_mod  # noqa: E402
 from compiler import expr  # noqa: E402
 from compiler import spec as spec_mod  # noqa: E402
 
@@ -86,7 +87,19 @@ def _mutate(path: str, edits: dict) -> spec_mod.Spec:
         nodes=doc.get("nodes") or {},
         ops=doc.get("ops") or {},
         checks=doc.get("checks") or {},
+        bases=doc.get("bases") or [],
     )
+
+
+#: The real fixture holds both sets of figures. 重述 is what the ontology itself
+#: asserts; 账面 is what the company's books did. Every compile of it names one,
+#: because "which figures are these" is not a question a caller may leave open.
+BOOK, RESTATED = "账面", "重述"
+
+
+def _real(**kw) -> compile_mod.Compiled:
+    kw.setdefault("basis", RESTATED)
+    return compile_mod.compile_spec(spec_mod.load(REAL_FIXTURE), **kw)
 
 
 # ── the fixture itself ─────────────────────────────────────────────────
@@ -403,8 +416,7 @@ def test_a_folded_group_still_shows_buckets_and_top_rows():
     """Folding that shows nothing teaches the reader only that there are too many.
     A folded group must still answer the two questions a person actually asks of a
     long list: how does it break down, and which rows carry the weight."""
-    s = spec_mod.load(REAL_FIXTURE)
-    g = _group(compile_mod.compile_spec(s, fold_over=5, top_n=3).view, "委外合同")
+    g = _group(_real(fold_over=5, top_n=3).view, "委外合同")
     assert g["folded"] and g["members"] == []
     assert g["count"] == 16
 
@@ -412,7 +424,7 @@ def test_a_folded_group_still_shows_buckets_and_top_rows():
     assert by_status["已确认"]["count"] == 9
     # Buckets and node values must agree; they are computed from the same rows.
     stuck = sum(b["totals"].get("金额_不含税", 0) for k, b in by_status.items() if k != "已确认")
-    assert stuck == compile_mod.compile_spec(s).values["待坐实金额"]
+    assert stuck == _real().values["待坐实金额"]
 
     top = g["top"]["金额_不含税"]
     assert len(top) == 3
@@ -422,8 +434,7 @@ def test_a_folded_group_still_shows_buckets_and_top_rows():
 def test_buckets_only_form_on_enums_whose_values_the_spec_closed():
     """An open-ended column would produce as many buckets as rows, which is the
     long list again under another name."""
-    s = spec_mod.load(REAL_FIXTURE)
-    g = _group(compile_mod.compile_spec(s).view, "委外合同")
+    g = _group(_real().view, "委外合同")
     assert set(g["buckets"]) == {"认定", "状态"}
     assert "供应商" not in g["buckets"]
 
@@ -442,8 +453,7 @@ def test_cycles_among_derived_nodes_are_reported_not_hung():
 def test_provisionality_travels_along_lineage():
     """A total whose input is provisional is provisional too. Nobody propagates
     that by hand, which is why it is derived rather than declared."""
-    s = spec_mod.load(REAL_FIXTURE)
-    nodes = {n["id"]: n for n in compile_mod.compile_spec(s).view["nodes"]}
+    nodes = {n["id"]: n for n in _real().view["nodes"]}
     total = nodes["委外合计"]
     assert set(total["lineage"]["inputs"]) == {"委外cap", "待坐实金额"}
     # No hook names 委外合计 directly; it inherits both from its inputs.
@@ -452,15 +462,13 @@ def test_provisionality_travels_along_lineage():
 
 
 def test_a_node_no_hook_reaches_is_complete():
-    s = spec_mod.load(REAL_FIXTURE)
-    nodes = {n["id"]: n for n in compile_mod.compile_spec(s).view["nodes"]}
+    nodes = {n["id"]: n for n in _real().view["nodes"]}
     assert nodes["合同笔数"]["completeness"] == "full"
     assert nodes["合同笔数"]["provisional_because"] == []
 
 
 def test_lineage_is_exposed_as_edges_a_renderer_can_draw():
-    s = spec_mod.load(REAL_FIXTURE)
-    edges = compile_mod.compile_spec(s).view["edges"]
+    edges = _real().view["edges"]
     feeds = {(e["from"], e["to"]) for e in edges if e["rel"] == "feeds"}
     assert ("委外cap", "委外合计") in feeds
     assert ("待坐实金额", "委外合计") in feeds
@@ -470,7 +478,7 @@ def test_lineage_is_exposed_as_edges_a_renderer_can_draw():
 
 def test_a_false_articulation_check_fails_and_quotes_itself():
     bad = _mutated_real(**{"checks/合计闭合": "委外合计 == 1"})
-    c = compile_mod.compile_spec(bad)
+    c = compile_mod.compile_spec(bad, basis=RESTATED)
     failed = [k for k in c.checks if k.name == "articulation/合计闭合"]
     assert failed and not failed[0].ok
     assert "is false" in failed[0].detail
@@ -479,10 +487,11 @@ def test_a_false_articulation_check_fails_and_quotes_itself():
 def test_a_check_scoped_to_another_period_is_not_counted_either_way():
     """Skipping is not passing. A check that did not run must never read as
     evidence, so it is absent from the tally rather than marked ok."""
-    s = spec_mod.load(REAL_FIXTURE)
-    names = lambda c: {k.name for k in c.checks}
-    whole = names(compile_mod.compile_spec(s))
-    only_2023 = names(compile_mod.compile_spec(s, period="2023"))
+    def names(c):
+        return {k.name for k in c.checks}
+
+    whole = names(_real())
+    only_2023 = names(_real(period="2023"))
     assert "articulation/台账总额" in whole
     assert "articulation/台账总额" not in only_2023
     assert "articulation/二三年合计" in only_2023
@@ -493,12 +502,11 @@ def test_a_check_scoped_to_another_period_is_not_counted_either_way():
 
 def test_one_spec_serves_every_period_without_duplicating_nodes():
     """The figures come from the real ledger; each period must match it."""
-    s = spec_mod.load(REAL_FIXTURE)
     for period, expected in [("2023", 7_170_000), ("2025", 9_498_000), ("26H1", 10_820_000)]:
-        c = compile_mod.compile_spec(s, period=period)
+        c = _real(period=period)
         assert c.values["委外合计"] == expected, period
         assert c.passed, [(k.name, k.detail) for k in c.checks if not k.ok]
-    assert compile_mod.compile_spec(s).values["委外合计"] == 27_488_000
+    assert _real().values["委外合计"] == 27_488_000
 
 
 def test_an_unquoted_year_is_refused_rather_than_silently_matching_nothing():
@@ -515,12 +523,10 @@ def test_an_unquoted_year_is_refused_rather_than_silently_matching_nothing():
 def test_a_plug_reports_its_divergence_every_run():
     """A balancing figure is the one place a discrepancy can hide. Computing the
     difference every time is what stops it drifting quietly between runs."""
-    s = spec_mod.load(REAL_FIXTURE)
-    whole = compile_mod.compile_spec(s)
-    assert whole.values["台账账面差__residual"] == 668_000
+    assert _real().values["台账账面差__residual"] == 668_000
     for period in ("2023", "2025"):
-        assert compile_mod.compile_spec(s, period=period).values["台账账面差__residual"] == 0
-    assert compile_mod.compile_spec(s, period="26H1").values["台账账面差__residual"] == 668_000
+        assert _real(period=period).values["台账账面差__residual"] == 0
+    assert _real(period="26H1").values["台账账面差__residual"] == 668_000
 
 
 def test_a_plug_with_nowhere_to_register_its_difference_is_refused():
@@ -543,8 +549,7 @@ def test_residual_to_must_name_a_real_hook():
 def test_a_hook_owner_resolves_to_a_person_the_graph_can_show():
     """So an agent can chase a gap without a human first working out who
     '供应商对接人' refers to."""
-    s = spec_mod.load(REAL_FIXTURE)
-    v = compile_mod.compile_spec(s).view
+    v = _real().view
     owned = {(e["from"], e["to"]) for e in v["edges"] if e["rel"] == "owned_by"}
     assert ("H-待合同", "人/P-01") in owned
     people = {r["props"]["工号"]: r["props"] for g in v["groups"] if g["type"] == "人" for r in g["members"]}
@@ -563,3 +568,134 @@ def test_a_type_definition_pasted_under_instances_says_so():
     bad = _mutated_real(**{"instances/人": {"label": "oops", "id": "x", "props": {}}})
     problems = spec_mod.check(bad)
     assert any("not a list of rows" in p for p in problems), problems
+
+
+# ── two bases: adjusting entries are derived, not authored ─────────────
+
+def test_a_spec_with_two_bases_refuses_to_compile_without_one():
+    """The books say one number and the restatement says another. A caller who
+    did not name a basis would get whichever the author wrote first."""
+    s = spec_mod.load(REAL_FIXTURE)
+    with pytest.raises(ValueError, match="computes under a basis"):
+        compile_mod.compile_spec(s)
+    with pytest.raises(ValueError, match="unknown basis"):
+        compile_mod.compile_spec(s, basis="税务")
+
+
+def test_the_two_bases_produce_different_figures_from_one_structure():
+    book, restated = _real(basis=BOOK), _real(basis=RESTATED)
+    assert book.values["委外cap"] == 27_488_000       # books capitalised the lot
+    assert restated.values["委外cap"] == 20_863_000    # only what materials support
+    assert book.values["待坐实金额"] == 0
+    assert restated.values["待坐实金额"] == 6_625_000
+    # The reclassification moves the split, not the total.
+    assert book.values["委外合计"] == restated.values["委外合计"] == 27_488_000
+    for c in (book, restated):
+        assert c.passed, [(k.name, k.detail) for k in c.checks if not k.ok]
+
+
+def test_the_adjusting_entry_is_computed_from_the_difference():
+    """Nobody writes the entry. Change either side and the amount moves with it,
+    which is exactly what a hand-kept reconciliation cannot promise."""
+    d = diff_mod.diff(spec_mod.load(REAL_FIXTURE), BOOK, RESTATED)
+    booked = {e.node: e for e in d.entries}
+    assert set(booked) == {"委外cap", "待坐实金额"}
+    assert booked["委外cap"].amount == -6_625_000
+    assert booked["委外cap"].debit == "研发费用-委外"
+    assert booked["委外cap"].credit == "开发支出-委外"
+    assert booked["委外cap"].because == "H-待合同"
+    assert booked["委外cap"].ops == {
+        BOOK: "sum(委外合同 where 认定 == '资本化' -> 金额_不含税)",
+        RESTATED: "sum(委外合同 where 认定 == '资本化' and 状态 == '已确认' -> 金额_不含税)",
+    }
+    # Only what actually posts is totalled: the holdback is a memo figure and no
+    # account moves for it, so adding it would report a net effect nothing shows.
+    assert d.posted() == -6_625_000
+    assert d.total() == 0
+    assert d.explained
+
+
+def test_an_entry_moves_when_the_underlying_data_does():
+    """The point of deriving it. Reclassify one contract and the entry follows;
+    a transcribed entry would still read as it did."""
+    before = diff_mod.diff(spec_mod.load(REAL_FIXTURE), BOOK, RESTATED)
+    s = spec_mod.load(REAL_FIXTURE)
+    row = next(r for r in s.instances["委外合同"] if r["合同编号"] == "W-004")
+    row["状态"] = "已确认"
+    after = diff_mod.diff(s, BOOK, RESTATED)
+    moved = {e.node: e.amount for e in after.entries}
+    assert moved["委外cap"] == before.entries[0].amount + 4_036_000 == -2_589_000
+
+
+def test_a_difference_nobody_decided_is_attributed_not_booked_again():
+    """A total that moved because an entry above it moved is a consequence, not
+    a second adjustment. Booking it would double-count every level of the graph."""
+    s = spec_mod.load(REAL_FIXTURE)
+    # Break the equality that currently keeps the total identical under both
+    # bases, so there is something downstream to attribute.
+    s.nodes["待坐实金额"]["op@账面"] = "0"
+    s.nodes["委外合计"]["op"] = "委外cap"
+    d = diff_mod.diff(s, BOOK, RESTATED)
+    carried = {c.node: c for c in d.carried}
+    assert "委外合计" in carried and "委外合计" not in {e.node for e in d.entries}
+    assert carried["委外合计"].origins == ["委外cap"]
+    assert carried["委外合计"].amount == -6_625_000
+    # 台账账面差 plugs against the total, so it inherits the same movement.
+    assert carried["台账账面差"].origins == ["委外cap"]
+    assert d.explained
+
+
+def test_a_divergence_with_no_reason_is_refused():
+    """The difference becomes an adjusting entry, and an entry needs a reason —
+    so the reason is a load-time refusal rather than a review-time question."""
+    bad = _mutated_real(**{"nodes/委外cap/because": None})
+    problems = spec_mod.check(bad)
+    assert any("declares no 'because'" in p for p in problems), problems
+
+
+def test_a_reason_must_cite_a_raw_or_a_hook_not_free_text():
+    bad = _mutated_real(**{"nodes/委外cap/because": "管理层认为应该这样"})
+    problems = spec_mod.check(bad)
+    assert any("is not a raw or a hook" in p for p in problems), problems
+
+
+def test_silence_under_one_basis_is_refused_rather_than_read_as_zero():
+    """Exactly the ambiguity absent:'gap' exists to prevent, one level up: 'nil
+    under the book figures' and 'we have not worked this one out' look the same."""
+    bad = _mutated_real(**{"nodes/待坐实金额": {
+        "kind": "derived", "label": "x", "op@重述": "1", "because": "H-待合同",
+    }})
+    problems = spec_mod.check(bad)
+    assert any("no expression under '账面'" in p for p in problems), problems
+
+
+def test_half_an_entry_does_not_balance():
+    bad = _mutated_real(**{"nodes/委外cap/entry": {"debit": "研发费用-委外"}})
+    problems = spec_mod.check(bad)
+    assert any("needs both 'debit' and 'credit'" in p for p in problems), problems
+
+
+def test_an_expression_naming_an_undeclared_basis_is_refused():
+    bad = _mutated_real(**{"nodes/委外cap/op@税务": "0"})
+    problems = spec_mod.check(bad)
+    assert any("not listed in 'bases'" in p for p in problems), problems
+
+
+def test_the_diff_refuses_a_basis_the_spec_never_declared():
+    s = spec_mod.load(REAL_FIXTURE)
+    with pytest.raises(ValueError, match="unknown basis"):
+        diff_mod.diff(s, BOOK, "税务")
+
+
+def test_the_diff_is_period_scopable_like_every_other_figure():
+    """One spec, every period, both bases — the three axes compose rather than
+    multiplying into a document per combination."""
+    s = spec_mod.load(REAL_FIXTURE)
+    amounts = {}
+    for period in ("2023", "2025", "26H1"):
+        d = diff_mod.diff(spec_mod.load(REAL_FIXTURE), BOOK, RESTATED, period=period)
+        amounts[period] = d.posted()
+    assert amounts["2023"] == 0 and amounts["2025"] == 0
+    assert amounts["26H1"] == -6_625_000
+    whole = diff_mod.diff(s, BOOK, RESTATED).posted()
+    assert whole == sum(amounts.values())

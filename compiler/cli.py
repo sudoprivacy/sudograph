@@ -13,10 +13,48 @@ without parsing prose.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 from . import compile as compile_mod
+from . import diff as diff_mod
 from . import spec as spec_mod
+
+
+def _money(v: object) -> str:
+    return f"{v:,}" if isinstance(v, (int, float)) else str(v)
+
+
+def _report_diff(d: diff_mod.Diff, *, as_json: bool) -> int:
+    if as_json:
+        print(json.dumps(d.as_dict(), ensure_ascii=False, indent=2))
+        return 0 if d.explained else 3
+
+    before, after = d.bases
+    print(f"{d.ontology}  {before} -> {after}" + (f"  [{d.period}]" if d.period else ""))
+    print()
+    print(f"adjusting entries ({len(d.entries)})")
+    for e in d.entries:
+        print(f"  {e.node}: {_money(e.before)} -> {_money(e.after)}  ({_money(e.amount)})")
+        if e.debit and e.credit:
+            print(f"      Dr {e.debit}  Cr {e.credit}")
+        else:
+            print("      (memo — posts nowhere)")
+        print(f"      because: {e.because}")
+    print(f"  posted {_money(d.posted())}   (all differences {_money(d.total())})")
+
+    if d.carried:
+        print()
+        print(f"carried ({len(d.carried)}) — moved by an entry above, not booked again")
+        for c in d.carried:
+            origin = ", ".join(c.origins) if c.origins else "nothing — unexplained"
+            print(f"  {c.node}: {_money(c.amount)}  <- {origin}")
+
+    if d.unexplained:
+        print()
+        for name in d.unexplained:
+            print(f"  FAIL basis/{name}: differs between bases with no entry above it")
+    return 0 if d.explained else 3
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -39,6 +77,12 @@ def main(argv: list[str] | None = None) -> int:
         "--period",
         help="restrict to one reporting period; the spec is written once and fed different leaves",
     )
+    ap.add_argument("--basis", help="compute under one declared basis")
+    ap.add_argument(
+        "--diff",
+        metavar="BEFORE:AFTER",
+        help="compile under both bases and derive the adjusting entries between them",
+    )
     args = ap.parse_args(argv)
 
     try:
@@ -47,13 +91,40 @@ def main(argv: list[str] | None = None) -> int:
         print(str(e), file=sys.stderr)
         return 2
 
-    c = compile_mod.compile_spec(s, fold_over=args.fold_over, top_n=args.top_n, period=args.period)
+    if args.diff:
+        if ":" not in args.diff:
+            print("--diff takes BEFORE:AFTER, two bases the spec declares", file=sys.stderr)
+            return 2
+        before, after = args.diff.split(":", 1)
+        try:
+            d = diff_mod.diff(
+                s, before, after, period=args.period, fold_over=args.fold_over, top_n=args.top_n
+            )
+        except ValueError as e:
+            print(str(e), file=sys.stderr)
+            return 2
+        return _report_diff(d, as_json=args.view)
+
+    try:
+        c = compile_mod.compile_spec(
+            s, fold_over=args.fold_over, top_n=args.top_n, period=args.period, basis=args.basis
+        )
+    except ValueError as e:
+        # A missing basis or a cycle among derived nodes: the spec, or the way
+        # it was asked, is wrong. That is exit 2, and a caller should read the
+        # message rather than a traceback.
+        print(str(e), file=sys.stderr)
+        return 2
 
     if args.view:
         print(compile_mod.to_json(c))
         return 0 if c.passed else 3
 
-    print(f"{s.name}" + (f"  [{args.period}]" if args.period else ""))
+    print(
+        f"{s.name}"
+        + (f"  [{args.period}]" if args.period else "")
+        + (f"  <{args.basis}>" if args.basis else "")
+    )
     for name, value in c.values.items():
         shown = f"{value:,}" if isinstance(value, (int, float)) else value
         print(f"  {name} = {shown}")
