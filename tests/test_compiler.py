@@ -87,6 +87,7 @@ def _mutate(path: str, edits: dict) -> spec_mod.Spec:
         ops=doc.get("ops") or {},
         checks=doc.get("checks") or {},
         bases=doc.get("bases") or [],
+        bridges=doc.get("bridges") or {},
     )
 
 
@@ -729,13 +730,13 @@ def test_a_divergence_with_no_reason_is_refused():
     so the reason is a load-time refusal rather than a review-time question."""
     bad = _mutated_real(**{"nodes/委外cap/because": None})
     problems = spec_mod.check(bad)
-    assert any("declares no 'because'" in p for p in problems), problems
+    assert any("declares no reason" in p for p in problems), problems
 
 
 def test_a_reason_must_cite_a_raw_or_a_hook_not_free_text():
     bad = _mutated_real(**{"nodes/委外cap/because": "管理层认为应该这样"})
     problems = spec_mod.check(bad)
-    assert any("is not a raw or a hook" in p for p in problems), problems
+    assert any("not a raw or a hook" in p for p in problems), problems
 
 
 def test_silence_under_one_basis_is_refused_rather_than_read_as_zero():
@@ -967,3 +968,99 @@ def test_every_declared_source_must_own_up_to_providing_it():
     c = compile_mod.compile_spec(bad, basis=RESTATED)
     failed = [k for k in c.checks if k.name == "provenance/账面委外.金额@R-LEDGER"]
     assert failed and not failed[0].ok
+
+
+# ── more than two readings ─────────────────────────────────────────────
+
+def _three_readings(**extra) -> dict:
+    """The real fixture plus a third reading, as a mutable document."""
+    edits = {
+        "bases": ["账面", "重述", "税务"],
+        "bridges": {
+            "重述桥": {"from": "账面", "to": "重述", "label": "会计重述调整"},
+            "税会差": {"from": "重述", "to": "税务", "label": "税会差异"},
+        },
+        "nodes/委外cap/op@税务": "select sum(金额_不含税) from 委外合同 where 认定 = '资本化'",
+        "nodes/委外cap/because@税务": "R-KINGDEE",
+        "nodes/待坐实金额/op@税务": "0",
+        "nodes/待坐实金额/because@税务": "R-KINGDEE",
+    }
+    edits.update(extra)
+    return edits
+
+
+def test_readings_are_a_flat_list_not_a_product_of_dimensions():
+    """Three readings give three named readings, not eight worlds. Each is a
+    complete reading of all the facts; they do not compose into coordinates, and
+    the business does not talk that way either."""
+    s = _mutated_real(**_three_readings())
+    assert spec_mod.check(s) == []
+    seen = {b: compile_mod.compile_spec(s, basis=b).values["委外cap"] for b in s.bases}
+    assert seen == {"账面": 27_488_000, "重述": 20_863_000, "税务": 27_488_000}
+
+
+def test_each_reading_carries_its_own_reason():
+    """'Why is the restated figure different' and 'why is the tax figure
+    different' are not the same answer, so they are not the same field."""
+    s = _mutated_real(**_three_readings())
+    assert s.reason_for("委外cap", "重述") == "H-待合同"
+    assert s.reason_for("委外cap", "税务") == "R-KINGDEE"
+    restate = diff_mod.diff(s, "账面", "重述")
+    tax = diff_mod.diff(s, "重述", "税务")
+    assert {e.node: e.because for e in restate.entries}["委外cap"] == "H-待合同"
+    assert {e.node: e.because for e in tax.entries}["委外cap"] == "R-KINGDEE"
+    # Crossing back the other way is the same entry with the sign reversed.
+    assert tax.posted() == -restate.posted()
+
+
+def test_past_two_readings_the_bridges_must_be_declared():
+    """Three readings offer three pairings and only some are anything anyone
+    wants. An undeclared bridge is a deliverable nobody agreed to produce."""
+    edits = _three_readings()
+    del edits["bridges"]
+    problems = spec_mod.check(_mutated_real(**edits))
+    assert any("no 'bridges'" in p for p in problems), problems
+
+
+def test_two_readings_need_no_bridge_declaration():
+    """Generalise on the third instance, not the second: with exactly two there
+    is one meaningful pairing and naming it adds nothing."""
+    s = spec_mod.load(REAL_FIXTURE)
+    assert len(s.bases) == 2 and s.bridges == {}
+
+
+def test_a_bridge_must_span_two_declared_readings():
+    for bridge, says in [
+        ({"from": "账面", "to": "税收"}, "not a declared reading"),
+        ({"from": "账面"}, "needs 'to'"),
+        ({"from": "重述", "to": "重述"}, "bridges nothing"),
+    ]:
+        edits = _three_readings()
+        edits["bridges"] = {"坏桥": bridge}
+        problems = spec_mod.check(_mutated_real(**edits))
+        assert any(says in p for p in problems), (bridge, problems)
+
+
+def test_two_bridges_may_not_span_the_same_pair():
+    """Two names for one deliverable is two people disagreeing about what it is."""
+    edits = _three_readings()
+    edits["bridges"] = {
+        "重述桥": {"from": "账面", "to": "重述"},
+        "另一个名字": {"from": "账面", "to": "重述"},
+    }
+    problems = spec_mod.check(_mutated_real(**edits))
+    assert any("one pair, one bridge" in p for p in problems), problems
+
+
+def test_a_reading_with_no_reason_is_refused_even_when_others_have_one():
+    edits = _three_readings()
+    del edits["nodes/委外cap/because@税务"]
+    edits["nodes/委外cap/because"] = None
+    problems = spec_mod.check(_mutated_real(**edits))
+    assert any("reads differently under '税务'" in p for p in problems), problems
+
+
+def test_a_per_reading_key_must_name_a_declared_reading():
+    bad = _mutated_real(**{"nodes/委外cap/because@税务": "H-待合同"})
+    problems = spec_mod.check(bad)
+    assert any("names a reading not listed in 'bases'" in p for p in problems), problems

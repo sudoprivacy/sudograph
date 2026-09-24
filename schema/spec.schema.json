@@ -21,7 +21,30 @@
       },
       "minItems": 2,
       "uniqueItems": true,
-      "description": "Named sets of figures over one structure — the book basis and the restated one, say. A node writes op@<basis> only where the two genuinely differ; everything else stays single-sourced. The adjusting entries between two bases are derived, never authored."
+      "description": "Named readings the same structure is computed under — the book figures, the restated ones, the tax ones. A flat list, not a product of dimensions: two rule axes would give 2^n complete alternative worlds and n(n-1)/2 bridges between them, and the business names its readings rather than crossing them. A node writes op@<reading> only where the readings genuinely differ; everything else stays single-sourced."
+    },
+    "bridges": {
+      "type": "object",
+      "description": "Which pairs of readings produce adjusting entries. Required once more than two readings are declared: past two, 'the difference' is no longer a single thing, and an undeclared bridge is a deliverable nobody agreed to produce. One pair, one bridge.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "from",
+          "to"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      }
     },
     "types": {
       "type": "object",
@@ -419,7 +442,7 @@
         },
         "because": {
           "type": "string",
-          "description": "Names the raw or hook that authorises this node's divergence between bases. Required whenever a node carries any op@<basis>: the difference becomes an adjusting entry, and an entry needs a reason."
+          "description": "Names the raw or hook that authorises this node's divergence. Required for every reading the node computes differently under; write because@<reading> per reading, or a bare `because` when every reading shares one — which is what the common two-reading case means."
         },
         "entry": {
           "type": "object",
@@ -469,9 +492,8 @@
         ]
       },
       "patternProperties": {
-        "^op@.+": {
-          "type": "string",
-          "description": "This node's expression under one declared basis, same SQL subset as `op`. Overrides `op` for that basis alone."
+        "^(op|because|entry)@.+": {
+          "description": "This node's expression, reason, or posting under one declared reading. Overrides the bare key for that reading alone."
         }
       }
     },

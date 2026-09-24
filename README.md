@@ -116,7 +116,7 @@ bury every future disagreement behind it, which is the same silent absorption a
 plug with no `residual_to` commits. Writing the figure bare alongside the
 per-source values is refused — that would be a third figure with no source.
 
-## Two bases, one structure
+## Named readings, one structure
 
 A restatement is two sets of figures over the same business: what the books say,
 and what they should say. The usual shape is two documents plus a hand-written
@@ -124,7 +124,7 @@ list of adjusting entries. Then it drifts — a figure moves on one side, the en
 still reads as it did, and the reconciliation is fiction that balances.
 
 Here both live in one spec. Only the expressions that genuinely differ are
-written twice:
+written per reading:
 
 ```yaml
 bases: [账面, 重述]
@@ -167,6 +167,37 @@ Four refusals hold the shape:
 And compiling a spec that declares `bases` without naming one is refused
 outright. "Which set of figures is this" is not a question a caller may leave
 open.
+
+**Readings are a flat list, not a product of dimensions.** There can be as many
+as the business has names for — book, restated, tax, management — because each is
+a *complete* reading of all the facts. Two rule axes would instead give 2ⁿ
+alternative worlds and n(n−1)/2 bridges between them, of which only a couple mean
+anything; and nobody says "the figure under book-basis crossed with new-tax", they
+say "the tax figure".
+
+Past two readings, the bridges that are deliverables must be declared, and each
+reading carries its own reason — "why is the restated figure different" and "why
+is the tax figure different" are not the same answer:
+
+```yaml
+bases: [账面, 重述, 税务]
+
+bridges:
+  重述桥: { from: 账面, to: 重述, label: 会计重述调整 }
+  税会差: { from: 重述, to: 税务, label: 税会差异 }
+  # 账面 -> 税务 is not declared, because nobody wants that bridge
+
+nodes:
+  委外cap:
+    op@账面:      "..."
+    op@重述:      "..."
+    because@重述: H-待合同
+    op@税务:      "..."
+    because@税务: R-KINGDEE
+```
+
+With exactly two readings the single pairing is implied and naming it adds
+nothing — generalise on the third instance, not the second.
 
 ## The expression language is a SQL subset
 

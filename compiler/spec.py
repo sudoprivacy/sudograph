@@ -25,7 +25,13 @@ NODE_KINDS = ("raw", "hook", "derived")
 OP_CLASSES = ("DerivedOp", "RecordableOp", "BlockedOp")
 PROP_TYPES = ("string", "money", "number", "date", "enum", "ref", "bool")
 
-TOP_LEVEL = {"ontology", "bases", "types", "raw", "hooks", "instances", "nodes", "ops", "checks"}
+TOP_LEVEL = {
+    "ontology", "bases", "bridges", "types", "raw",
+    "hooks", "instances", "nodes", "ops", "checks",
+}
+
+#: Node keys that may be written per reading, as `<key>@<basis>`.
+PER_BASIS = ("op", "because", "entry")
 
 
 class SpecError(ValueError):
@@ -45,10 +51,23 @@ class Spec:
     #: pure computation over node values, run on every compile. The integration
     #: tier (can an agent actually use this ontology) is a separate harness.
     checks: dict[str, str] = field(default_factory=dict)
-    #: Named bases the same structure is computed under — the book figures and
-    #: the restated ones, say. One spec, one set of nodes; only the expressions
-    #: that actually differ are written twice. Two files would drift.
+    #: Named readings the same structure is computed under — the book figures,
+    #: the restated ones, the tax ones. One spec, one set of nodes; only the
+    #: expressions that actually differ are written per reading. Two files would
+    #: drift.
+    #:
+    #: A flat list, not a product of dimensions. Two rule axes would give 2^n
+    #: complete alternative worlds and n(n-1)/2 bridges between them, of which
+    #: only a couple mean anything — and the business does not talk that way
+    #: either. Nobody says "the figure under book-basis crossed with new-tax";
+    #: they say "the tax figure". So readings are named and enumerated, and the
+    #: bridges that are actually deliverables are declared.
     bases: list[str] = field(default_factory=list)
+    #: name -> {from, to}: which pairs of readings produce adjusting entries.
+    #: Required once there are more than two readings, because past two "the
+    #: difference" stops being obvious and an undeclared bridge is a deliverable
+    #: nobody agreed to produce.
+    bridges: dict[str, dict] = field(default_factory=dict)
 
     def owner_of(self, type_name: str, prop: str) -> str | None:
         t = self.types.get(type_name)
@@ -59,6 +78,25 @@ class Spec:
 
     def types_with(self, prop: str) -> list[str]:
         return [tn for tn, t in self.types.items() if prop in (t.get("props") or {})]
+
+    def reason_for(self, node_name: str, basis: str | None) -> str | None:
+        """Why this node reads the way it does under `basis`.
+
+        A reading-specific reason wins; a bare `because` is shorthand for "the
+        same reason under every reading that diverges", which is what the common
+        two-reading case actually means.
+        """
+        n = self.nodes.get(node_name) or {}
+        if basis and f"because@{basis}" in n:
+            return n[f"because@{basis}"]
+        return n.get("because")
+
+    def entry_for(self, node_name: str, basis: str | None) -> dict:
+        """Where the difference posts when arriving at `basis`."""
+        n = self.nodes.get(node_name) or {}
+        if basis and f"entry@{basis}" in n:
+            return n[f"entry@{basis}"] or {}
+        return n.get("entry") or {}
 
     def sources_of(self, type_name: str, prop: str) -> list[str]:
         """The raws that supply this property. More than one means corroborated."""
@@ -115,6 +153,7 @@ def load(path: str) -> Spec:
         ops=doc.get("ops") or {},
         checks=doc.get("checks") or {},
         bases=doc.get("bases") or [],
+        bridges=doc.get("bridges") or {},
     )
     problems = check(s)
     if problems:
@@ -269,6 +308,39 @@ def check(s: Spec) -> list[str]:
             if node not in s.nodes:
                 out.append(f"hook {hname} affects {node!r}, which is not a declared node")
 
+    # Past two readings, "the difference" stops being obvious: three readings
+    # offer three pairings and only some of them are anything anyone wants. An
+    # undeclared bridge is a deliverable nobody agreed to produce.
+    if len(s.bases) > 2 and not s.bridges:
+        out.append(
+            f"{len(s.bases)} readings are declared but no 'bridges' — "
+            f"say which pairs produce adjusting entries; with more than two, "
+            f"'the difference' is no longer a single thing"
+        )
+    seen_pairs: dict[tuple[str, str], str] = {}
+    for bname, b in s.bridges.items():
+        if not isinstance(b, dict):
+            out.append(f"bridge {bname} must be a mapping with 'from' and 'to'")
+            continue
+        extra = set(b) - {"from", "to", "label"}
+        if extra:
+            out.append(f"bridge {bname} has unknown keys: {sorted(extra)}")
+        a, z = b.get("from"), b.get("to")
+        for end, which in ((a, "from"), (z, "to")):
+            if end is None:
+                out.append(f"bridge {bname} needs '{which}'")
+            elif end not in s.bases:
+                out.append(f"bridge {bname}: {which} {end!r} is not a declared reading")
+        if a is not None and a == z:
+            out.append(f"bridge {bname}: from and to are both {a!r} — that bridges nothing")
+        elif a is not None and z is not None:
+            if (a, z) in seen_pairs:
+                out.append(
+                    f"bridge {bname} spans the same pair as {seen_pairs[(a, z)]!r} — "
+                    f"one pair, one bridge, or two names disagree about one deliverable"
+                )
+            seen_pairs[(a, z)] = bname
+
     for tname, rows in s.instances.items():
         if tname not in s.types:
             out.append(f"instances declare {tname!r}, which is not a type")
@@ -354,8 +426,9 @@ def check(s: Spec) -> list[str]:
         # exactly what becomes an adjusting entry: an unexplained one is an
         # unexplained restatement, and those are what an auditor is looking for.
         for k in n:
-            if k.startswith("op@") and k[3:] not in s.bases:
-                out.append(f"node {nname}: {k} names a basis not listed in 'bases'")
+            key, _, named = k.partition("@")
+            if named and key in PER_BASIS and named not in s.bases:
+                out.append(f"node {nname}: {k} names a reading not listed in 'bases'")
         diverges = any(f"op@{b}" in n for b in s.bases)
         for b in s.bases:
             key = f"op@{b}"
@@ -373,24 +446,33 @@ def check(s: Spec) -> list[str]:
                     f"node {nname}: diverges by basis but has no expression under {b!r} — "
                     f"give it one, or write op@{b}: \"0\" if it is genuinely nil there"
                 )
-        because = n.get("because")
-        if diverges and not because:
-            out.append(
-                f"node {nname}: computes differently by basis but declares no 'because' — "
-                f"the difference becomes an adjusting entry, and an entry needs a reason"
-            )
-        if because:
-            if not diverges:
-                out.append(f"node {nname}: has 'because' but computes the same under every basis")
-            elif because not in set(s.raw) | set(s.hooks):
-                out.append(f"node {nname}: because {because!r} is not a raw or a hook")
-        # Both sides or neither: a one-sided entry does not balance, and half an
-        # entry posted into a ledger is worse than none.
-        entry = n.get("entry") or {}
-        if entry and not (entry.get("debit") and entry.get("credit")):
-            out.append(f"node {nname}: entry needs both 'debit' and 'credit'")
-        if entry and not diverges:
-            out.append(f"node {nname}: has 'entry' but computes the same under every basis")
+        # Every reading this node computes differently under owes a reason. With
+        # two readings one bare `because` says it; past that, each reading gets
+        # its own, because "why is the restated figure different" and "why is the
+        # tax figure different" are not the same answer.
+        provenance = set(s.raw) | set(s.hooks)
+        if not diverges:
+            for stray in [k for k in n if k.partition("@")[0] in ("because", "entry")]:
+                out.append(
+                    f"node {nname}: has {stray!r} but computes the same under every reading"
+                )
+        for b in s.bases:
+            if f"op@{b}" not in n:
+                continue
+            reason = s.reason_for(nname, b)
+            if not reason:
+                out.append(
+                    f"node {nname}: reads differently under {b!r} but declares no reason — "
+                    f"write because@{b} (or a bare 'because' if every reading shares one). "
+                    f"The difference becomes an adjusting entry, and an entry needs a reason"
+                )
+            elif reason not in provenance:
+                out.append(f"node {nname}: because for {b!r} is {reason!r}, not a raw or a hook")
+            # Both sides or neither: a one-sided entry does not balance, and half
+            # an entry posted into a ledger is worse than none.
+            entry = s.entry_for(nname, b)
+            if entry and not (entry.get("debit") and entry.get("credit")):
+                out.append(f"node {nname}: entry for {b!r} needs both 'debit' and 'credit'")
         if n.get("kind") == "derived":
             if not n.get("op") and not diverges:
                 out.append(f"derived node {nname} needs an 'op'")

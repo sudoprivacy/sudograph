@@ -172,7 +172,9 @@ def diff(
         decided.add(name)
         va, vb = ca.values.get(name), cb.values.get(name)
         amount = vb - va if isinstance(va, (int, float)) and isinstance(vb, (int, float)) else None
-        entry = node.get("entry") or {}
+        # Both come from the reading being arrived at: "why is the restated
+        # figure different" is answered by the restatement, not by the books.
+        entry = s.entry_for(name, after)
         d.entries.append(
             Entry(
                 node=name,
@@ -180,7 +182,7 @@ def diff(
                 before=va,
                 after=vb,
                 amount=amount,
-                because=node.get("because"),
+                because=s.reason_for(name, after),
                 debit=entry.get("debit"),
                 credit=entry.get("credit"),
                 ops={before: op_a, after: op_b},

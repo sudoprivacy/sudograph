@@ -60,7 +60,7 @@ def _restrict(s: Spec, period: str) -> Spec:
         kept[tname] = [r for r in rows if r.get(col) == period] if col else list(rows)
     return Spec(
         name=s.name, types=s.types, raw=s.raw, hooks=s.hooks,
-        instances=kept, nodes=s.nodes, ops=s.ops, checks=s.checks, bases=s.bases,
+        instances=kept, nodes=s.nodes, ops=s.ops, checks=s.checks, bases=s.bases, bridges=s.bridges,
     )
 
 
@@ -141,7 +141,8 @@ def _corroborate(s: Spec, c: Compiled) -> Spec:
 
     return Spec(
         name=s.name, types=s.types, raw=s.raw, hooks=s.hooks,
-        instances=resolved, nodes=s.nodes, ops=s.ops, checks=s.checks, bases=s.bases,
+        instances=resolved, nodes=s.nodes, ops=s.ops, checks=s.checks,
+        bases=s.bases, bridges=s.bridges,
     )
 
 

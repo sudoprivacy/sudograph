@@ -67,13 +67,22 @@ def main() -> int:
         # A declared pair of bases must also reconcile: every difference either
         # is an entry or is attributed to one. An unexplained movement between
         # the two sets of figures is the failure this whole design prevents.
-        if len(s.bases) >= 2:
-            d = diff_mod.diff(s, s.bases[0], s.bases[1])
+        # Every deliverable bridge must reconcile. With exactly two readings the
+        # single pairing is implied; past that only the declared ones are
+        # deliverables, so only those are checked.
+        pairs = (
+            [(bn, b["from"], b["to"]) for bn, b in s.bridges.items()]
+            if s.bridges
+            else ([("", s.bases[0], s.bases[1])] if len(s.bases) == 2 else [])
+        )
+        for bridge, before, after in pairs:
+            d = diff_mod.diff(s, before, after)
+            label = f"{name} {before} -> {after}" + (f" [{bridge}]" if bridge else "")
             for node in d.unexplained:
-                failures.append(f"{name}: {node} differs between bases with no entry above it")
+                failures.append(f"{label}: {node} differs with no entry above it")
             print(
-                f"  ok  {name} {s.bases[0]} -> {s.bases[1]}: "
-                f"{len(d.entries)} entries, {len(d.carried)} carried, posted {d.posted():,}"
+                f"  ok  {label}: {len(d.entries)} entries, "
+                f"{len(d.carried)} carried, posted {d.posted():,}"
             )
 
     print(f"\n{len(paths)} example(s) checked")
