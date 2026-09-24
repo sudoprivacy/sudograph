@@ -92,6 +92,23 @@ def check(s: Spec) -> list[str]:
     """
     out: list[str] = []
 
+    # Shape before anything reads a row. A mapping under 'instances' is almost
+    # always a type definition pasted into the wrong section, and every later
+    # check that walks the rows would otherwise raise an AttributeError that
+    # points nowhere. Bail out of those checks entirely rather than half-run
+    # them against a shape they cannot handle.
+    malformed: set[str] = set()
+    for tname, rows in s.instances.items():
+        if not isinstance(rows, list):
+            out.append(
+                f"instances.{tname} is a {type(rows).__name__}, not a list of rows — "
+                f"a type definition may have been pasted under 'instances'"
+            )
+            malformed.add(tname)
+        elif any(not isinstance(r, dict) for r in rows):
+            out.append(f"instances.{tname} has an entry that is not a mapping")
+            malformed.add(tname)
+
     for tname, t in s.types.items():
         # A type may name the property that carries its reporting period. One
         # spec then serves every period: the compiler feeds it different leaves
@@ -151,6 +168,8 @@ def check(s: Spec) -> list[str]:
             rows = s.instances.get(tname)
             if rows is None:
                 out.append(f"hook {hname}: owner names unknown type {tname!r}")
+            elif tname in malformed or tname not in s.types:
+                pass  # already reported; do not compound one fault with another
             elif not any(r.get(s.types[tname]["id"]) == iid for r in rows):
                 out.append(f"hook {hname}: no {tname} with id {iid!r}")
         if not h.get("resolve_when"):
@@ -163,17 +182,7 @@ def check(s: Spec) -> list[str]:
         if tname not in s.types:
             out.append(f"instances declare {tname!r}, which is not a type")
             continue
-        # Shape first. A mapping here is almost always a type definition pasted
-        # into the wrong section, and without this the first row access raises
-        # an AttributeError that says nothing about where to look.
-        if not isinstance(rows, list):
-            out.append(
-                f"instances.{tname} is a {type(rows).__name__}, not a list of rows — "
-                f"a type definition may have been pasted under 'instances'"
-            )
-            continue
-        if any(not isinstance(r, dict) for r in rows):
-            out.append(f"instances.{tname} has an entry that is not a mapping")
+        if tname in malformed:
             continue
         t = s.types[tname]
         idp = t.get("id")

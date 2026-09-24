@@ -44,6 +44,12 @@ def s() -> spec_mod.Spec:
     return spec_mod.load(FIXTURE)
 
 
+def _group(view: dict, type_name: str) -> dict:
+    """Look a group up by type. Indexing by position breaks the moment the spec
+    gains a type, which is not a change any of these tests are about."""
+    return next(g for g in view["groups"] if g["type"] == type_name)
+
+
 def _mutated_real(**edits) -> spec_mod.Spec:
     return _mutate(REAL_FIXTURE, edits)
 
@@ -398,7 +404,7 @@ def test_a_folded_group_still_shows_buckets_and_top_rows():
     A folded group must still answer the two questions a person actually asks of a
     long list: how does it break down, and which rows carry the weight."""
     s = spec_mod.load(REAL_FIXTURE)
-    g = compile_mod.compile_spec(s, fold_over=5, top_n=3).view["groups"][0]
+    g = _group(compile_mod.compile_spec(s, fold_over=5, top_n=3).view, "委外合同")
     assert g["folded"] and g["members"] == []
     assert g["count"] == 16
 
@@ -417,7 +423,7 @@ def test_buckets_only_form_on_enums_whose_values_the_spec_closed():
     """An open-ended column would produce as many buckets as rows, which is the
     long list again under another name."""
     s = spec_mod.load(REAL_FIXTURE)
-    g = compile_mod.compile_spec(s).view["groups"][0]
+    g = _group(compile_mod.compile_spec(s).view, "委外合同")
     assert set(g["buckets"]) == {"认定", "状态"}
     assert "供应商" not in g["buckets"]
 
