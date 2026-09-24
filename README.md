@@ -16,6 +16,34 @@ node there — not here.
 
 This README only covers how to use the repo.
 
+## The loop this exists to serve
+
+**model → use → iterate**, and all three are one job rather than a setup step
+followed by the real work.
+
+| | |
+|---|---|
+| **model** | An agent arrives at an engagement with the client's source systems and nothing else. It writes the spec: what the objects are, which properties are upstream facts and which are decisions, where the gaps are. |
+| **use** | It answers business questions from the graph and takes business actions through ops. Figures are recomputed, never transcribed. |
+| **iterate** | Materials arrive, judgements change, the client asks something the model cannot yet answer. The spec changes through ops, and git carries what changed and why. |
+
+Two consequences run through everything else here.
+
+**The modelling is production, not preparation.** Nobody hands the agent a
+finished ontology — writing it is the first thing that happens on a real
+engagement, which is why how well an agent models from raw materials is a
+measurement and not an assumption.
+
+**Iteration is the steady state.** An ontology is never finished, so every
+mechanism in this repo is built to survive being changed by someone who did not
+write it: gaps are declared rather than remembered, provenance is checked rather
+than assumed, and figures are derived rather than typed. A spec that is only
+correct while its author is still around is not correct.
+
+How well the loop actually runs is measured, not asserted — the criteria are in
+[§7.7](https://s.shareone.vip/s/sudo-cloud-plan) (the two axes) and
+[§7.10](https://s.shareone.vip/s/sudo-cloud-plan) (the pilot's switch-over test).
+
 ## Layout
 
 ```
