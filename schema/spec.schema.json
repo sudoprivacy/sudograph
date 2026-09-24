@@ -292,6 +292,14 @@
         "op": {
           "type": "string",
           "description": "Restricted expression. Parsed by the compiler, never eval'd."
+        },
+        "plug_against": {
+          "type": "string",
+          "description": "This node is a balancing figure; name the independent measure it should agree with."
+        },
+        "residual_to": {
+          "type": "string",
+          "description": "Where the divergence from plug_against is registered. A plug with nowhere to put its difference absorbs it silently."
         }
       },
       "if": {

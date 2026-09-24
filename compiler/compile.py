@@ -200,6 +200,27 @@ def compile_spec(
                     )
                 )
 
+    # The plug's divergence is computed and reported every time, so it cannot
+    # drift quietly between runs. Zero is fine; unregistered is not.
+    for nname, n in s.nodes.items():
+        against = n.get("plug_against")
+        if not against:
+            continue
+        mine, theirs = c.values.get(nname), c.values.get(against)
+        if mine is None or theirs is None:
+            c.checks.append(Check(f"plug/{nname}", False, "one side has no value to compare"))
+            continue
+        diff = mine - theirs
+        c.values[f"{nname}__residual"] = diff
+        hook = s.hooks.get(n.get("residual_to", ""))
+        c.checks.append(
+            Check(
+                f"plug/{nname}",
+                diff == 0 or bool(hook),
+                "" if diff == 0 or hook else f"differs from {against} by {diff:,} with nowhere to register it",
+            )
+        )
+
     # A hook must name at least one node it affects, otherwise nothing on the
     # graph tells a reader that this number is provisional.
     for hname, h in s.hooks.items():
@@ -242,12 +263,19 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 "op": d.get("op"),
                 "lineage": lin[name],
                 "provisional_because": prov[name],
+                "plug_against": d.get("plug_against"),
+                "residual": c.values.get(f"{name}__residual"),
                 "completeness": grade[name],
             }
         )
         # Lineage as edges too, so a renderer can draw the path a reviewer walks.
         for src in lin[name]["inputs"]:
             edges.append({"from": src, "to": name, "rel": "feeds"})
+        # Authored on the node, emitted as edges, exactly like hook.affects.
+        if d.get("plug_against"):
+            edges.append({"from": name, "to": d["plug_against"], "rel": "plug_against"})
+        if d.get("residual_to"):
+            edges.append({"from": name, "to": d["residual_to"], "rel": "residual_to"})
 
     for hname, h in s.hooks.items():
         nodes.append(
@@ -263,6 +291,10 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         )
         for target in h.get("affects") or []:
             edges.append({"from": hname, "to": target, "rel": "affects"})
+        # A resolvable owner becomes an edge, so "who is this waiting on" is a
+        # question the graph answers rather than one a person reconstructs.
+        if h.get("owner") and "/" in str(h["owner"]):
+            edges.append({"from": hname, "to": str(h["owner"]), "rel": "owned_by"})
 
     for rname, r in s.raw.items():
         nodes.append(

@@ -502,3 +502,58 @@ def test_an_unquoted_year_is_refused_rather_than_silently_matching_nothing():
     bad = _mutated_real(**{"instances/委外合同/4/期间": 2025})
     problems = spec_mod.check(bad)
     assert any("not a string" in p for p in problems), problems
+
+
+# ── plugs ──────────────────────────────────────────────────────────────
+
+def test_a_plug_reports_its_divergence_every_run():
+    """A balancing figure is the one place a discrepancy can hide. Computing the
+    difference every time is what stops it drifting quietly between runs."""
+    s = spec_mod.load(REAL_FIXTURE)
+    whole = compile_mod.compile_spec(s)
+    assert whole.values["台账账面差__residual"] == 668_000
+    for period in ("2023", "2025"):
+        assert compile_mod.compile_spec(s, period=period).values["台账账面差__residual"] == 0
+    assert compile_mod.compile_spec(s, period="26H1").values["台账账面差__residual"] == 668_000
+
+
+def test_a_plug_with_nowhere_to_register_its_difference_is_refused():
+    """'Do not silently absorb' becomes a refusal rather than a discipline."""
+    bad = _mutated_real(**{"nodes/台账账面差": {
+        "kind": "derived", "label": "x", "op": "委外合计", "plug_against": "账面委外投入",
+    }})
+    problems = spec_mod.check(bad)
+    assert any("absorbs it silently" in p for p in problems), problems
+
+
+def test_residual_to_must_name_a_real_hook():
+    bad = _mutated_real(**{"nodes/台账账面差/residual_to": "H-nope"})
+    problems = spec_mod.check(bad)
+    assert any("is not a hook" in p for p in problems), problems
+
+
+# ── people ─────────────────────────────────────────────────────────────
+
+def test_a_hook_owner_resolves_to_a_person_the_graph_can_show():
+    """So an agent can chase a gap without a human first working out who
+    '供应商对接人' refers to."""
+    s = spec_mod.load(REAL_FIXTURE)
+    v = compile_mod.compile_spec(s).view
+    owned = {(e["from"], e["to"]) for e in v["edges"] if e["rel"] == "owned_by"}
+    assert ("H-待合同", "人/P-01") in owned
+    people = {r["props"]["工号"]: r["props"] for g in v["groups"] if g["type"] == "人" for r in g["members"]}
+    assert people["P-01"]["联系"] == "wecom:jia"
+
+
+def test_an_owner_pointing_at_a_missing_person_is_refused():
+    bad = _mutated_real(**{"hooks/H-待合同/owner": "人/P-99"})
+    problems = spec_mod.check(bad)
+    assert any("no 人 with id" in p for p in problems), problems
+
+
+def test_a_type_definition_pasted_under_instances_says_so():
+    """Without this the first row access raises an AttributeError that says
+    nothing about where to look."""
+    bad = _mutated_real(**{"instances/人": {"label": "oops", "id": "x", "props": {}}})
+    problems = spec_mod.check(bad)
+    assert any("not a list of rows" in p for p in problems), problems

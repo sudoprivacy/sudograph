@@ -21,7 +21,33 @@ types:
       金额_不含税:  { type: money,  owner: ontology, nullable: true, absent: gap, note: "万元转元；含税口径已按 6% 专票进项调减" }
       缺口:        { type: ref,    owner: ontology, to: hook, nullable: true }
 
+  人:
+    label: 项目相关人
+    id: 工号
+    props:
+      工号:   { type: string, owner: source,   from: R-ROSTER }
+      姓名:   { type: string, owner: source,   from: R-ROSTER }
+      角色:   { type: enum,   owner: ontology, values: [供应商对接, 财务, 项目合伙人, 顾问] }
+      联系:   { type: string, owner: source,   from: R-ROSTER }
+
+  账面委外:
+    label: 金蝶账面的委外投入行
+    id: 科目
+    period: 期间
+    props:
+      科目:  { type: string, owner: source, from: R-KINGDEE }
+      期间:  { type: string, owner: source, from: R-KINGDEE }
+      金额:  { type: money,  owner: source, from: R-KINGDEE }
+
 raw:
+  R-ROSTER:
+    label: 项目人员名册
+    connector: "python -m roster.export --project shudu"
+    provides: [工号, 姓名, 联系]
+  R-KINGDEE:
+    label: 金蝶 GL 的委外投入科目
+    connector: "python -m ai_dev_browser.tools.download --profile kingdee --path 科目余额表"
+    provides: [科目, 期间, 金额]
   R-LEDGER:
     label: 委外资本化台账（文件名即数据）
     connector: "python -m ledger.parse --dir 05_研发资本化底料/09_委外资本化台账"
@@ -32,22 +58,36 @@ hooks:
     label: 合同原件未到，金额为估
     blocked_on: R-LEDGER
     resolve_when: "取得合同原件并读出 IP 条款"
-    owner: 供应商对接人
+    owner: 人/P-01
     affects: [委外cap, 待坐实金额]
   H-费用化无金额:
     label: 判定费用化且台账未列金额的条目
     blocked_on: R-LEDGER
     resolve_when: "台账文件名补上金额段，或确认该条确为零"
-    owner: 供应商对接人
+    owner: 人/P-01
     affects: [费用化金额]
+  H-台账账面差:
+    label: 台账合计与金蝶账面委外投入的差额
+    blocked_on: R-LEDGER
+    resolve_when: "逐笔核对台账与金蝶 GL，差额归零或说明原因"
+    owner: 人/P-01
+    affects: [台账账面差]
   H-待IP条款:
     label: 合同已到但未约定知识产权归属
     blocked_on: R-LEDGER
     resolve_when: "取得补充协议明确 IP 归甲方"
-    owner: 供应商对接人
+    owner: 人/P-01
     affects: [委外cap, 待坐实金额]
 
 instances:
+  人:
+    - { 工号: P-01, 姓名: 对接人甲, 角色: 供应商对接, 联系: "wecom:jia" }
+    - { 工号: P-02, 姓名: 合伙人乙, 角色: 项目合伙人, 联系: "wecom:yi" }
+
+  账面委外:
+    - { 科目: "5301-委外开发-2023", 期间: '2023', 金额: 7170000 }
+    - { 科目: "5301-委外开发-2025", 期间: '2025', 金额: 9498000 }
+    - { 科目: "5301-委外开发-26H1", 期间: '26H1', 金额: 10152000 }
   委外合同:
     - { 合同编号: W-001, 供应商: 供应商01, 期间: 26H1, 认定: 资本化, 状态: 已确认, 金额_不含税: 790000 }
     - { 合同编号: W-002, 供应商: 供应商02, 期间: 26H1, 认定: 资本化, 状态: 已确认, 金额_不含税: 1899000 }
@@ -83,6 +123,16 @@ nodes:
     kind: derived
     label: 判定为费用化的金额
     op: "sum(委外合同 where 认定 == '费用化' -> 金额_不含税)"
+  账面委外投入:
+    kind: derived
+    label: 金蝶账面的委外投入（独立度量）
+    op: "sum(账面委外 -> 金额)"
+  台账账面差:
+    kind: derived
+    label: 台账合计与账面之差（平衡项）
+    op: "委外合计"
+    plug_against: 账面委外投入
+    residual_to: H-台账账面差
   合同笔数:
     kind: derived
     label: 台账条目数

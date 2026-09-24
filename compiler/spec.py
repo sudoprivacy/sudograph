@@ -142,6 +142,17 @@ def check(s: Spec) -> list[str]:
                 out.append(f"raw {rname} claims to provide {pname!r}, which no type declares")
 
     for hname, h in s.hooks.items():
+        # An owner may name an instance rather than be free text. Then the graph
+        # can show who is being waited on, and an agent can message them without
+        # a human first working out who "供应商对接人" is.
+        ref = h.get("owner")
+        if ref and "/" in str(ref):
+            tname, iid = str(ref).split("/", 1)
+            rows = s.instances.get(tname)
+            if rows is None:
+                out.append(f"hook {hname}: owner names unknown type {tname!r}")
+            elif not any(r.get(s.types[tname]["id"]) == iid for r in rows):
+                out.append(f"hook {hname}: no {tname} with id {iid!r}")
         if not h.get("resolve_when"):
             out.append(f"hook {hname} needs 'resolve_when' — otherwise it can never clear")
         for node in h.get("affects") or []:
@@ -151,6 +162,18 @@ def check(s: Spec) -> list[str]:
     for tname, rows in s.instances.items():
         if tname not in s.types:
             out.append(f"instances declare {tname!r}, which is not a type")
+            continue
+        # Shape first. A mapping here is almost always a type definition pasted
+        # into the wrong section, and without this the first row access raises
+        # an AttributeError that says nothing about where to look.
+        if not isinstance(rows, list):
+            out.append(
+                f"instances.{tname} is a {type(rows).__name__}, not a list of rows — "
+                f"a type definition may have been pasted under 'instances'"
+            )
+            continue
+        if any(not isinstance(r, dict) for r in rows):
+            out.append(f"instances.{tname} has an entry that is not a mapping")
             continue
         t = s.types[tname]
         idp = t.get("id")
@@ -180,6 +203,23 @@ def check(s: Spec) -> list[str]:
                     )
 
     for nname, n in s.nodes.items():
+        # A plug absorbs whatever is left over, which makes it the one place a
+        # discrepancy can hide without anyone noticing. Declaring what it is
+        # measured against, and where its divergence is registered, is what
+        # turns "do not silently absorb" from a discipline into a refusal.
+        against, residual = n.get("plug_against"), n.get("residual_to")
+        if against or residual:
+            if not against:
+                out.append(f"node {nname}: residual_to needs plug_against — a residual against what?")
+            elif against not in s.nodes:
+                out.append(f"node {nname}: plug_against {against!r} is not a node")
+            if not residual:
+                out.append(
+                    f"node {nname} is a plug against {against!r} but declares no residual_to — "
+                    f"a plug with nowhere to put its difference absorbs it silently"
+                )
+            elif residual not in s.hooks:
+                out.append(f"node {nname}: residual_to {residual!r} is not a hook")
         if n.get("kind") not in NODE_KINDS:
             out.append(f"node {nname}: kind {n.get('kind')!r} is not one of {NODE_KINDS}")
         if n.get("kind") == "derived":
