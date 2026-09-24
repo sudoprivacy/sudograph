@@ -10,7 +10,6 @@ and travels with it into git; this module only reindexes what is already there.
 
 from __future__ import annotations
 
-import io
 import os
 from collections import OrderedDict
 from typing import Any
@@ -28,7 +27,7 @@ def read(spec_path: str) -> list[dict]:
     p = log_path(spec_path)
     if not os.path.exists(p):
         return []
-    with io.open(p, encoding="utf-8") as fh:
+    with open(p, encoding="utf-8") as fh:
         return yaml.safe_load(fh) or []
 
 
@@ -39,7 +38,7 @@ def timelines(entries: list[dict]) -> dict[str, list[dict]]:
     is the point, and sorting by timestamp alone would reorder two edits made in
     the same second.
     """
-    out: "OrderedDict[str, list[dict]]" = OrderedDict()
+    out: OrderedDict[str, list[dict]] = OrderedDict()
     for e in entries:
         out.setdefault(e.get("target", "?"), []).append(e)
     return dict(out)

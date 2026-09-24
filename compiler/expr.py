@@ -25,8 +25,9 @@ itself remains English.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 AGGREGATES = ("sum", "count")
 KEYWORDS = {"and", "or", "not", "where", "null"} | set(AGGREGATES)

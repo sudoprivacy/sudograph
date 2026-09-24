@@ -10,7 +10,6 @@ here must mean "found examples and they were fine", not "found none".
 
 from __future__ import annotations
 
-import io
 import os
 import sys
 
@@ -19,9 +18,9 @@ import yaml
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from compiler import compile as compile_mod  # noqa: E402
-from compiler import diff as diff_mod  # noqa: E402
-from compiler import spec as spec_mod  # noqa: E402
+from compiler import compile as compile_mod
+from compiler import diff as diff_mod
+from compiler import spec as spec_mod
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXAMPLES = os.path.join(ROOT, "examples")
@@ -29,7 +28,7 @@ SCHEMA = os.path.join(ROOT, "schema", "spec.schema.json")
 
 
 def main() -> int:
-    with io.open(SCHEMA, encoding="utf-8") as fh:
+    with open(SCHEMA, encoding="utf-8") as fh:
         schema = yaml.safe_load(fh)
     validator = jsonschema.Draft202012Validator(schema)
 
@@ -45,7 +44,7 @@ def main() -> int:
     failures: list[str] = []
     for path in paths:
         name = os.path.relpath(path, ROOT)
-        with io.open(path, encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             doc = yaml.safe_load(fh)
         for e in sorted(validator.iter_errors(doc), key=lambda e: list(e.path)):
             failures.append(f"{name}: schema: {'/'.join(str(p) for p in e.path)}: {e.message}")

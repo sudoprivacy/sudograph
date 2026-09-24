@@ -13,7 +13,6 @@ customer's own vocabulary, because translating business terms loses them.
 
 from __future__ import annotations
 
-import io
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -63,7 +62,7 @@ class Spec:
 
 
 def load(path: str) -> Spec:
-    with io.open(path, encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         doc = yaml.safe_load(fh)
     if not isinstance(doc, dict):
         raise SpecError(f"{path}: the top level must be a mapping")
@@ -149,12 +148,12 @@ def check(s: Spec) -> list[str]:
             # same in the data and are opposite in the business: one is a gap
             # to chase, the other is a finding. Saying which is cheap here and
             # impossible to recover later.
-            if p.get("nullable") and p.get("type") in ("money", "number"):
-                if p.get("absent") not in ("gap", "zero"):
-                    out.append(
-                        f"{where}: a nullable {p['type']} must declare absent: "
-                        f"'gap' (not recorded yet) or 'zero' (determined to be none)"
-                    )
+            numeric_and_nullable = p.get("nullable") and p.get("type") in ("money", "number")
+            if numeric_and_nullable and p.get("absent") not in ("gap", "zero"):
+                out.append(
+                    f"{where}: a nullable {p['type']} must declare absent: "
+                    f"'gap' (not recorded yet) or 'zero' (determined to be none)"
+                )
 
     for rname, r in s.raw.items():
         if not r.get("connector"):
@@ -224,7 +223,9 @@ def check(s: Spec) -> list[str]:
         against, residual = n.get("plug_against"), n.get("residual_to")
         if against or residual:
             if not against:
-                out.append(f"node {nname}: residual_to needs plug_against — a residual against what?")
+                out.append(
+                    f"node {nname}: residual_to needs plug_against — a residual against what?"
+                )
             elif against not in s.nodes:
                 out.append(f"node {nname}: plug_against {against!r} is not a node")
             if not residual:

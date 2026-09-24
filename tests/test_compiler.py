@@ -12,7 +12,6 @@ failure says which property was lost.
 from __future__ import annotations
 
 import copy
-import io
 import os
 import sys
 
@@ -21,11 +20,11 @@ import yaml
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from compiler import apply as apply_mod  # noqa: E402
-from compiler import compile as compile_mod  # noqa: E402
-from compiler import diff as diff_mod  # noqa: E402
-from compiler import expr  # noqa: E402
-from compiler import spec as spec_mod  # noqa: E402
+from compiler import apply as apply_mod
+from compiler import compile as compile_mod
+from compiler import diff as diff_mod
+from compiler import expr
+from compiler import spec as spec_mod
 
 REAL_FIXTURE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -65,12 +64,12 @@ def _mutate(path: str, edits: dict) -> spec_mod.Spec:
     Bypassing is the point: these tests call check() themselves so they can
     assert on the specific problem rather than on "it raised".
     """
-    with io.open(path, encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         doc = yaml.safe_load(fh)
     doc = copy.deepcopy(doc)
-    for path, value in edits.items():
+    for where, value in edits.items():
         cursor = doc
-        parts = path.split("/")
+        parts = where.split("/")
         for p in parts[:-1]:
             cursor = cursor[int(p)] if isinstance(cursor, list) else cursor[p]
         last = parts[-1]
@@ -166,7 +165,8 @@ def test_recordable_op_lets_an_agent_propose_but_not_land(s):
         by="agent:test", actor="agent",
     )
     assert edit.status == "proposed"
-    assert compile_mod.compile_spec(s).values["委外cap"] == before, "a proposal must not move the figures"
+    unmoved = compile_mod.compile_spec(s).values["委外cap"]
+    assert unmoved == before, "a proposal must not move the figures"
 
     apply_mod.approve(s, edit, by="human:partner", note="checked the scan")
     assert edit.status == "landed"
@@ -211,7 +211,8 @@ def test_an_approved_proposal_replaces_its_own_log_entry(tmp_path, s):
     apply_mod.approve(s, e, by="human:partner")
     apply_mod.append_edit(log, e)
 
-    entries = yaml.safe_load(io.open(log, encoding="utf-8"))
+    with open(log, encoding="utf-8") as fh:
+        entries = yaml.safe_load(fh)
     assert len(entries) == 1, "the proposal and its approval are one decision"
     assert entries[0]["status"] == "landed"
     assert entries[0]["decided_by"] == "human:partner"
@@ -552,7 +553,11 @@ def test_a_hook_owner_resolves_to_a_person_the_graph_can_show():
     v = _real().view
     owned = {(e["from"], e["to"]) for e in v["edges"] if e["rel"] == "owned_by"}
     assert ("H-待合同", "人/P-01") in owned
-    people = {r["props"]["工号"]: r["props"] for g in v["groups"] if g["type"] == "人" for r in g["members"]}
+    people = {
+        r["props"]["工号"]: r["props"]
+        for g in v["groups"] if g["type"] == "人"
+        for r in g["members"]
+    }
     assert people["P-01"]["联系"] == "wecom:jia"
 
 

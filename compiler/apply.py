@@ -14,10 +14,9 @@ place where "what changed and why" could disagree with the graph.
 
 from __future__ import annotations
 
-import io
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import yaml
@@ -143,7 +142,7 @@ def apply_op(
 
     return Edit(
         status="proposed" if proposal else "landed",
-        at=datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        at=datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
         by=by,
         op=op_name,
         target=f"{target_type}/{target_id}",
@@ -163,7 +162,7 @@ def append_edit(path: str, edit: Edit) -> None:
     """
     existing: list[dict] = []
     if os.path.exists(path):
-        with io.open(path, encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             existing = yaml.safe_load(fh) or []
     d = edit.as_dict()
     for i, prior in enumerate(existing):
@@ -178,7 +177,7 @@ def append_edit(path: str, edit: Edit) -> None:
             break
     else:
         existing.append(d)
-    with io.open(path, "w", encoding="utf-8") as fh:
+    with open(path, "w", encoding="utf-8") as fh:
         yaml.safe_dump(existing, fh, allow_unicode=True, sort_keys=False, width=100)
 
 
@@ -221,7 +220,7 @@ def approve(
 
     edit.status = "landed"
     edit.decided_by = by
-    edit.decided_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    edit.decided_at = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
     if note:
         edit.intent = f"{edit.intent} | approved: {note}"
     return edit

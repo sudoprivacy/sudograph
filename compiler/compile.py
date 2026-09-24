@@ -17,7 +17,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import expr, lineage as lin_mod
+from . import expr
+from . import lineage as lin_mod
 from .spec import Spec
 
 
@@ -90,10 +91,10 @@ def _order(s: Spec, basis: str | None = None) -> list[str]:
         if n in done:
             return
         if n in temp:
-            raise ValueError("cycle among derived nodes: " + " -> ".join(trail + [n]))
+            raise ValueError("cycle among derived nodes: " + " -> ".join([*trail, n]))
         temp.add(n)
         for d in sorted(deps[n]):
-            visit(d, trail + [n])
+            visit(d, [*trail, n])
         temp.discard(n)
         done.add(n)
         out.append(n)
@@ -228,7 +229,8 @@ def compile_spec(
                         covered,
                         ""
                         if covered
-                        else f"{col} is absent and means 'not recorded yet', but the row cites no hook — "
+                        else f"{col} is absent and means 'not recorded yet', but the row "
+                        f"cites no hook — "
                         f"the total silently understates by an unknown amount",
                     )
                 )
@@ -241,7 +243,9 @@ def compile_spec(
             continue
         mine, theirs = c.values.get(nname), c.values.get(against)
         if mine is None or theirs is None:
-            c.checks.append(Check(f"plug/{nname}", False, "one side has no value to compare"))
+            c.checks.append(
+                Check(f"plug/{nname}", False, "one side has no value to compare")
+            )
             continue
         diff = mine - theirs
         c.values[f"{nname}__residual"] = diff
@@ -250,7 +254,9 @@ def compile_spec(
             Check(
                 f"plug/{nname}",
                 diff == 0 or bool(hook),
-                "" if diff == 0 or hook else f"differs from {against} by {diff:,} with nowhere to register it",
+                ""
+                if diff == 0 or hook
+                else f"differs from {against} by {diff:,} with nowhere to register it",
             )
         )
 
@@ -262,7 +268,9 @@ def compile_spec(
             Check(
                 f"hook/{hname}/affects",
                 bool(affects),
-                "" if affects else "declares no affected node, so the graph cannot show it is provisional",
+                ""
+                if affects
+                else "declares no affected node, so the graph cannot show it is provisional",
             )
         )
 

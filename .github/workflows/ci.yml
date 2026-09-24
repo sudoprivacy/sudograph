@@ -13,8 +13,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pytest pyyaml jsonschema ruff
-      - run: ruff check compiler tests
+      # Pinned. An unpinned linter is a gate whose meaning changes with whatever
+      # PyPI served that morning: ruff 0.16 widened its defaults and turned a
+      # green local run red here, which says nothing about the code.
+      - run: pip install pytest==9.1.1 pyyaml==6.0.3 jsonschema==4.26.0 ruff==0.16.8
+      - run: ruff check compiler tests tools
       - run: python -m pytest -q
       # Every example must load, validate against the schema, and pass its own
       # checks. An example that has quietly stopped compiling is worse than no

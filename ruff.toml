@@ -1,0 +1,15 @@
+# The rule set is committed so it cannot change under us. Ruff 0.16 widened its
+# defaults and turned a green local run into a red CI one; an unpinned linter is
+# a gate whose meaning drifts with whatever PyPI served that morning.
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "PL"]
+ignore = [
+  "PLR0912",  # branch count: check() lists every problem in one pass, by design
+  "PLR0915",  # statement count: same
+  "PLR2004",  # magic values: the fixtures assert real ledger figures on purpose
+  "PLR0911",  # return count: cli main() IS the exit-code protocol, one per case
+  "PLR0913",  # argument count: the compile/apply APIs are keyword-only and explicit
+]
