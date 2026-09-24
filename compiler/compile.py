@@ -223,6 +223,15 @@ def compile_spec(
                 if row.get(col) is not None:
                     continue
                 covered = any(row.get(g) for g in gap_refs)
+                # The consequence of an untracked gap differs by what is missing,
+                # and a message that names the wrong consequence teaches the
+                # reader to skim the next one.
+                cost = (
+                    "nobody is chasing the counterpart, and an unmatched row reads "
+                    "exactly like a matched one on the graph"
+                    if props[col].get("type") == "ref"
+                    else "the total silently understates by an unknown amount"
+                )
                 c.checks.append(
                     Check(
                         f"absent/{tname}/{row.get(idp)}/{col}",
@@ -230,8 +239,7 @@ def compile_spec(
                         ""
                         if covered
                         else f"{col} is absent and means 'not recorded yet', but the row "
-                        f"cites no hook — "
-                        f"the total silently understates by an unknown amount",
+                        f"cites no hook — {cost}",
                     )
                 )
 
@@ -259,6 +267,29 @@ def compile_spec(
                 else f"differs from {against} by {diff:,} with nowhere to register it",
             )
         )
+
+    # A link that points at nothing draws an edge to nowhere, and a reviewer
+    # following it learns only that the graph lied. Resolving every one of them
+    # on every compile is the difference between a relationship and a string
+    # that happens to look like an id.
+    for tname, rows in s.instances.items():
+        links = s.links_of(tname)
+        if not links:
+            continue
+        idp = s.types[tname]["id"]
+        for prop, target in links.items():
+            known = s.ids_of(target)
+            for row in rows:
+                ref = row.get(prop)
+                if ref is None:
+                    continue
+                c.checks.append(
+                    Check(
+                        f"link/{tname}/{row.get(idp)}/{prop}",
+                        ref in known,
+                        "" if ref in known else f"points at {target}/{ref!r}, which does not exist",
+                    )
+                )
 
     # A hook must name at least one node it affects, otherwise nothing on the
     # graph tells a reader that this number is provisional.
@@ -416,6 +447,36 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         )
         for name in aggregated_by.get(tname, ()):
             edges.append({"from": tname, "to": name, "rel": "aggregates"})
+
+        # Links, at two zoom levels. The type-level edge always exists, because
+        # "these two types are related, and here is how much of it is unmatched"
+        # is the shape of the question a reviewer opens with. Instance-level
+        # edges are emitted only for an unfolded group: a 556-row ledger would
+        # otherwise put 556 edges on a canvas that already folded the rows away,
+        # which is the long list again wearing a different hat.
+        for prop, target in s.links_of(tname).items():
+            linked = [r for r in rows if r.get(prop) is not None]
+            edges.append(
+                {
+                    "from": tname,
+                    "to": target,
+                    "rel": "links",
+                    "via": prop,
+                    "linked": len(linked),
+                    "unlinked": len(rows) - len(linked),
+                }
+            )
+            if folded:
+                continue
+            for r in linked:
+                edges.append(
+                    {
+                        "from": f"{tname}/{r.get(idp)}",
+                        "to": f"{target}/{r[prop]}",
+                        "rel": "link",
+                        "via": prop,
+                    }
+                )
 
     return {
         "ontology": s.name,

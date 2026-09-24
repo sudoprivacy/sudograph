@@ -60,6 +60,21 @@ class Spec:
     def types_with(self, prop: str) -> list[str]:
         return [tn for tn, t in self.types.items() if prop in (t.get("props") or {})]
 
+    def links_of(self, type_name: str) -> dict[str, str]:
+        """prop -> the type it points at. Refs to hooks are gaps, not links."""
+        props = (self.types.get(type_name) or {}).get("props") or {}
+        return {
+            p: d["to"]
+            for p, d in props.items()
+            if d.get("type") == "ref" and d.get("to") not in (None, "hook")
+        }
+
+    def ids_of(self, type_name: str) -> set:
+        t = self.types.get(type_name) or {}
+        rows = self.instances.get(type_name) or []
+        idp = t.get("id")
+        return {r.get(idp) for r in rows if isinstance(r, dict)} if idp else set()
+
 
 def load(path: str) -> Spec:
     with open(path, encoding="utf-8") as fh:
@@ -143,6 +158,33 @@ def check(s: Spec) -> list[str]:
                 out.append(f"{where}: ontology property cannot have 'from' — it is not upstream")
             if p.get("type") == "enum" and not p.get("values"):
                 out.append(f"{where}: an enum needs 'values'")
+            # A ref is how one object reaches another. Until now the only thing
+            # one could reach was a hook, which meant the graph had gaps as
+            # first-class citizens and relationships as nothing at all — and a
+            # relationship is most of what an audit is: this payment against
+            # that supplier, this entity inside that consolidation.
+            if p.get("type") == "ref":
+                target = p.get("to")
+                if not target:
+                    out.append(f"{where}: a ref needs 'to' — a type name, or 'hook'")
+                elif target != "hook" and target not in s.types:
+                    out.append(
+                        f"{where}: ref points at {target!r}, which is neither a declared "
+                        f"type nor 'hook'"
+                    )
+                # The same ambiguity as a nullable number, one level over: "not
+                # matched yet" and "determined to have no counterpart" look
+                # identical in the data and mean opposite things. One is work
+                # outstanding, the other is a finding.
+                elif (
+                    target != "hook"
+                    and p.get("nullable")
+                    and p.get("absent") not in ("gap", "none")
+                ):
+                    out.append(
+                        f"{where}: a nullable ref must declare absent: 'gap' "
+                        f"(not matched yet) or 'none' (determined to have no counterpart)"
+                    )
             # A nullable number is ambiguous unless the spec says what absence
             # means. "not recorded yet" and "determined to be zero" look the
             # same in the data and are opposite in the business: one is a gap

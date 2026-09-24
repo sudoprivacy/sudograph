@@ -20,12 +20,21 @@ types:
     period: 期间
     props:
       合同编号:    { type: string, owner: source,   from: R-LEDGER }
-      供应商:      { type: string, owner: source,   from: R-LEDGER }
+      供应商:      { type: ref,    owner: source,   from: R-LEDGER, to: 供应商 }
       期间:        { type: string, owner: source,   from: R-LEDGER }
       认定:        { type: enum,   owner: ontology, values: [资本化, 费用化, 待坐实] }
       状态:        { type: enum,   owner: ontology, values: [已确认, 估, 未坐实, 已否, 待合同HOOK, 待IP条款] }
       金额_不含税:  { type: money,  owner: ontology, nullable: true, absent: gap, note: "万元转元；含税口径已按 6% 专票进项调减" }
       缺口:        { type: ref,    owner: ontology, to: hook, nullable: true }
+
+  供应商:
+    label: 委外供应商
+    description: 台账里出现的外部开发方。名称脱敏为代号；判定与金额是真的，那才是 compiler 要算对的部分
+    id: 供应商编号
+    props:
+      供应商编号: { type: string, owner: source,   from: R-LEDGER }
+      对接人:     { type: ref,    owner: ontology, to: 人, nullable: true, absent: gap }
+      缺口:       { type: ref,    owner: ontology, to: hook, nullable: true }
 
   人:
     label: 项目相关人
@@ -57,7 +66,7 @@ raw:
   R-LEDGER:
     label: 委外资本化台账（文件名即数据）
     connector: "python -m ledger.parse --dir 05_研发资本化底料/09_委外资本化台账"
-    provides: [合同编号, 供应商, 期间]
+    provides: [合同编号, 供应商, 期间, 供应商编号]
 
 hooks:
   H-待合同:
@@ -78,6 +87,12 @@ hooks:
     resolve_when: "逐笔核对台账与金蝶 GL，差额归零或说明原因"
     owner: 人/P-01
     affects: [台账账面差]
+  H-供应商未派人:
+    label: 未指派对接人的供应商
+    blocked_on: R-ROSTER
+    resolve_when: "项目组指派对接人，或确认该供应商无需专人对接"
+    owner: 人/P-02
+    affects: [待坐实金额]
   H-待IP条款:
     label: 合同已到但未约定知识产权归属
     blocked_on: R-LEDGER
@@ -86,6 +101,23 @@ hooks:
     affects: [委外cap, 待坐实金额]
 
 instances:
+  供应商:
+    - { 供应商编号: 供应商01, 缺口: H-供应商未派人 }
+    - { 供应商编号: 供应商02, 缺口: H-供应商未派人 }
+    - { 供应商编号: 供应商03, 缺口: H-供应商未派人 }
+    - { 供应商编号: 供应商04, 对接人: P-01 }
+    - { 供应商编号: 供应商05, 缺口: H-供应商未派人 }
+    - { 供应商编号: 供应商06, 缺口: H-供应商未派人 }
+    - { 供应商编号: 供应商07, 缺口: H-供应商未派人 }
+    - { 供应商编号: 供应商08, 缺口: H-供应商未派人 }
+    - { 供应商编号: 供应商09, 对接人: P-01 }
+    - { 供应商编号: 供应商10, 缺口: H-供应商未派人 }
+    - { 供应商编号: 供应商11, 对接人: P-01 }
+    - { 供应商编号: 供应商12, 缺口: H-供应商未派人 }
+    - { 供应商编号: 供应商13, 缺口: H-供应商未派人 }
+    - { 供应商编号: 供应商14, 对接人: P-01 }
+    - { 供应商编号: 供应商15, 缺口: H-供应商未派人 }
+
   人:
     - { 工号: P-01, 姓名: 对接人甲, 角色: 供应商对接, 联系: "wecom:jia" }
     - { 工号: P-02, 姓名: 合伙人乙, 角色: 项目合伙人, 联系: "wecom:yi" }

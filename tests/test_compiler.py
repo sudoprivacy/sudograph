@@ -529,8 +529,10 @@ def test_provisionality_travels_along_lineage():
     nodes = {n["id"]: n for n in _real().view["nodes"]}
     total = nodes["委外合计"]
     assert set(total["lineage"]["inputs"]) == {"委外cap", "待坐实金额"}
-    # No hook names 委外合计 directly; it inherits both from its inputs.
-    assert set(total["provisional_because"]) == {"H-待IP条款", "H-待合同"}
+    # No hook names 委外合计 directly; it inherits all three from its inputs —
+    # including 供应商未派人, which is a gap about *staffing* two hops away and
+    # still reaches the total. Nobody would have propagated that by hand.
+    assert set(total["provisional_because"]) == {"H-待IP条款", "H-待合同", "H-供应商未派人"}
     assert total["completeness"] == "partial"
 
 
@@ -776,3 +778,84 @@ def test_the_diff_is_period_scopable_like_every_other_figure():
     assert amounts["26H1"] == -6_625_000
     whole = diff_mod.diff(s, BOOK, RESTATED).posted()
     assert whole == sum(amounts.values())
+
+
+# ── links: one object reaching another ─────────────────────────────────
+
+def test_a_ref_to_a_type_becomes_an_edge_at_both_zoom_levels():
+    """Type level always, because "these two are related, and this much of it is
+    unmatched" is the question a reviewer opens with. Instance level only when
+    the group is not folded — 556 edges on a canvas that folded the rows away is
+    the long list again wearing a different hat."""
+    v = _real().view
+    type_edge = next(
+        e for e in v["edges"] if e["rel"] == "links" and e["from"] == "委外合同"
+    )
+    assert type_edge["to"] == "供应商" and type_edge["via"] == "供应商"
+    assert type_edge["linked"] == 16 and type_edge["unlinked"] == 0
+
+    inst = {(e["from"], e["to"]) for e in v["edges"] if e["rel"] == "link"}
+    assert ("委外合同/W-001", "供应商/供应商01") in inst
+    assert ("供应商/供应商04", "人/P-01") in inst
+
+
+def test_instance_edges_fold_away_with_their_group():
+    folded = _real(fold_over=5).view
+    assert _group(folded, "委外合同")["folded"]
+    kept = [e for e in folded["edges"] if e["rel"] == "link" and e["from"].startswith("委外合同/")]
+    assert kept == []
+    # The type-level edge survives, still carrying the counts.
+    still = next(e for e in folded["edges"] if e["rel"] == "links" and e["from"] == "委外合同")
+    assert still["linked"] == 16
+
+
+def test_a_link_pointing_at_a_missing_object_fails_the_check():
+    """An edge to nowhere teaches a reviewer only that the graph lied."""
+    bad = _mutated_real(**{"instances/委外合同/0/供应商": "供应商99"})
+    c = compile_mod.compile_spec(bad, basis=RESTATED)
+    failed = [k for k in c.checks if k.name.startswith("link/委外合同/W-001")]
+    assert failed and not failed[0].ok
+    assert "does not exist" in failed[0].detail
+
+
+def test_a_ref_must_say_what_it_points_at():
+    bad = _mutated_real(**{"types/供应商/props/对接人": {
+        "type": "ref", "owner": "ontology", "nullable": True, "absent": "gap",
+    }})
+    problems = spec_mod.check(bad)
+    assert any("a ref needs 'to'" in p for p in problems), problems
+
+    bad = _mutated_real(**{"types/供应商/props/对接人/to": "不存在的类型"})
+    problems = spec_mod.check(bad)
+    assert any("neither a declared type nor 'hook'" in p for p in problems), problems
+
+
+def test_a_nullable_link_must_say_what_absence_means():
+    """Same ambiguity as a nullable number, one level over: 'not matched yet'
+    and 'determined to have no counterpart' are opposite findings."""
+    doc = {"type": "ref", "owner": "ontology", "to": "人", "nullable": True}
+    bad = _mutated_real(**{"types/供应商/props/对接人": doc})
+    problems = spec_mod.check(bad)
+    assert any("not matched yet" in p and "no counterpart" in p for p in problems), problems
+
+
+def test_an_unmatched_link_with_no_hook_is_reported():
+    """An unmatched row reads exactly like a matched one on the graph unless
+    something says otherwise."""
+    bad = _mutated_real(**{"instances/供应商/0/缺口": None})
+    c = compile_mod.compile_spec(bad, basis=RESTATED)
+    failed = [k for k in c.checks if k.name == "absent/供应商/供应商01/对接人"]
+    assert failed and not failed[0].ok
+    assert "nobody is chasing the counterpart" in failed[0].detail
+
+
+def test_filtering_by_a_link_needs_no_join():
+    """A ref holds the target's id, so `where <ref> = '<id>'` is plain equality.
+    That is why JOIN can be subtracted without losing the common case."""
+    s = spec_mod.load(REAL_FIXTURE)
+    total = expr.evaluate(
+        expr.parse("select sum(金额_不含税) from 委外合同 where 供应商 = '供应商07'"),
+        {},
+        s.instances,
+    )
+    assert total == 817_000 + 1_226_000

@@ -162,7 +162,10 @@
             "type": "string"
           }
         },
-        "to": {},
+        "to": {
+          "type": "string",
+          "description": "What a ref points at: a declared type name, or 'hook'. A ref to a type is a link — the edge one object follows to another, which is most of what an audit is. A ref to a hook is a gap."
+        },
         "nullable": {
           "type": "boolean"
         },
@@ -172,9 +175,10 @@
         "absent": {
           "enum": [
             "gap",
-            "zero"
+            "zero",
+            "none"
           ],
-          "description": "What a null means for a nullable number: 'gap' = not recorded yet (chase it), 'zero' = determined to be none (a finding). Required, because the two are indistinguishable in the data and opposite in the business."
+          "description": "What a null means. For a nullable number: 'gap' = not recorded yet (chase it), 'zero' = determined to be none (a finding). For a nullable link: 'gap' = not matched yet, 'none' = determined to have no counterpart. Required, because the two are indistinguishable in the data and opposite in the business."
         }
       },
       "allOf": [
@@ -252,6 +256,50 @@
           "then": {
             "required": [
               "absent"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "nullable": {
+                "const": true
+              },
+              "type": {
+                "const": "ref"
+              },
+              "to": {
+                "not": {
+                  "const": "hook"
+                }
+              }
+            },
+            "required": [
+              "nullable",
+              "type",
+              "to"
+            ]
+          },
+          "then": {
+            "required": [
+              "absent"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "ref"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "to"
             ]
           }
         }
