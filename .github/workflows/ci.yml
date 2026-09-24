@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest pyyaml jsonschema ruff
+      - run: ruff check compiler tests
+      - run: python -m pytest -q
+      # Every example must load, validate against the schema, and pass its own
+      # checks. An example that has quietly stopped compiling is worse than no
+      # example: it is a lie about what the compiler accepts.
+      - run: python -m tools.check_examples

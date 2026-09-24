@@ -29,6 +29,7 @@ compiler/
   lineage.py              lineage, provisionality, completeness — all derived
   history.py              edit timelines, pending proposals
   apply.py                the only path by which anything changes
+tools/check_examples.py   CI gate: every example loads, validates, and reconciles
 ```
 
 ## Language
@@ -151,6 +152,7 @@ wherever an agent runs.
 python -m compiler.cli examples/weiwai-capitalisation.yaml        # values + checks
 python -m compiler.cli examples/weiwai-capitalisation.yaml --view # view model JSON
 python -m pytest                                                  # tests
+python -m tools.check_examples                                    # what CI runs
 ```
 
 Exit codes are a branching protocol, so a calling agent can tell the cases apart
