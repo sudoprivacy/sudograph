@@ -227,13 +227,7 @@ function draw() {
           'elk.spacing.nodeNode':'36',
           'elk.layered.nodePlacement.strategy':'NETWORK_SIMPLEX' },
   });
-  // Fit, then refuse to shrink past legibility. A graph scaled until the labels
-  // are grey mush answers nothing; better to start readable and let the reader
-  // pan, which is the whole reason this is a canvas and not a static image.
-  lay.on('layoutstop', () => {
-    cy.fit(undefined, 40);
-    if (cy.zoom() < 0.55) { cy.zoom(0.55); cy.center(); }
-  });
+  lay.on('layoutstop', refit);
   lay.run();
 
   const bad = v.checks.filter(c => !c.ok);
@@ -348,7 +342,22 @@ $('instBtn').onclick = () => {
   $('instBtn').classList.toggle('on', state.instances);
   draw();
 };
-$('fit').onclick = () => cy.fit(undefined, 40);
+/* Fit, then refuse to shrink past legibility. A graph scaled until the labels
+   are grey mush answers nothing; better to start readable and let the reader
+   pan, which is the whole reason this is a canvas and not a static image. */
+function refit() {
+  cy.resize();
+  cy.fit(undefined, 40);
+  if (cy.zoom() < 0.55) { cy.zoom(0.55); cy.center(); }
+}
+
+/* The container is not its final size when the layout finishes — an embed sizes
+   its frame after load, and a window or a phone changes it later. Fitting once
+   against a stale viewport is how the right-hand nodes end up clipped, which is
+   exactly how this first shipped inside a ShareOne frame. */
+new ResizeObserver(() => refit()).observe($('cy'));
+
+$('fit').onclick = refit;
 draw();
 </script>
 </body>
