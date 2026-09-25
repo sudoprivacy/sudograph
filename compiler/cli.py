@@ -16,6 +16,7 @@ import argparse
 import json
 import sys
 
+from . import app as app_mod
 from . import compile as compile_mod
 from . import diff as diff_mod
 from . import spec as spec_mod
@@ -97,6 +98,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--basis", help="compute under one declared basis")
     ap.add_argument(
+        "--app",
+        metavar="OUT.html",
+        help="write the self-contained graph app: every reading, every slice and "
+        "every bridge computed here and inlined, so the renderer only picks",
+    )
+    ap.add_argument(
         "--diff",
         metavar="BEFORE:AFTER",
         help="compile under both bases and derive the adjusting entries between them",
@@ -113,6 +120,17 @@ def main(argv: list[str] | None = None) -> int:
     except spec_mod.SpecError as e:
         print(str(e), file=sys.stderr)
         return 2
+
+    if args.app:
+        try:
+            b = app_mod.bundle(s, fold_over=args.fold_over, top_n=args.top_n)
+        except ValueError as e:
+            print(str(e), file=sys.stderr)
+            return 2
+        with open(args.app, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(app_mod.render(b))
+        print(f"{args.app}: {len(b['views'])} view(s), {len(b['diffs'])} bridge diff(s)")
+        return 0
 
     if args.diff:
         if ":" not in args.diff:

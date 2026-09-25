@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>sudograph</title>
+<!-- Vendored, not linked. An audit deliverable is opened from disk at a client
+     site, and a CDN reference turns "open this file" into "open this file, on a
+     machine with internet, on a day the CDN is up". Both libraries are MIT. -->
+<script>/*__VENDOR__*/</script>
+<style>
+  :root{
+    --bg:#11141a; --panel:#171b23; --line:#242a36; --ink:#dfe4ec; --dim:#8a93a6;
+    --raw:#3f7f68; --hook:#9a6a2f; --derived:#3a5f9e; --type:#4a4f5c; --inst:#2c313c;
+    --entry:#c0503c; --carried:#7a5aa8; --bad:#c0503c; --ok:#3f7f68;
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:13px/1.55 -apple-system,"Segoe UI",system-ui,sans-serif;
+       display:flex;flex-direction:column;height:100vh;overflow:hidden}
+  header{display:flex;flex-wrap:wrap;gap:14px;align-items:center;
+         padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header h1{font-size:14px;margin:0 8px 0 0;font-weight:600;letter-spacing:.2px}
+  label{font-size:11px;color:var(--dim);display:flex;gap:6px;align-items:center}
+  select,button{background:#0e1117;color:var(--ink);border:1px solid var(--line);
+                border-radius:5px;padding:4px 8px;font:inherit;font-size:12px}
+  button{cursor:pointer}
+  button.on{border-color:var(--entry);color:#fff}
+  main{flex:1;display:flex;min-height:0}
+  #cy{flex:1;min-width:0}
+  aside{width:340px;border-left:1px solid var(--line);background:var(--panel);
+        overflow:auto;padding:14px 16px}
+  aside h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;
+           color:var(--dim);margin:18px 0 8px;font-weight:600}
+  aside h2:first-child{margin-top:0}
+  .val{font-variant-numeric:tabular-nums;font-size:19px;font-weight:600}
+  .op{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;
+      background:#0e1117;border:1px solid var(--line);border-radius:5px;
+      padding:7px 9px;white-space:pre-wrap;word-break:break-word;color:#b9c4d6}
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:3px 0;
+      border-bottom:1px solid var(--line)}
+  .kv span:first-child{color:var(--dim)}
+  .kv span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+  .tag{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;
+       border:1px solid var(--line)}
+  .tag.full{color:#7fd3a8;border-color:#2e5c47}
+  .tag.partial{color:#e0b563;border-color:#6b5325}
+  .tag.missing{color:#e58974;border-color:#6e3a2e}
+  ul{margin:5px 0;padding-left:17px}
+  li{margin:2px 0}
+  .fail{color:var(--bad)}
+  .muted{color:var(--dim)}
+  .entry{border-left:3px solid var(--entry);padding-left:9px;margin:9px 0}
+  .carried{border-left:3px solid var(--carried);padding-left:9px;margin:9px 0}
+  footer{padding:5px 16px;border-top:1px solid var(--line);background:var(--panel);
+         font-size:11px;color:var(--dim);display:flex;gap:16px;flex-wrap:wrap}
+  @media (max-width:800px){ main{flex-direction:column} aside{width:auto;height:44%;
+    border-left:none;border-top:1px solid var(--line)} }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">sudograph</h1>
+  <label>口径 <select id="basis"></select></label>
+  <span id="dims" style="display:flex;gap:14px;flex-wrap:wrap"></span>
+  <label>桥 <select id="bridge"></select></label>
+  <button id="bridgeBtn">桥视图</button>
+  <button id="instBtn">显示实例</button>
+  <button id="fit">复位</button>
+</header>
+<main>
+  <div id="cy"></div>
+  <aside id="panel"><p class="muted">点一个节点看它的来历。</p></aside>
+</main>
+<footer id="status"></footer>
+
+<script>
+const BUNDLE = __BUNDLE__;
+cytoscape.use(cytoscapeElk);
+
+const $ = id => document.getElementById(id);
+const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '—');
+/* Instances are off by default. The scalar graph — raw, hooks, derived figures,
+   types — is what a reviewer reads; the rows behind a type are a drill-down. On
+   the real ledger the 31 instance nodes outnumber the 15 figures two to one and
+   shrink every label past reading, which is the exact complaint that sent us
+   away from a static diagram in the first place. Visibility is a view decision,
+   so it belongs here; the figures still come only from the compiler. */
+const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
+                instances: false };
+
+/* ── controls ──────────────────────────────────────────────────────── */
+$('title').textContent = BUNDLE.ontology;
+
+for (const b of BUNDLE.bases) {
+  if (b === null) continue;
+  const o = document.createElement('option'); o.value = o.textContent = b;
+  $('basis').appendChild(o);
+}
+if (BUNDLE.bases.length === 1 && BUNDLE.bases[0] === null) {
+  $('basis').closest('label').style.display = 'none';
+}
+$('basis').onchange = e => { state.basis = e.target.value; draw(); };
+
+for (const [dim, values] of Object.entries(BUNDLE.axes)) {
+  const lab = document.createElement('label');
+  lab.textContent = dim + ' ';
+  const sel = document.createElement('select');
+  for (const v of values) {
+    const o = document.createElement('option');
+    o.value = v === null ? '' : v;
+    o.textContent = v === null ? '全部' : v;
+    sel.appendChild(o);
+  }
+  sel.onchange = e => {
+    if (e.target.value) state.at[dim] = e.target.value; else delete state.at[dim];
+    draw();
+  };
+  lab.appendChild(sel); $('dims').appendChild(lab);
+}
+
+for (const br of BUNDLE.bridges) {
+  const o = document.createElement('option');
+  o.value = br.name; o.textContent = br.label + `  (${br.from} → ${br.to})`;
+  $('bridge').appendChild(o);
+}
+if (!BUNDLE.bridges.length) {
+  $('bridge').closest('label').style.display = 'none';
+  $('bridgeBtn').style.display = 'none';
+} else {
+  state.bridge = BUNDLE.bridges[0].name;
+  $('bridge').onchange = e => { state.bridge = e.target.value; draw(); };
+  $('bridgeBtn').onclick = () => {
+    state.bridgeMode = !state.bridgeMode;
+    $('bridgeBtn').classList.toggle('on', state.bridgeMode);
+    draw();
+  };
+}
+
+/* ── the compiler already decided everything; we only look it up ───── */
+const coordKey = () =>
+  Object.keys(state.at).sort().map(k => `${k}=${state.at[k]}`).join(',');
+const view   = () => BUNDLE.views[`${state.basis ?? ''}|${coordKey()}`];
+const bridge = () => BUNDLE.diffs[`${state.bridge || defaultBridgeName()}|${coordKey()}`];
+function defaultBridgeName() {
+  const b = BUNDLE.bridges[0];
+  return b ? (b.name || `${b.from}->${b.to}`) : '';
+}
+
+const COLOR = { raw:'--raw', hook:'--hook', derived:'--derived', type:'--type', instance:'--inst' };
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+let cy = cytoscape({
+  container: $('cy'),
+  wheelSensitivity: 0.25,
+  style: [
+    { selector:'node', style:{
+        'background-color':'data(color)', 'label':'data(label)',
+        'color':'#dfe4ec', 'font-size':11, 'text-valign':'center',
+        'text-wrap':'wrap', 'text-max-width':140, 'shape':'round-rectangle',
+        'width':'label','height':'label','padding':'8px',
+        'border-width':2, 'border-color':'data(border)' } },
+    { selector:'node[kind="instance"]', style:{ 'font-size':10, 'shape':'ellipse',
+        'text-max-width':90 } },
+    { selector:'edge', style:{
+        'width':1.2, 'line-color':'#39404f', 'target-arrow-color':'#39404f',
+        'target-arrow-shape':'triangle', 'arrow-scale':0.8,
+        'curve-style':'bezier', 'opacity':0.75 } },
+    { selector:'edge[rel="affects"]',   style:{ 'line-style':'dashed', 'line-color':'#9a6a2f',
+        'target-arrow-color':'#9a6a2f' } },
+    { selector:'edge[rel="member"]',    style:{ 'opacity':0.25 } },
+    { selector:'edge[rel="links"]',     style:{ 'line-color':'#5b6478', 'width':2 } },
+    { selector:'.dim',   style:{ 'opacity':0.12 } },
+    { selector:'.hit',   style:{ 'border-color':'#e8eef8', 'border-width':3 } },
+    { selector:'.entry', style:{ 'border-color':css('--entry'), 'border-width':4 } },
+    { selector:'.carriedN', style:{ 'border-color':css('--carried'), 'border-width':3 } },
+  ],
+});
+
+function draw() {
+  const v = view();
+  if (!v) { $('status').textContent = 'no view for this combination'; return; }
+
+  const d = state.bridgeMode ? bridge() : null;
+  const entries = new Set((d?.entries || []).map(e => e.node));
+  const carried = new Set((d?.carried || []).map(c => c.node));
+
+  const shown = new Set();
+  const els = [];
+  for (const n of v.nodes) {
+    if (!state.instances && n.kind === 'instance') continue;
+    shown.add(n.id);
+    els.push({ data: {
+      id: n.id, label: n.label + (n.value != null ? `\n${fmt(n.value)}` : ''),
+      kind: n.kind, color: css(COLOR[n.kind] || '--type'),
+      border: n.completeness === 'missing' ? '#6e3a2e'
+            : n.completeness === 'partial' ? '#6b5325' : '#2b3140',
+      raw: n } });
+  }
+  // Same rule as the compiler's: an edge whose other end is not on the canvas is
+  // not drawn. Cytoscape throws on a dangling edge, and a phantom node would be
+  // worse than the throw.
+  for (const [i, e] of v.edges.entries())
+    if (shown.has(e.from) && shown.has(e.to))
+      els.push({ data: { id:`e${i}`, source:e.from, target:e.to, rel:e.rel } });
+
+  cy.elements().remove();
+  cy.add(els);
+
+  if (d) {
+    cy.nodes().addClass('dim');
+    cy.nodes().forEach(n => {
+      if (entries.has(n.id())) n.removeClass('dim').addClass('entry');
+      else if (carried.has(n.id())) n.removeClass('dim').addClass('carriedN');
+    });
+  }
+
+  const lay = cy.layout({
+    name:'elk', fit:false, padding:40,
+    elk:{ algorithm:'layered', 'elk.direction':'DOWN',
+          'elk.layered.spacing.nodeNodeBetweenLayers':'90',
+          'elk.spacing.nodeNode':'36',
+          'elk.layered.nodePlacement.strategy':'NETWORK_SIMPLEX' },
+  });
+  // Fit, then refuse to shrink past legibility. A graph scaled until the labels
+  // are grey mush answers nothing; better to start readable and let the reader
+  // pan, which is the whole reason this is a canvas and not a static image.
+  lay.on('layoutstop', () => {
+    cy.fit(undefined, 40);
+    if (cy.zoom() < 0.55) { cy.zoom(0.55); cy.center(); }
+  });
+  lay.run();
+
+  const bad = v.checks.filter(c => !c.ok);
+  $('status').innerHTML =
+    `<span>${v.nodes.length} 节点 · ${v.edges.length} 边</span>` +
+    `<span class="${bad.length ? 'fail' : ''}">${v.checks.length - bad.length}/${v.checks.length} 检查通过</span>` +
+    (d ? `<span>桥 ${d.bases[0]} → ${d.bases[1]}：${d.entries.length} 条分录，过账 ${fmt(d.posted)}</span>` : '');
+
+  if (d) showBridge(d); else showChecks(v);
+}
+
+cy.on('tap', 'node', evt => {
+  const n = evt.target.data('raw');
+  cy.elements().removeClass('hit');
+  evt.target.addClass('hit');
+  // Lineage is the question a reviewer actually asks of a figure.
+  for (const a of (n.lineage?.ancestors || [])) cy.$id(a).addClass('hit');
+  showNode(n);
+});
+cy.on('tap', evt => { if (evt.target === cy) cy.elements().removeClass('hit'); });
+
+function showNode(n) {
+  const rows = [];
+  rows.push(`<h2>${n.kind}</h2><div style="font-size:15px;font-weight:600">${n.label}</div>`);
+  if (n.value != null) rows.push(`<div class="val">${fmt(n.value)}</div>`);
+  if (n.completeness)
+    rows.push(`<p><span class="tag ${n.completeness}">${n.completeness}</span></p>`);
+  if (n.op) rows.push(`<h2>表达式</h2><div class="op">${n.op}</div>`);
+  if (n.resolve_when) rows.push(`<h2>解除条件</h2><p>${n.resolve_when}</p>`);
+  if (n.owner) rows.push(`<div class="kv"><span>负责人</span><span>${n.owner}</span></div>`);
+  if (n.connector) rows.push(`<h2>取数</h2><div class="op">${n.connector}</div>`);
+  if (n.provisional_because?.length)
+    rows.push(`<h2>因这些缺口而暂定</h2><ul>${n.provisional_because.map(h => `<li>${h}</li>`).join('')}</ul>`);
+  if (n.lineage?.inputs?.length)
+    rows.push(`<h2>直接输入</h2><ul>${n.lineage.inputs.map(x => `<li>${x}</li>`).join('')}</ul>`);
+  if (n.lineage?.leaves?.length)
+    rows.push(`<h2>最终依赖的叶子</h2><ul>${n.lineage.leaves.map(x => `<li>${x}</li>`).join('')}</ul>`);
+  if (n.residual != null)
+    rows.push(`<div class="kv"><span>残差</span><span>${fmt(n.residual)}</span></div>`);
+  if (n.props)
+    rows.push(`<h2>属性</h2>` + Object.entries(n.props)
+      .map(([k, val]) => `<div class="kv"><span>${k}</span><span>${fmt(val)}</span></div>`).join(''));
+  $('panel').innerHTML = rows.join('');
+}
+
+function showChecks(v) {
+  const bad = v.checks.filter(c => !c.ok);
+  $('panel').innerHTML = bad.length
+    ? `<h2>未通过的检查</h2>` + bad.map(c =>
+        `<div class="entry"><strong>${c.name}</strong><div class="muted">${c.detail}</div></div>`).join('')
+    : `<h2>检查</h2><p class="muted">${v.checks.length} 条全部通过。点一个节点看它的来历。</p>`;
+}
+
+function showBridge(d) {
+  const part = [`<h2>调整分录</h2>`];
+  for (const e of d.entries) {
+    part.push(`<div class="entry"><strong>${e.label}</strong>
+      <div class="val">${fmt(e.amount)}</div>
+      <div class="muted">${fmt(e.before)} → ${fmt(e.after)}</div>
+      ${e.debit ? `<div>借 ${e.debit} · 贷 ${e.credit}</div>` : '<div class="muted">备查，不过账</div>'}
+      <div class="muted">因为 ${e.because}</div></div>`);
+  }
+  part.push(`<div class="kv"><span>过账合计</span><span>${fmt(d.posted)}</span></div>`);
+  if (d.carried.length) {
+    part.push(`<h2>顺带变动</h2><p class="muted">由上面的分录带动，不重复入账。</p>`);
+    for (const c of d.carried)
+      part.push(`<div class="carried"><strong>${c.label}</strong>
+        <div>${fmt(c.amount)}</div>
+        <div class="muted">来自 ${c.origins.join('、') || '—'}</div></div>`);
+  }
+  if (d.unexplained.length)
+    part.push(`<h2 class="fail">无法解释</h2><ul class="fail">${
+      d.unexplained.map(x => `<li>${x}</li>`).join('')}</ul>`);
+  $('panel').innerHTML = part.join('');
+}
+
+$('instBtn').onclick = () => {
+  state.instances = !state.instances;
+  $('instBtn').classList.toggle('on', state.instances);
+  draw();
+};
+$('fit').onclick = () => cy.fit(undefined, 40);
+draw();
+</script>
+</body>
+</html>

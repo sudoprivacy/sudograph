@@ -252,6 +252,40 @@ parenthesised scalar subquery, as in SQL. Keywords are case-insensitive.
 - every subtraction refuses **by name and says where the capability lives**, so
   you meet it at the point of use rather than by reading either of the above
 
+## The graph app
+
+```bash
+python -m compiler.cli examples/weiwai-real.yaml --app weiwai.html
+```
+
+One self-contained HTML file: Cytoscape.js + ELK inlined, no network request at
+load, opens from disk. An audit deliverable gets read at a client site, and a CDN
+reference turns "open this file" into "open this file, on a machine with
+internet, on a day the CDN is up".
+
+**The renderer holds no logic.** That rule only survives if the compiler sends
+everything the app could need, so it sends *everything*: every reading, every
+slice, and the diff across every declared bridge, all computed here. The app
+picks; it cannot compute a figure, because it never has the spec. A renderer that
+recomputes is a second implementation of the ontology, and the two will disagree
+on the day it matters most.
+
+What it shows:
+
+- a reading selector and one selector per dimension — the coordinates of the view
+- colour by kind (raw / hook / derived / type), border by completeness
+- click a node: its value, the expression *this reading* uses, which hooks make it
+  provisional, its direct inputs and the leaves it ultimately rests on — and the
+  whole lineage lights up on the canvas
+- **bridge view**: the adjusting entries highlighted, the carried movements
+  tinted, everything else dimmed. On the real ledger that is 2 nodes out of 55,
+  which is the point — you never need to read two full graphs side by side
+- instances are off by default: the scalar graph is what a reviewer reads, and 31
+  instance nodes against 15 figures shrink every label past reading
+
+Layout is ELK `layered` — this is a DAG read top-down. Fit is clamped so it never
+shrinks past legibility; pan and zoom do the rest.
+
 ## Three gates on every write
 
 `apply.py` refuses in this order, because each gate answers a different question:

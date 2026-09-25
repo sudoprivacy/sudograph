@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import copy
 import os
+import re
 import sys
 
 import pytest
@@ -20,6 +21,7 @@ import yaml
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from compiler import app as app_mod
 from compiler import apply as apply_mod
 from compiler import compile as compile_mod
 from compiler import diff as diff_mod
@@ -1164,3 +1166,105 @@ def test_a_check_scoped_to_an_undeclared_reading_is_refused():
     bad = _mutated_real(**{"checks/账面无待坐实": {"expr": "1 = 1", "basis": "税务"}})
     problems = spec_mod.check(bad)
     assert any("not a declared reading" in p for p in problems), problems
+
+
+# ── the view model is self-consistent ──────────────────────────────────
+
+@pytest.mark.parametrize("fold_over", [20, 5, 1])
+def test_every_edge_endpoint_is_a_node(fold_over):
+    """A renderer handed a dangling edge either invents a phantom node or
+    throws, and both are worse than the edge being absent. Folding decides the
+    node population, so folding must decide the edges too."""
+    v = _real(fold_over=fold_over).view
+    ids = {n["id"] for n in v["nodes"]}
+    ends = {e for edge in v["edges"] for e in (edge["from"], edge["to"])}
+    assert ends - ids == set()
+
+
+def test_node_ids_are_unique():
+    ids = [n["id"] for n in _real().view["nodes"]]
+    assert len(ids) == len(set(ids))
+
+
+def test_a_folded_group_collapses_to_its_type_node():
+    """The owner edge still has to land somewhere when the person folds away."""
+    v = _real(fold_over=1).view
+    ids = {n["id"] for n in v["nodes"]}
+    assert "人" in ids and "人/P-01" not in ids
+    owned = {(e["from"], e["to"]) for e in v["edges"] if e["rel"] == "owned_by"}
+    assert ("H-待合同", "人") in owned
+
+
+def test_the_expression_shown_is_the_one_this_reading_uses():
+    """A node that only has op@<reading> would otherwise render with no formula
+    at all, which is the one thing a reviewer opens the panel for."""
+    nodes = {n["id"]: n for n in _real(basis=RESTATED).view["nodes"]}
+    assert nodes["委外cap"]["op"] == (
+        "select sum(金额_不含税) from 委外合同 where 认定 = '资本化' and 状态 = '已确认'"
+    )
+    book = {n["id"]: n for n in _real(basis=BOOK).view["nodes"]}
+    assert book["委外cap"]["op"] == "select sum(金额_不含税) from 委外合同 where 认定 = '资本化'"
+
+
+# ── the graph app ──────────────────────────────────────────────────────
+
+def test_the_bundle_holds_every_reading_and_slice():
+    """The renderer holds no logic, which only stays true if the compiler sends
+    everything it could need. So it sends every combination, computed here."""
+    s = spec_mod.load(REAL_FIXTURE)
+    b = app_mod.bundle(s)
+    axes = app_mod.coordinates(s)
+    # None (unsliced) plus each period that rows actually carry.
+    assert axes["期间"][0] is None
+    assert set(axes["期间"][1:]) == {"2023", "2025", "26H1", "未列期"}
+    assert len(b["views"]) == len(s.bases) * len(axes["期间"])
+    assert b["views"]["重述|"]["nodes"]
+    assert b["views"]["账面|期间=2023"]["dimensions"] == {"期间": "2023"}
+
+
+def test_the_bundle_carries_the_bridge_diffs_not_the_means_to_compute_them():
+    b = app_mod.bundle(spec_mod.load(REAL_FIXTURE))
+    whole = b["diffs"]["账面->重述|"]
+    assert whole["posted"] == -6_625_000
+    assert {e["node"] for e in whole["entries"]} == {"委外cap", "待坐实金额"}
+
+
+def test_dimension_values_come_from_the_rows_not_from_a_declaration():
+    """A declared value with no rows behind it renders an empty slice and
+    teaches nothing."""
+    bad = _mutated_real(**{"instances/委外合同": []})
+    assert app_mod.coordinates(bad)["期间"] == [None, "2023", "2025", "26H1"]
+
+
+def test_an_explosion_of_combinations_is_refused_with_the_number():
+    """Every reading times every slice is compiled up front, so a spec with many
+    values per dimension would multiply into something nobody opens. Better to
+    be told the number than to discover it as a hang."""
+    s = spec_mod.load(REAL_FIXTURE)
+    rows = s.instances["委外合同"]
+    for i in range(app_mod.MAX_VIEWS):
+        rows.append({**rows[0], "合同编号": f"X-{i}", "期间": f"P{i:04d}"})
+    with pytest.raises(ValueError, match="over the 200 limit"):
+        app_mod.bundle(s)
+
+
+def test_the_app_makes_no_network_request():
+    """An audit deliverable is opened from disk at a client site. A remote
+    reference turns "open this file" into "open this file, on a machine with
+    internet, on a day the CDN is up"."""
+    html = app_mod.render(app_mod.bundle(spec_mod.load(REAL_FIXTURE)))
+    assert "__BUNDLE__" not in html and "/*__VENDOR__*/" not in html
+    # What matters is not the absence of the string "http" — the vendored
+    # licences contain URLs — but that nothing is fetched at load.
+    assert re.search(r"<script[^>]+\bsrc=", html) is None
+    assert re.search(r"<link[^>]+\bhref=", html) is None
+    assert "@import" not in html
+    assert "cytoscape" in html and "elk" in html.lower()
+
+
+def test_the_payload_cannot_close_the_script_tag():
+    b = {"ontology": "x</script><script>alert(1)</script>", "axes": {}, "bases": [None],
+         "bridges": [], "views": {}, "diffs": {}}
+    html = app_mod.render(b)
+    assert "</script><script>alert(1)" not in html
+    assert "<\/script>" in html

@@ -1,3 +1,8 @@
 __pycache__/
 *.pyc
 *.edits.yaml
+
+# Generated apps are build artifacts; the template and the vendored libraries
+# are the sources. `--app` writes wherever you point it.
+/app/*.html
+!/app/index.html

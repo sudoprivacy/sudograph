@@ -416,9 +416,27 @@ def compile_spec(
 
 
 def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> dict[str, Any]:
-    """What the graph app consumes. It renders and emits events; it holds no logic."""
+    """What the graph app consumes. It renders and emits events; it holds no logic.
+
+    One invariant holds the whole thing together: **every edge endpoint is a node
+    in this same document**. A renderer given a dangling edge either invents a
+    phantom node or throws, and both are worse than the edge being absent — so
+    the folding decision is taken before any edge is emitted, and an edge whose
+    other end got folded away is replaced by the type-level edge that survives.
+    """
     nodes: list[dict] = []
     edges: list[dict] = []
+
+    # Folding first: it decides which instances exist as nodes at all.
+    folded_types = {
+        tname: len(rows) > fold_over for tname, rows in s.instances.items()
+    }
+    instance_ids: set[str] = set()
+    for tname, rows in s.instances.items():
+        if folded_types[tname]:
+            continue
+        idp = s.types[tname]["id"]
+        instance_ids |= {f"{tname}/{r.get(idp)}" for r in rows}
 
     # Derived once, read three ways: where a figure comes from, which hooks make
     # it provisional, and how complete it is. None of the three is authored.
@@ -438,7 +456,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 "layer": LAYER.get(d.get("kind"), 2),
                 "label": d.get("label", name),
                 "value": c.values.get(name),
-                "op": d.get("op"),
+                "op": op_for(d, c.basis),
                 "lineage": lin[name],
                 "provisional_because": prov[name],
                 "plug_against": d.get("plug_against"),
@@ -471,8 +489,13 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
             edges.append({"from": hname, "to": target, "rel": "affects"})
         # A resolvable owner becomes an edge, so "who is this waiting on" is a
         # question the graph answers rather than one a person reconstructs.
-        if h.get("owner") and "/" in str(h["owner"]):
-            edges.append({"from": hname, "to": str(h["owner"]), "rel": "owned_by"})
+        owner = str(h.get("owner") or "")
+        if "/" in owner and owner in instance_ids:
+            edges.append({"from": hname, "to": owner, "rel": "owned_by"})
+        elif "/" in owner:
+            # The person was folded away with their group; the edge still has to
+            # land somewhere, so it lands on the type.
+            edges.append({"from": hname, "to": owner.split("/", 1)[0], "rel": "owned_by"})
 
     for rname, r in s.raw.items():
         nodes.append(
@@ -503,7 +526,38 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         props = t.get("props") or {}
         idp = t["id"]
         members = [{"id": r.get(idp), "props": r} for r in rows]
-        folded = len(members) > fold_over
+        folded = folded_types[tname]
+        grades = lin_mod.instance_completeness(s, rows, tname)
+
+        # The type is a node, always — it is the end of every `aggregates` and
+        # type-level `links` edge, and it is what a folded group collapses to.
+        nodes.append(
+            {
+                "id": tname,
+                "kind": "type",
+                "layer": 0,
+                "label": t.get("label", tname),
+                "count": len(members),
+                "folded": folded,
+            }
+        )
+        # Instances are nodes only when the group is not folded, which is the
+        # same condition that governs their edges. The two decisions are one.
+        if not folded:
+            for r in rows:
+                iid = r.get(idp)
+                nodes.append(
+                    {
+                        "id": f"{tname}/{iid}",
+                        "kind": "instance",
+                        "layer": 0,
+                        "label": str(iid),
+                        "type": tname,
+                        "props": r,
+                        "completeness": grades.get(iid),
+                    }
+                )
+                edges.append({"from": tname, "to": f"{tname}/{iid}", "rel": "member"})
 
         # A folded group that shows nothing is useless: the reader learns only
         # that there are too many. So folding produces buckets instead — one per
@@ -540,7 +594,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         groups.append(
             {
                 "type": tname,
-                "completeness": lin_mod.instance_completeness(s, rows, tname),
+                "completeness": grades,
                 "label": t.get("label", tname),
                 "count": len(members),
                 "folded": folded,
