@@ -253,9 +253,12 @@ def compile_spec(
         # and not the absence of one. Testing the value would have let a
         # whole-ledger assertion run against a single period and fail there.
         want = spec_.get("at") if isinstance(spec_, dict) else None
-        scoped = isinstance(want, dict) and any(
-            at.get(d) != v for d, v in want.items()
-        )
+        scoped = isinstance(want, dict) and any(at.get(d) != v for d, v in want.items())
+        # A reading scopes a check too: "the books recognise no holdback" is true
+        # under 账面 and false under 重述, and it is an assertion worth making
+        # rather than one to leave out because it cannot be said everywhere.
+        if isinstance(spec_, dict) and "basis" in spec_ and spec_["basis"] != basis:
+            scoped = True
         if scoped:
             # A check scoped elsewhere is not asked here. Not asked is neither
             # pass nor fail: it is not counted, because a check that did not run

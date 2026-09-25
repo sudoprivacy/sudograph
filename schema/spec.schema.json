@@ -121,6 +121,10 @@
                   ]
                 },
                 "description": "Scoped by the key's presence, not its value: `{期间: null}` means 'only when no period is selected', which is a real scope and not the absence of one."
+              },
+              "basis": {
+                "type": "string",
+                "description": "Run this check only under one reading. An assertion that holds under the book figures and not under the restated ones is still worth making."
               }
             }
           }

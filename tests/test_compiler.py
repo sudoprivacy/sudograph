@@ -1149,3 +1149,18 @@ def test_a_check_scoped_to_a_coordinate_is_not_counted_elsewhere():
     y2023 = names(_real(at={"期间": "2023"}))
     assert "articulation/台账总额" in whole and "articulation/台账总额" not in y2023
     assert "articulation/二三年合计" in y2023 and "articulation/二三年合计" not in whole
+
+
+def test_a_check_may_be_scoped_to_one_reading():
+    """"The books recognise no holdback" is true under 账面 and false under 重述.
+    That it cannot be said everywhere is no reason to leave it unsaid."""
+    book, restated = _real(basis=BOOK), _real(basis=RESTATED)
+    assert "articulation/账面无待坐实" in {k.name for k in book.checks}
+    assert "articulation/账面无待坐实" not in {k.name for k in restated.checks}
+    assert book.passed and restated.passed
+
+
+def test_a_check_scoped_to_an_undeclared_reading_is_refused():
+    bad = _mutated_real(**{"checks/账面无待坐实": {"expr": "1 = 1", "basis": "税务"}})
+    problems = spec_mod.check(bad)
+    assert any("not a declared reading" in p for p in problems), problems

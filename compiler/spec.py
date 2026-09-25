@@ -516,9 +516,13 @@ def check(s: Spec) -> list[str]:
             out.append(f"check {cname} needs an expression (a string, or {{expr, at}})")
             continue
         if isinstance(spec_, dict):
-            extra = set(spec_) - {"expr", "at"}
+            extra = set(spec_) - {"expr", "at", "basis"}
             if extra:
                 out.append(f"check {cname} has unknown keys: {sorted(extra)}")
+            if "basis" in spec_ and spec_["basis"] not in s.bases:
+                out.append(
+                    f"check {cname}: basis {spec_['basis']!r} is not a declared reading"
+                )
             at = spec_.get("at")
             if "at" in spec_ and not isinstance(at, dict):
                 out.append(f"check {cname}: 'at' must map dimension names to values")
