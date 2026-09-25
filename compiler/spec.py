@@ -26,7 +26,7 @@ OP_CLASSES = ("DerivedOp", "RecordableOp", "BlockedOp")
 PROP_TYPES = ("string", "money", "number", "date", "enum", "ref", "bool")
 
 TOP_LEVEL = {
-    "ontology", "bases", "bridges", "types", "raw",
+    "ontology", "dimensions", "bases", "bridges", "types", "raw",
     "hooks", "instances", "nodes", "ops", "checks",
 }
 
@@ -63,6 +63,13 @@ class Spec:
     #: they say "the tax figure". So readings are named and enumerated, and the
     #: bridges that are actually deliverables are declared.
     bases: list[str] = field(default_factory=list)
+    #: Named axes the facts are partitioned along — reporting period, legal
+    #: entity, currency. A dimension *divides* the rows: the 2023 rows and the
+    #: 2025 rows are disjoint, and the periods sum to the whole. That is why
+    #: there may be any number of them and they compose freely, and it is
+    #: exactly what a basis does NOT do — a basis is a complete reading of all
+    #: the facts, so bases list rather than multiply.
+    dimensions: list[str] = field(default_factory=list)
     #: name -> {from, to}: which pairs of readings produce adjusting entries.
     #: Required once there are more than two readings, because past two "the
     #: difference" stops being obvious and an undeclared bridge is a deliverable
@@ -78,6 +85,15 @@ class Spec:
 
     def types_with(self, prop: str) -> list[str]:
         return [tn for tn, t in self.types.items() if prop in (t.get("props") or {})]
+
+    def axis_of(self, type_name: str, dim: str) -> str | None:
+        """Which property of this type carries `dim`, if it is partitioned by it.
+
+        A type that declares none is reference data — people, suppliers — and is
+        never filtered out, because dropping it would break every row that
+        points at it.
+        """
+        return ((self.types.get(type_name) or {}).get("dimensions") or {}).get(dim)
 
     def reason_for(self, node_name: str, basis: str | None) -> str | None:
         """Why this node reads the way it does under `basis`.
@@ -154,6 +170,7 @@ def load(path: str) -> Spec:
         checks=doc.get("checks") or {},
         bases=doc.get("bases") or [],
         bridges=doc.get("bridges") or {},
+        dimensions=doc.get("dimensions") or [],
     )
     problems = check(s)
     if problems:
@@ -187,12 +204,19 @@ def check(s: Spec) -> list[str]:
             malformed.add(tname)
 
     for tname, t in s.types.items():
-        # A type may name the property that carries its reporting period. One
-        # spec then serves every period: the compiler feeds it different leaves
-        # rather than the author duplicating nodes per period.
-        per = t.get("period")
-        if per and per not in (t.get("props") or {}):
-            out.append(f"type {tname}: period property {per!r} is not among its props")
+        # A type names the property carrying each dimension it is partitioned
+        # along. One spec then serves every slice: the compiler feeds it
+        # different leaves rather than the author duplicating nodes per period.
+        axes = t.get("dimensions") or {}
+        if not isinstance(axes, dict):
+            out.append(f"type {tname}: 'dimensions' must map a dimension name to a property")
+            axes = {}
+        for dim, col in axes.items():
+            if dim not in s.dimensions:
+                out.append(f"type {tname}: {dim!r} is not a declared dimension")
+            if col not in (t.get("props") or {}):
+                out.append(f"type {tname}: dimension {dim!r} names property {col!r}, "
+                           f"which is not among its props")
         for req in ("label", "id", "props"):
             if req not in t:
                 out.append(f"type {tname} is missing '{req}'")
@@ -483,18 +507,25 @@ def check(s: Spec) -> list[str]:
                     out.append(f"node {nname}: op does not parse: {e}")
 
     for cname, spec_ in s.checks.items():
-        # Either a bare expression (must hold in every period) or a mapping
-        # {expr, period}. A total that is only true for the whole ledger would
+        # Either a bare expression (must hold in every slice) or a mapping
+        # {expr, at}. A total that is only true for the whole ledger would
         # otherwise turn red the moment anyone compiles one period, and a check
         # that cries wolf gets switched off.
         src = spec_.get("expr") if isinstance(spec_, dict) else spec_
         if not isinstance(src, str):
-            out.append(f"check {cname} needs an expression (a string, or {{expr, period}})")
+            out.append(f"check {cname} needs an expression (a string, or {{expr, at}})")
             continue
         if isinstance(spec_, dict):
-            extra = set(spec_) - {"expr", "period"}
+            extra = set(spec_) - {"expr", "at"}
             if extra:
                 out.append(f"check {cname} has unknown keys: {sorted(extra)}")
+            at = spec_.get("at")
+            if "at" in spec_ and not isinstance(at, dict):
+                out.append(f"check {cname}: 'at' must map dimension names to values")
+            elif isinstance(at, dict):
+                for dim in at:
+                    if dim not in s.dimensions:
+                        out.append(f"check {cname}: {dim!r} is not a declared dimension")
         try:
             expr.parse(src)
         except expr.ExprError as e:

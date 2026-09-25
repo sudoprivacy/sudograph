@@ -116,6 +116,37 @@ bury every future disagreement behind it, which is the same silent absorption a
 plug with no `residual_to` commits. Writing the figure bare alongside the
 per-source values is refused — that would be a third figure with no source.
 
+## Dimensions and bases are not the same kind of thing
+
+The view model's shape says which is which, and the renderer is built against it:
+
+```json
+{ "dimensions": { "期间": "2023", "主体": "北京" },   // a dict: they compose
+  "basis": "重述" }                                   // a scalar: only one is ever in force
+```
+
+**A dimension divides the facts.** The 2023 rows and the 2025 rows are disjoint,
+and the periods sum to the whole. So there may be any number of dimensions and
+they cross freely — `--at 期间=2023 --at 主体=北京` is one corner of a grid.
+
+**A basis divides nothing.** 账面 and 重述 are each a *complete* reading of all
+the facts; there is no total across them. So bases list rather than multiply.
+
+```yaml
+dimensions: [期间, 主体]
+
+types:
+  委外合同:
+    dimensions: { 期间: 期间, 主体: 主体 }   # which prop carries each axis
+
+checks:
+  台账总额:   { expr: "委外合计 = 27488000", at: { 期间: null } }   # whole ledger only
+  二三年合计: { expr: "委外合计 = 7170000",  at: { 期间: "2023" } }
+```
+
+A type that declares no dimension is reference data — people, suppliers — and is
+never filtered out, because dropping it would break every row that points at it.
+
 ## Named readings, one structure
 
 A restatement is two sets of figures over the same business: what the books say,

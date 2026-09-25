@@ -21,6 +21,21 @@ from . import diff as diff_mod
 from . import spec as spec_mod
 
 
+def _where(at: dict) -> str:
+    return "  [" + " ".join(f"{k}={v}" for k, v in at.items()) + "]" if at else ""
+
+
+def _coords(pairs: list[str] | None) -> dict[str, str]:
+    """`--at 期间=2023 --at 主体=北京` -> {"期间": "2023", "主体": "北京"}."""
+    out: dict[str, str] = {}
+    for p in pairs or []:
+        if "=" not in p:
+            raise ValueError(f"--at takes <dimension>=<value>, got {p!r}")
+        dim, _, value = p.partition("=")
+        out[dim] = value
+    return out
+
+
 def _money(v: object) -> str:
     return f"{v:,}" if isinstance(v, (int, float)) else str(v)
 
@@ -31,7 +46,7 @@ def _report_diff(d: diff_mod.Diff, *, as_json: bool) -> int:
         return 0 if d.explained else 3
 
     before, after = d.bases
-    print(f"{d.ontology}  {before} -> {after}" + (f"  [{d.period}]" if d.period else ""))
+    print(f"{d.ontology}  {before} -> {after}" + _where(d.at))
     print()
     print(f"adjusting entries ({len(d.entries)})")
     for e in d.entries:
@@ -74,8 +89,11 @@ def main(argv: list[str] | None = None) -> int:
         help="how many rows a folded group surfaces per money column (default 5)",
     )
     ap.add_argument(
-        "--period",
-        help="restrict to one reporting period; the spec is written once and fed different leaves",
+        "--at",
+        action="append",
+        metavar="DIM=VALUE",
+        help="restrict to one slice, e.g. --at 期间=2023; repeat for several dimensions. "
+        "The spec is written once and fed different leaves",
     )
     ap.add_argument("--basis", help="compute under one declared basis")
     ap.add_argument(
@@ -84,6 +102,11 @@ def main(argv: list[str] | None = None) -> int:
         help="compile under both bases and derive the adjusting entries between them",
     )
     args = ap.parse_args(argv)
+    try:
+        at = _coords(args.at)
+    except ValueError as e:
+        print(str(e), file=sys.stderr)
+        return 2
 
     try:
         s = spec_mod.load(args.spec)
@@ -98,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
         before, after = args.diff.split(":", 1)
         try:
             d = diff_mod.diff(
-                s, before, after, period=args.period, fold_over=args.fold_over, top_n=args.top_n
+                s, before, after, at=at, fold_over=args.fold_over, top_n=args.top_n
             )
         except ValueError as e:
             print(str(e), file=sys.stderr)
@@ -107,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         c = compile_mod.compile_spec(
-            s, fold_over=args.fold_over, top_n=args.top_n, period=args.period, basis=args.basis
+            s, fold_over=args.fold_over, top_n=args.top_n, at=at, basis=args.basis
         )
     except ValueError as e:
         # A missing basis or a cycle among derived nodes: the spec, or the way
@@ -122,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"{s.name}"
-        + (f"  [{args.period}]" if args.period else "")
+        + _where(at)
         + (f"  <{args.basis}>" if args.basis else "")
     )
     for name, value in c.values.items():

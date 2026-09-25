@@ -88,7 +88,7 @@ class Carried:
 class Diff:
     ontology: str
     bases: tuple[str, str]
-    period: str | None = None
+    at: dict[str, str] = field(default_factory=dict)
     entries: list[Entry] = field(default_factory=list)
     carried: list[Carried] = field(default_factory=list)
     #: Differences with no entry anywhere above them. A figure that moved for no
@@ -123,7 +123,7 @@ class Diff:
         return {
             "ontology": self.ontology,
             "bases": list(self.bases),
-            "period": self.period,
+            "dimensions": self.at,
             "entries": [e.as_dict() for e in self.entries],
             "carried": [c.as_dict() for c in self.carried],
             "unexplained": self.unexplained,
@@ -143,7 +143,7 @@ def diff(
     before: str,
     after: str,
     *,
-    period: str | None = None,
+    at: dict[str, str] | None = None,
     fold_over: int = 20,
     top_n: int = 5,
 ) -> Diff:
@@ -157,10 +157,10 @@ def diff(
         if b not in s.bases:
             raise ValueError(f"unknown basis {b!r}; the spec declares {s.bases}")
 
-    ca = compile_mod.compile_spec(s, period=period, basis=before, fold_over=fold_over, top_n=top_n)
-    cb = compile_mod.compile_spec(s, period=period, basis=after, fold_over=fold_over, top_n=top_n)
+    ca = compile_mod.compile_spec(s, at=at, basis=before, fold_over=fold_over, top_n=top_n)
+    cb = compile_mod.compile_spec(s, at=at, basis=after, fold_over=fold_over, top_n=top_n)
 
-    d = Diff(ontology=s.name, bases=(before, after), period=period)
+    d = Diff(ontology=s.name, bases=(before, after), at=dict(at or {}))
 
     # Where the author wrote two expressions, the restatement was decided.
     decided: set[str] = set()

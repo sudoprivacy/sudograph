@@ -10,6 +10,11 @@ ontology: 委外资本化-实测
 # 只有真正不同的表达式写两遍；其余节点单一来源，不可能漂。两者之间的调整分录
 # 由 compiler 算出来，不是手写的 —— 底稿里那句「手工映射·待结构改造」就是被
 # 这个替掉的。
+# 期间划分事实（2023 ⊎ 2025 ⊎ 26H1 = 全部）；口径不划分任何东西，
+# 每个口径都是【全部事实】的一个完整读法。所以维度可以有很多个并且自由组合，
+# 口径只是一张名单。
+dimensions: [期间]
+
 bases: [账面, 重述]
 
 types:
@@ -17,7 +22,7 @@ types:
     label: 委外开发合同（按期间拆分）
     description: 一家供应商在一个报告期内的委外开发投入，是资本化判定的最小单位
     id: 合同编号
-    period: 期间
+    dimensions: { 期间: 期间 }
     props:
       合同编号:    { type: string, owner: source,   from: R-LEDGER }
       供应商:      { type: ref,    owner: source,   from: R-LEDGER, to: 供应商 }
@@ -51,7 +56,7 @@ types:
       金额由金蝶 GL 与台账分别提供。一家系统说的数是"信了"，两家不通气的系统说同一个数
       才是"证得住"——这就是审计证据本身。26H1 两家不一致，差额挂在 H-台账账面差 上。
     id: 科目
-    period: 期间
+    dimensions: { 期间: 期间 }
     props:
       科目:  { type: string, owner: source, from: R-KINGDEE }
       期间:  { type: string, owner: source, from: R-KINGDEE }
@@ -220,9 +225,9 @@ ops:
 checks:
   合计闭合: "委外合计 = 委外cap + 待坐实金额"
   # Whole-ledger figures are asserted only when no period is selected.
-  台账总额: { expr: "委外合计 = 27488000", period: null }
-  二三年合计: { expr: "委外合计 = 7170000", period: "2023" }
-  二五年合计: { expr: "委外合计 = 9498000", period: "2025" }
-  二六上半年合计: { expr: "委外合计 = 10820000", period: "26H1" }
+  台账总额: { expr: "委外合计 = 27488000", at: { 期间: null } }
+  二三年合计: { expr: "委外合计 = 7170000", at: { 期间: "2023" } }
+  二五年合计: { expr: "委外合计 = 9498000", at: { 期间: "2025" } }
+  二六上半年合计: { expr: "委外合计 = 10820000", at: { 期间: "26H1" } }
   资本化非负: "委外cap >= 0"
   待坐实不超总额: "待坐实金额 <= 委外合计"

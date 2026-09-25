@@ -32,7 +32,12 @@ class Check:
 @dataclass
 class Compiled:
     ontology: str
-    period: str | None = None
+    #: Where on the filter axes this compile sits: {"期间": "2023"}. A dimension
+    #: divides the facts, so any number of them compose.
+    at: dict[str, str] = field(default_factory=dict)
+    #: Which complete reading of those facts. Never a dict: a basis does not
+    #: divide anything, so there is only ever one in force. That asymmetry is
+    #: the whole distinction between the two.
     basis: str | None = None
     values: dict[str, Any] = field(default_factory=dict)
     checks: list[Check] = field(default_factory=list)
@@ -47,20 +52,23 @@ class Compiled:
         return f"{good}/{len(self.checks)} checks passed"
 
 
-def _restrict(s: Spec, period: str) -> Spec:
-    """A copy whose instances are only those of one period.
+def _restrict(s: Spec, at: dict[str, str]) -> Spec:
+    """A copy whose instances are only those at the given coordinates.
 
-    Types that declare no period property are left whole: reference data such
-    as people or suppliers is not per-period, and dropping it would break every
-    row that points at it.
+    A type is filtered only along the dimensions it declares. One that declares
+    none is reference data — people, suppliers — and is left whole, because
+    dropping it would break every row that points at it.
     """
     kept: dict[str, list[dict]] = {}
     for tname, rows in s.instances.items():
-        col = (s.types.get(tname) or {}).get("period")
-        kept[tname] = [r for r in rows if r.get(col) == period] if col else list(rows)
+        # Only the dimensions this type is actually partitioned along apply.
+        axes = [(s.axis_of(tname, d), want) for d, want in at.items()]
+        axes = [(col, want) for col, want in axes if col is not None]
+        kept[tname] = [r for r in rows if all(r.get(col) == want for col, want in axes)]
     return Spec(
         name=s.name, types=s.types, raw=s.raw, hooks=s.hooks,
-        instances=kept, nodes=s.nodes, ops=s.ops, checks=s.checks, bases=s.bases, bridges=s.bridges,
+        instances=kept, nodes=s.nodes, ops=s.ops, checks=s.checks,
+        bases=s.bases, bridges=s.bridges, dimensions=s.dimensions,
     )
 
 
@@ -142,7 +150,7 @@ def _corroborate(s: Spec, c: Compiled) -> Spec:
     return Spec(
         name=s.name, types=s.types, raw=s.raw, hooks=s.hooks,
         instances=resolved, nodes=s.nodes, ops=s.ops, checks=s.checks,
-        bases=s.bases, bridges=s.bridges,
+        bases=s.bases, bridges=s.bridges, dimensions=s.dimensions,
     )
 
 
@@ -191,7 +199,7 @@ def compile_spec(
     *,
     fold_over: int = 20,
     top_n: int = 5,
-    period: str | None = None,
+    at: dict[str, str] | None = None,
     basis: str | None = None,
 ) -> Compiled:
     """Compile, optionally restricted to one reporting period.
@@ -213,9 +221,14 @@ def compile_spec(
     if basis is not None and s.bases and basis not in s.bases:
         raise ValueError(f"unknown basis {basis!r}; the spec declares {s.bases}")
 
-    c = Compiled(ontology=s.name, period=period, basis=basis)
-    if period is not None:
-        s = _restrict(s, period)
+    at = dict(at or {})
+    unknown = sorted(set(at) - set(s.dimensions))
+    if unknown:
+        raise ValueError(f"not declared dimensions: {unknown}; the spec declares {s.dimensions}")
+
+    c = Compiled(ontology=s.name, at=at, basis=basis)
+    if at:
+        s = _restrict(s, at)
     s = _corroborate(s, c)
 
     # ── values ────────────────────────────────────────────────────────
@@ -235,12 +248,15 @@ def compile_spec(
     # the check ran against anything else, the two could disagree.
     for cname, spec_ in s.checks.items():
         src = spec_.get("expr") if isinstance(spec_, dict) else spec_
-        # Presence of the key is what scopes a check, not its value: `period:
+        # Presence of the key is what scopes a check, not its value: `期间:
         # null` means "only when no period is selected", which is a real scope
         # and not the absence of one. Testing the value would have let a
         # whole-ledger assertion run against a single period and fail there.
-        scoped = isinstance(spec_, dict) and "period" in spec_
-        if scoped and spec_["period"] != period:
+        want = spec_.get("at") if isinstance(spec_, dict) else None
+        scoped = isinstance(want, dict) and any(
+            at.get(d) != v for d, v in want.items()
+        )
+        if scoped:
             # A check scoped elsewhere is not asked here. Not asked is neither
             # pass nor fail: it is not counted, because a check that did not run
             # must never read as evidence.
@@ -567,7 +583,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
 
     return {
         "ontology": s.name,
-        "period": c.period,
+        "dimensions": c.at,
         "basis": c.basis,
         "nodes": nodes,
         "edges": edges,

@@ -88,6 +88,7 @@ def _mutate(path: str, edits: dict) -> spec_mod.Spec:
         checks=doc.get("checks") or {},
         bases=doc.get("bases") or [],
         bridges=doc.get("bridges") or {},
+        dimensions=doc.get("dimensions") or [],
     )
 
 
@@ -567,7 +568,7 @@ def test_a_check_scoped_to_another_period_is_not_counted_either_way():
         return {k.name for k in c.checks}
 
     whole = names(_real())
-    only_2023 = names(_real(period="2023"))
+    only_2023 = names(_real(at={"期间": "2023"}))
     assert "articulation/台账总额" in whole
     assert "articulation/台账总额" not in only_2023
     assert "articulation/二三年合计" in only_2023
@@ -579,7 +580,7 @@ def test_a_check_scoped_to_another_period_is_not_counted_either_way():
 def test_one_spec_serves_every_period_without_duplicating_nodes():
     """The figures come from the real ledger; each period must match it."""
     for period, expected in [("2023", 7_170_000), ("2025", 9_498_000), ("26H1", 10_820_000)]:
-        c = _real(period=period)
+        c = _real(at={"期间": period})
         assert c.values["委外合计"] == expected, period
         assert c.passed, [(k.name, k.detail) for k in c.checks if not k.ok]
     assert _real().values["委外合计"] == 27_488_000
@@ -601,8 +602,8 @@ def test_a_plug_reports_its_divergence_every_run():
     difference every time is what stops it drifting quietly between runs."""
     assert _real().values["台账账面差__residual"] == 668_000
     for period in ("2023", "2025"):
-        assert _real(period=period).values["台账账面差__residual"] == 0
-    assert _real(period="26H1").values["台账账面差__residual"] == 668_000
+        assert _real(at={"期间": period}).values["台账账面差__residual"] == 0
+    assert _real(at={"期间": "26H1"}).values["台账账面差__residual"] == 668_000
 
 
 def test_a_plug_with_nowhere_to_register_its_difference_is_refused():
@@ -773,7 +774,7 @@ def test_the_diff_is_period_scopable_like_every_other_figure():
     s = spec_mod.load(REAL_FIXTURE)
     amounts = {}
     for period in ("2023", "2025", "26H1"):
-        d = diff_mod.diff(spec_mod.load(REAL_FIXTURE), BOOK, RESTATED, period=period)
+        d = diff_mod.diff(spec_mod.load(REAL_FIXTURE), BOOK, RESTATED, at={"期间": period})
         amounts[period] = d.posted()
     assert amounts["2023"] == 0 and amounts["2025"] == 0
     assert amounts["26H1"] == -6_625_000
@@ -1064,3 +1065,87 @@ def test_a_per_reading_key_must_name_a_declared_reading():
     bad = _mutated_real(**{"nodes/委外cap/because@税务": "H-待合同"})
     problems = spec_mod.check(bad)
     assert any("names a reading not listed in 'bases'" in p for p in problems), problems
+
+
+# ── dimensions compose; bases do not ───────────────────────────────────
+
+def _two_dimensions(**extra) -> dict:
+    """The real fixture partitioned along a second axis as well."""
+    with open(REAL_FIXTURE, encoding="utf-8") as fh:
+        rows = yaml.safe_load(fh)["instances"]["委外合同"]
+    for i, r in enumerate(rows):
+        r["主体"] = "北京" if i % 2 == 0 else "上海"
+    edits = {
+        "dimensions": ["期间", "主体"],
+        "types/委外合同/props/主体": {"type": "string", "owner": "source", "from": "R-LEDGER"},
+        "types/委外合同/dimensions": {"期间": "期间", "主体": "主体"},
+        "raw/R-LEDGER/provides": ["合同编号", "供应商", "期间", "供应商编号", "金额", "主体"],
+        "instances/委外合同": rows,
+    }
+    edits.update(extra)
+    return edits
+
+
+def test_dimensions_compose_and_partition():
+    """A dimension divides the facts: the slices are disjoint and sum to the
+    whole. That is what lets any number of them compose freely."""
+    s = _mutated_real(**_two_dimensions())
+    assert spec_mod.check(s) == []
+    whole = compile_mod.compile_spec(s, basis=RESTATED).values["委外合计"]
+    parts = [
+        compile_mod.compile_spec(s, basis=RESTATED, at={"主体": e}).values["委外合计"]
+        for e in ("北京", "上海")
+    ]
+    assert sum(parts) == whole == 27_488_000
+    # And they cross: one coordinate per axis, no new nodes.
+    corner = compile_mod.compile_spec(s, basis=RESTATED, at={"期间": "26H1", "主体": "北京"})
+    assert corner.at == {"期间": "26H1", "主体": "北京"}
+    assert corner.values["委外合计"] <= whole
+
+
+def test_bases_do_not_partition_so_they_never_sum():
+    """The asymmetry the view model's shape encodes: coordinates are a dict
+    because they compose; the basis is a scalar because only one is ever in
+    force. 账面 and 重述 are each a complete reading of all the facts."""
+    s = spec_mod.load(REAL_FIXTURE)
+    book = compile_mod.compile_spec(s, basis=BOOK).values["委外合计"]
+    restated = compile_mod.compile_spec(s, basis=RESTATED).values["委外合计"]
+    assert book == restated == 27_488_000  # each is the whole, not a share of it
+    v = compile_mod.compile_spec(s, basis=RESTATED).view
+    assert isinstance(v["dimensions"], dict) and v["basis"] == RESTATED
+
+
+def test_a_coordinate_on_an_undeclared_dimension_is_refused():
+    s = spec_mod.load(REAL_FIXTURE)
+    with pytest.raises(ValueError, match="not declared dimensions"):
+        compile_mod.compile_spec(s, basis=RESTATED, at={"主体": "北京"})
+
+
+def test_a_type_may_not_name_an_undeclared_dimension():
+    bad = _mutated_real(**{"types/委外合同/dimensions": {"主体": "期间"}})
+    problems = spec_mod.check(bad)
+    assert any("not a declared dimension" in p for p in problems), problems
+
+
+def test_a_dimension_must_name_a_property_of_that_type():
+    bad = _mutated_real(**{"types/委外合同/dimensions": {"期间": "不存在"}})
+    problems = spec_mod.check(bad)
+    assert any("is not among its props" in p for p in problems), problems
+
+
+def test_reference_data_is_never_filtered_out():
+    """人 and 供应商 declare no dimension, so slicing by period must not drop
+    them — every row that points at them would break."""
+    s = spec_mod.load(REAL_FIXTURE)
+    sliced = compile_mod.compile_spec(s, basis=RESTATED, at={"期间": "2023"}).view
+    assert _group(sliced, "人")["count"] == 2
+    assert _group(sliced, "供应商")["count"] == 15
+    assert _group(sliced, "委外合同")["count"] == 2
+
+
+def test_a_check_scoped_to_a_coordinate_is_not_counted_elsewhere():
+    names = lambda c: {k.name for k in c.checks}  # noqa: E731
+    whole = names(_real())
+    y2023 = names(_real(at={"期间": "2023"}))
+    assert "articulation/台账总额" in whole and "articulation/台账总额" not in y2023
+    assert "articulation/二三年合计" in y2023 and "articulation/二三年合计" not in whole
