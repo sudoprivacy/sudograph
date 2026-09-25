@@ -50,6 +50,10 @@
   ul{margin:5px 0;padding-left:17px}
   li{margin:2px 0}
   .fail{color:var(--bad)}
+  .own{font-size:10px;padding:0 5px;border-radius:99px;border:1px solid var(--line);
+       color:var(--dim);margin-left:4px}
+  .own.source{color:#7fb3d3;border-color:#2d4a5c}
+  .own.ontology{color:#d3a77f;border-color:#5c472d}
   .muted{color:var(--dim)}
   .entry{border-left:3px solid var(--entry);padding-left:9px;margin:9px 0}
   .carried{border-left:3px solid var(--carried);padding-left:9px;margin:9px 0}
@@ -269,10 +273,43 @@ function showNode(n) {
     rows.push(`<h2>最终依赖的叶子</h2><ul>${n.lineage.leaves.map(x => `<li>${x}</li>`).join('')}</ul>`);
   if (n.residual != null)
     rows.push(`<div class="kv"><span>残差</span><span>${fmt(n.residual)}</span></div>`);
-  if (n.props)
-    rows.push(`<h2>属性</h2>` + Object.entries(n.props)
-      .map(([k, val]) => `<div class="kv"><span>${k}</span><span>${fmt(val)}</span></div>`).join(''));
+  // Every property is either an upstream fact or a decision made here, never
+  // both. It is the hardest rule in the model and the app was not showing it,
+  // which made the panel a list of numbers with no idea who owns any of them.
+  if (n.props) {
+    const owners = (view().groups.find(g => g.type === n.type) || {}).owners || {};
+    rows.push(`<h2>属性</h2>` + Object.entries(n.props).map(([k, val]) =>
+      `<div class="kv"><span>${k} <span class="own ${owners[k] || ''}">${
+        owners[k] === 'source' ? '上游' : owners[k] === 'ontology' ? '本体' : ''
+      }</span></span><span>${fmt(val)}</span></div>`).join(''));
+  }
+  if (n.kind === 'type') rows.push(showGroup(n.id));
   $('panel').innerHTML = rows.join('');
+}
+
+/* Folding produces buckets and a top-N precisely so a folded group still answers
+   the two questions a person asks of a long list — how does it break down, and
+   which rows carry the weight. Ignoring them made folding mean "hidden". */
+function showGroup(tname) {
+  const g = view().groups.find(x => x.type === tname);
+  if (!g) return '';
+  const out = [`<h2>${g.count} 行${g.folded ? '（已折叠）' : ''}</h2>`];
+  for (const [axis, buckets] of Object.entries(g.buckets || {})) {
+    out.push(`<h2>按 ${axis}</h2>`);
+    for (const b of buckets) {
+      const totals = Object.entries(b.totals || {})
+        .map(([c, t]) => `${c} ${fmt(t)}`).join(' · ');
+      out.push(`<div class="kv"><span>${b.value ?? '—'} <span class="muted">${
+        b.count}</span></span><span>${totals}</span></div>`);
+    }
+  }
+  for (const [col, rows_] of Object.entries(g.top || {})) {
+    if (!rows_.length) continue;
+    out.push(`<h2>${col} 最大的 ${rows_.length} 条</h2>`);
+    for (const r of rows_)
+      out.push(`<div class="kv"><span>${r.id}</span><span>${fmt(r.value)}</span></div>`);
+  }
+  return out.join('');
 }
 
 function showChecks(v) {
