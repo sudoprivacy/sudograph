@@ -112,9 +112,7 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5) -> dict[str, Any]:
 #: client site, and a CDN reference turns "open this file" into "open this file,
 #: on a machine with internet, on a day the CDN is up". Both are MIT.
 VENDOR = [
-    os.path.join(_ROOT, "app", "vendor", "cytoscape.min.js"),
     os.path.join(_ROOT, "app", "vendor", "elk.bundled.js"),
-    os.path.join(_ROOT, "app", "vendor", "cytoscape-elk.js"),
 ]
 
 

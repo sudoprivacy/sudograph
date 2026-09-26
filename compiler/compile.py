@@ -497,6 +497,23 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
             # land somewhere, so it lands on the type.
             edges.append({"from": hname, "to": owner.split("/", 1)[0], "rel": "owned_by"})
 
+    # A raw supplies the properties that name it in `from`. The relationship is
+    # already in the spec and already checked on every compile
+    # (provenance/<Type>.<prop>@<raw>) — it just was not being drawn, which left
+    # every connector floating unattached at the top of the canvas looking like
+    # noise. Provenance is the first question anyone asks of a figure, so the
+    # edge that answers it cannot be the one that is missing.
+    for tname in s.instances:
+        supplied: dict[str, list[str]] = {}
+        for pname in (s.types.get(tname) or {}).get("props") or {}:
+            for src in s.sources_of(tname, pname):
+                supplied.setdefault(src, []).append(pname)
+        for src, props in supplied.items():
+            if src in s.raw:
+                edges.append(
+                    {"from": src, "to": tname, "rel": "supplies", "props": sorted(props)}
+                )
+
     for rname, r in s.raw.items():
         nodes.append(
             {

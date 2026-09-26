@@ -50,6 +50,17 @@
   ul{margin:5px 0;padding-left:17px}
   li{margin:2px 0}
   .fail{color:var(--bad)}
+  /* The graph is SVG rather than canvas so that every label is real, selectable
+     text. A canvas is one opaque element: nothing to select, nothing to point
+     at, and therefore nothing an anchored comment can attach to. */
+  #cy{cursor:grab;user-select:text;touch-action:none}
+  #cy text{fill:#dfe4ec;font-size:11px;pointer-events:auto;cursor:text}
+  #cy text.num{font-variant-numeric:tabular-nums;fill:#eef3fb;font-weight:600}
+  #cy g.node rect{transition:stroke .12s}
+  #cy g.node.dim{opacity:.13}
+  #cy g.node.hit rect{stroke:#e8eef8;stroke-width:3}
+  #cy g.node.entry rect{stroke:var(--entry);stroke-width:4}
+  #cy g.node.carriedN rect{stroke:var(--carried);stroke-width:3}
   .own{font-size:10px;padding:0 5px;border-radius:99px;border:1px solid var(--line);
        color:var(--dim);margin-left:4px}
   .own.source{color:#7fb3d3;border-color:#2d4a5c}
@@ -81,7 +92,6 @@
 
 <script>
 const BUNDLE = __BUNDLE__;
-cytoscape.use(cytoscapeElk);
 
 const $ = id => document.getElementById(id);
 const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '—');
@@ -155,34 +165,38 @@ function defaultBridgeName() {
 const COLOR = { raw:'--raw', hook:'--hook', derived:'--derived', type:'--type', instance:'--inst' };
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
-let cy = cytoscape({
-  container: $('cy'),
-  wheelSensitivity: 0.25,
-  style: [
-    { selector:'node', style:{
-        'background-color':'data(color)', 'label':'data(label)',
-        'color':'#dfe4ec', 'font-size':11, 'text-valign':'center',
-        'text-wrap':'wrap', 'text-max-width':140, 'shape':'round-rectangle',
-        'width':'label','height':'label','padding':'8px',
-        'border-width':2, 'border-color':'data(border)' } },
-    { selector:'node[kind="instance"]', style:{ 'font-size':10, 'shape':'ellipse',
-        'text-max-width':90 } },
-    { selector:'edge', style:{
-        'width':1.2, 'line-color':'#39404f', 'target-arrow-color':'#39404f',
-        'target-arrow-shape':'triangle', 'arrow-scale':0.8,
-        'curve-style':'bezier', 'opacity':0.75 } },
-    { selector:'edge[rel="affects"]',   style:{ 'line-style':'dashed', 'line-color':'#9a6a2f',
-        'target-arrow-color':'#9a6a2f' } },
-    { selector:'edge[rel="member"]',    style:{ 'opacity':0.25 } },
-    { selector:'edge[rel="links"]',     style:{ 'line-color':'#5b6478', 'width':2 } },
-    { selector:'.dim',   style:{ 'opacity':0.12 } },
-    { selector:'.hit',   style:{ 'border-color':'#e8eef8', 'border-width':3 } },
-    { selector:'.entry', style:{ 'border-color':css('--entry'), 'border-width':4 } },
-    { selector:'.carriedN', style:{ 'border-color':css('--carried'), 'border-width':3 } },
-  ],
-});
+/* Rendered as SVG, not canvas, and the reason is commenting rather than taste.
+   A canvas is one opaque element: no text to select and no element to point at,
+   so an anchored comment has nothing to attach to and a drag-select can only
+   grab the whole picture. Every node here is a real <g> carrying real <text>
+   and a data-node-id — selectable today, and addressable later if anchors ever
+   key on identity instead of quoted text.
 
-function draw() {
+   Layout is still ELK. That was never cytoscape's contribution: cytoscape-elk
+   is an 11 KB adapter that calls elkjs, so dropping cytoscape keeps the layout
+   and loses 365 KB. Canvas would win on thousands of nodes; this graph is a few
+   hundred SVG elements, two orders short of where that matters, and the
+   instance rows that could grow are folded by the compiler anyway. */
+const SVGNS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs = {}) => {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  return e;
+};
+const elk = new ELK();
+const pz = { x: 0, y: 0, k: 1 };
+let scene = null, lastLaid = null;
+
+function measure(label, value) {
+  const lines = [label, value].filter(x => x != null && x !== '');
+  // CJK is about one em per character, Latin about half. ELK only needs the
+  // extents, not perfection.
+  const widest = Math.max(...lines.map(t =>
+    [...String(t)].reduce((w, c) => w + (c.charCodeAt(0) > 0x2e80 ? 12 : 6.6), 0)));
+  return { w: Math.min(Math.max(widest + 24, 72), 260), h: lines.length > 1 ? 44 : 30 };
+}
+
+async function draw() {
   const v = view();
   if (!v) { $('status').textContent = 'no view for this combination'; return; }
 
@@ -190,64 +204,188 @@ function draw() {
   const entries = new Set((d?.entries || []).map(e => e.node));
   const carried = new Set((d?.carried || []).map(c => c.node));
 
-  const shown = new Set();
-  const els = [];
+  const shown = new Map();
   for (const n of v.nodes) {
     if (!state.instances && n.kind === 'instance') continue;
-    shown.add(n.id);
-    els.push({ data: {
-      id: n.id, label: n.label + (n.value != null ? `\n${fmt(n.value)}` : ''),
-      kind: n.kind, color: css(COLOR[n.kind] || '--type'),
-      border: n.completeness === 'missing' ? '#6e3a2e'
-            : n.completeness === 'partial' ? '#6b5325' : '#2b3140',
-      raw: n } });
+    shown.set(n.id, n);
   }
-  // Same rule as the compiler's: an edge whose other end is not on the canvas is
-  // not drawn. Cytoscape throws on a dangling edge, and a phantom node would be
-  // worse than the throw.
-  for (const [i, e] of v.edges.entries())
-    if (shown.has(e.from) && shown.has(e.to))
-      els.push({ data: { id:`e${i}`, source:e.from, target:e.to, rel:e.rel } });
+  // Same rule the compiler follows: an edge whose other end is not on the canvas
+  // is not drawn, rather than drawn to a node invented for it.
+  const edges = v.edges.filter(e => shown.has(e.from) && shown.has(e.to));
 
-  cy.elements().remove();
-  cy.add(els);
-
-  if (d) {
-    cy.nodes().addClass('dim');
-    cy.nodes().forEach(n => {
-      if (entries.has(n.id())) n.removeClass('dim').addClass('entry');
-      else if (carried.has(n.id())) n.removeClass('dim').addClass('carriedN');
-    });
-  }
-
-  const lay = cy.layout({
-    name:'elk', fit:false, padding:40,
-    elk:{ algorithm:'layered', 'elk.direction':'DOWN',
-          'elk.layered.spacing.nodeNodeBetweenLayers':'90',
-          'elk.spacing.nodeNode':'36',
-          'elk.layered.nodePlacement.strategy':'NETWORK_SIMPLEX' },
+  const laid = await elk.layout({
+    id: 'root',
+    layoutOptions: {
+      'elk.algorithm': 'layered', 'elk.direction': 'DOWN',
+      'elk.layered.spacing.nodeNodeBetweenLayers': '80',
+      'elk.spacing.nodeNode': '34',
+      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+    },
+    children: [...shown.values()].map(n => {
+      const m = measure(n.label, n.value != null ? fmt(n.value) : null);
+      return { id: n.id, width: m.w, height: m.h };
+    }),
+    edges: edges.map((e, i) => ({ id: 'e' + i, sources: [e.from], targets: [e.to] })),
   });
-  lay.on('layoutstop', refit);
-  lay.run();
+  lastLaid = laid;
+
+  const pos = new Map((laid.children || []).map(c => [c.id, c]));
+  const svg = el('svg', { width: '100%', height: '100%' });
+  const defs = el('defs');
+  for (const [name, colour] of [['a', '#39404f'], ['w', '#9a6a2f']]) {
+    const m = el('marker', { id: 'arw-' + name, viewBox: '0 0 10 10', refX: '9',
+      refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto-start-reverse' });
+    m.appendChild(el('path', { d: 'M0,0 L10,5 L0,10 z', fill: colour }));
+    defs.appendChild(m);
+  }
+  svg.appendChild(defs);
+  scene = el('g');
+  svg.appendChild(scene);
+  const gEdges = el('g'); scene.appendChild(gEdges);
+  const gNodes = el('g'); scene.appendChild(gNodes);
+
+  for (const [i, e] of edges.entries()) {
+    const sec = (laid.edges || []).find(x => x.id === 'e' + i)?.sections?.[0];
+    if (!sec) continue;
+    const pts = [sec.startPoint, ...(sec.bendPoints || []), sec.endPoint];
+    const p = el('path', {
+      d: pts.map((q, j) => (j ? 'L' : 'M') + q.x + ',' + q.y).join(' '),
+      fill: 'none',
+      'stroke-width': e.rel === 'links' ? 2 : 1.2,
+      stroke: e.rel === 'affects' ? '#9a6a2f' : '#39404f',
+      'marker-end': 'url(#arw-' + (e.rel === 'affects' ? 'w' : 'a') + ')',
+      opacity: e.rel === 'member' ? 0.22 : 0.7,
+    });
+    if (e.rel === 'affects') p.setAttribute('stroke-dasharray', '5 4');
+    gEdges.appendChild(p);
+  }
+
+  for (const n of shown.values()) {
+    const p = pos.get(n.id); if (!p) continue;
+    const g = el('g', { transform: 'translate(' + p.x + ',' + p.y + ')', class: 'node' });
+    // The hook an identity-based anchor would key on, and what a reader is
+    // selecting when they drag across a label today.
+    g.dataset.nodeId = n.id;
+    g.dataset.kind = n.kind;
+    if (entries.has(n.id)) g.classList.add('entry');
+    else if (carried.has(n.id)) g.classList.add('carriedN');
+    else if (d) g.classList.add('dim');
+    g.appendChild(el('rect', {
+      width: p.width, height: p.height, rx: 6,
+      fill: css(COLOR[n.kind] || '--type'),
+      stroke: n.completeness === 'missing' ? '#6e3a2e'
+            : n.completeness === 'partial' ? '#6b5325' : '#2b3140',
+      'stroke-width': 2,
+    }));
+    const val = n.value != null ? fmt(n.value) : null;
+    const t1 = el('text', { x: p.width / 2, y: val ? 18 : 19, 'text-anchor': 'middle' });
+    t1.textContent = n.label;
+    g.appendChild(t1);
+    if (val) {
+      const t2 = el('text', { x: p.width / 2, y: 34, 'text-anchor': 'middle', class: 'num' });
+      t2.textContent = val;
+      g.appendChild(t2);
+    }
+    g.addEventListener('click', ev => { ev.stopPropagation(); select(n); });
+    gNodes.appendChild(g);
+  }
+
+  $('cy').replaceChildren(svg);
+  refit();
 
   const bad = v.checks.filter(c => !c.ok);
   $('status').innerHTML =
-    `<span>${v.nodes.length} 节点 · ${v.edges.length} 边</span>` +
+    `<span>${shown.size} 节点 · ${edges.length} 边</span>` +
     `<span class="${bad.length ? 'fail' : ''}">${v.checks.length - bad.length}/${v.checks.length} 检查通过</span>` +
     (d ? `<span>桥 ${d.bases[0]} → ${d.bases[1]}：${d.entries.length} 条分录，过账 ${fmt(d.posted)}</span>` : '');
 
   if (d) showBridge(d); else showChecks(v);
 }
 
-cy.on('tap', 'node', evt => {
-  const n = evt.target.data('raw');
-  cy.elements().removeClass('hit');
-  evt.target.addClass('hit');
+function select(n) {
+  for (const g of scene.querySelectorAll('g.node')) g.classList.remove('hit');
+  const mark = id => scene
+    .querySelector('g.node[data-node-id="' + CSS.escape(id) + '"]')?.classList.add('hit');
+  mark(n.id);
   // Lineage is the question a reviewer actually asks of a figure.
-  for (const a of (n.lineage?.ancestors || [])) cy.$id(a).addClass('hit');
+  for (const a of (n.lineage?.ancestors || [])) mark(a);
   showNode(n);
-});
-cy.on('tap', evt => { if (evt.target === cy) cy.elements().removeClass('hit'); });
+}
+
+function applyTransform() {
+  if (scene) scene.setAttribute('transform',
+    'translate(' + pz.x + ',' + pz.y + ') scale(' + pz.k + ')');
+}
+
+/* Pointer events rather than mouse events, so a finger, a pen and a mouse all
+   take the same path and two fingers pinch. Dropping cytoscape meant giving up
+   its input handling; leaving touch out would have made the graph unusable on a
+   phone, which is a worse regression than anything this rewrite was for. */
+(function wirePanZoom() {
+  const host = $('cy');
+  const live = new Map();          // pointerId -> {x, y}
+  let drag = null, pinch = null;
+  const dist = ps => Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y);
+  const mid  = ps => ({ x: (ps[0].x + ps[1].x) / 2, y: (ps[0].y + ps[1].y) / 2 });
+
+  function zoomAt(k, cx, cy) {
+    const box = host.getBoundingClientRect();
+    const mx = cx - box.left, my = cy - box.top;
+    k = Math.min(Math.max(k, 0.15), 6);
+    pz.x = mx - (mx - pz.x) * (k / pz.k);
+    pz.y = my - (my - pz.y) * (k / pz.k);
+    pz.k = k;
+    applyTransform();
+  }
+
+  host.addEventListener('pointerdown', e => {
+    live.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (live.size === 2) {
+      const ps = [...live.values()];
+      pinch = { d: dist(ps), k: pz.k };
+      drag = null;
+      return;
+    }
+    // A drag that starts on a label is a text selection, and selecting text is
+    // how a comment gets anchored — so it is left alone.
+    if (e.target.tagName === 'text') return;
+    drag = { x: e.clientX, y: e.clientY, ox: pz.x, oy: pz.y, id: e.pointerId };
+    host.setPointerCapture?.(e.pointerId);
+    host.style.cursor = 'grabbing';
+  });
+
+  host.addEventListener('pointermove', e => {
+    if (!live.has(e.pointerId)) return;
+    live.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && live.size === 2) {
+      const ps = [...live.values()], c = mid(ps);
+      zoomAt(pinch.k * (dist(ps) / pinch.d), c.x, c.y);
+      return;
+    }
+    if (!drag || e.pointerId !== drag.id) return;
+    pz.x = drag.ox + (e.clientX - drag.x);
+    pz.y = drag.oy + (e.clientY - drag.y);
+    applyTransform();
+  });
+
+  const release = e => {
+    live.delete(e.pointerId);
+    if (live.size < 2) pinch = null;
+    if (drag && e.pointerId === drag.id) { drag = null; host.style.cursor = ''; }
+  };
+  host.addEventListener('pointerup', release);
+  host.addEventListener('pointercancel', release);
+  host.addEventListener('pointerleave', release);
+
+  host.addEventListener('wheel', e => {
+    e.preventDefault();
+    zoomAt(pz.k * Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
+  }, { passive: false });
+
+  host.addEventListener('click', () => {
+    for (const g of (scene?.querySelectorAll('g.node') || [])) g.classList.remove('hit');
+  });
+})();
 
 function showNode(n) {
   const rows = [];
@@ -344,11 +482,16 @@ $('instBtn').onclick = () => {
 };
 /* Fit, then refuse to shrink past legibility. A graph scaled until the labels
    are grey mush answers nothing; better to start readable and let the reader
-   pan, which is the whole reason this is a canvas and not a static image. */
+   pan, which is the whole reason this is a live canvas and not a picture. */
 function refit() {
-  cy.resize();
-  cy.fit(undefined, 40);
-  if (cy.zoom() < 0.55) { cy.zoom(0.55); cy.center(); }
+  if (!lastLaid) return;
+  const W = lastLaid.width || 1, H = lastLaid.height || 1;
+  const box = $('cy').getBoundingClientRect();
+  if (!box.width || !box.height) return;
+  pz.k = Math.max(Math.min((box.width - 60) / W, (box.height - 60) / H, 1.4), 0.55);
+  pz.x = (box.width - W * pz.k) / 2;
+  pz.y = (box.height - H * pz.k) / 2;
+  applyTransform();
 }
 
 /* The container is not its final size when the layout finishes — an embed sizes
