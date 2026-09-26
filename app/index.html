@@ -229,7 +229,7 @@ const el = (tag, attrs = {}) => {
 };
 const elk = new ELK();
 const pz = { x: 0, y: 0, k: 1 };
-let scene = null, lastLaid = null;
+let scene = null;
 
 function measure(label, value) {
   const lines = [label, value].filter(x => x != null && x !== '');
@@ -240,7 +240,13 @@ function measure(label, value) {
   return { w: Math.min(Math.max(widest + 24, 72), 260), h: lines.length > 1 ? 44 : 30 };
 }
 
+/* One draw at a time, and only the newest survives. `draw` awaits the layout
+   engine, so two clicks in quick succession used to run concurrently and
+   whichever finished last replaced the canvas — which looked exactly like the
+   second click doing nothing. */
+let drawSeq = 0;
 async function draw() {
+  const mine = ++drawSeq;
   const v = view();
   if (!v) { $('status').textContent = 'no view for this combination'; return; }
 
@@ -255,7 +261,17 @@ async function draw() {
   }
   // Same rule the compiler follows: an edge whose other end is not on the canvas
   // is not drawn, rather than drawn to a node invented for it.
-  const edges = v.edges.filter(e => shown.has(e.from) && shown.has(e.to));
+  //
+  // `member` is dropped once the rows are nested: it says which type a row
+  // belongs to, and the box it sits in already says that. Everything else that
+  // touches an instance — which supplier a contract names, who owes a gap — is
+  // the reason for expanding in the first place and has to survive.
+  //
+  // Filtered once, here, so the array the layout is built from and the array
+  // the renderer walks are the same one. They were two, indexed independently,
+  // and every edge came out attached to the wrong pair.
+  const edges = v.edges.filter(e =>
+    shown.has(e.from) && shown.has(e.to) && e.rel !== 'member');
 
   // Instances are laid out *inside* their type rather than beside it. Expanding
   // a type used to scatter its rows across the picture with nothing to say where
@@ -278,11 +294,19 @@ async function draw() {
     const mine = kids.get(n.id);
     if (mine?.length) {
       c.children = mine.map(box);
+      // Same algorithm as the outer graph. A container laid out by a
+      // different one cannot have an edge crossing its boundary — ELK throws
+      // UnsupportedGraphException — and gaps do point at rows: a hook names the
+      // person who owes it. That threw on the second expansion and left the
+      // canvas on its previous frame, which read as the click doing nothing.
       c.layoutOptions = {
         ...(c.layoutOptions || {}),
         'elk.padding': '[top=34,left=14,bottom=14,right=14]',
-        'elk.algorithm': 'rectpacking',
-        'elk.aspectRatio': '2.4',
+        'elk.algorithm': 'layered',
+        'elk.direction': 'DOWN',
+        'elk.spacing.nodeNode': '14',
+        'elk.layered.spacing.nodeNodeBetweenLayers': '20',
+        'elk.aspectRatio': '2.6',
       };
     }
     children.push(c);
@@ -301,11 +325,9 @@ async function draw() {
       'elk.aspectRatio': '1.4',
     },
     children,
-    edges: edges
-      .filter(e => !(shown.get(e.to)?.kind === 'instance' && e.rel === 'member'))
-      .map((e, i) => ({ id: 'e' + i, sources: [e.from], targets: [e.to] })),
+    edges: edges.map((e, i) => ({ id: 'e' + i, sources: [e.from], targets: [e.to] })),
   });
-  lastLaid = laid;
+  if (mine !== drawSeq) return;
 
   // Nested children carry coordinates relative to their parent; flatten once so
   // the renderer only ever deals in absolute positions.
@@ -587,13 +609,17 @@ $('instBtn').onclick = () => {
    are grey mush answers nothing; better to start readable and let the reader
    pan, which is the whole reason this is a live canvas and not a picture. */
 function refit() {
-  if (!lastLaid) return;
-  const W = lastLaid.width || 1, H = lastLaid.height || 1;
+  // Measured from the nodes that were actually placed, not from the root's
+  // reported size: with nested children ELK does not fill that in reliably, and
+  // fitting to a phantom 1x1 box threw the whole graph off the left edge.
+  if (!scene) return;
+  const bb = scene.getBBox();
+  const W = bb.width || 1, H = bb.height || 1;
   const box = $('cy').getBoundingClientRect();
   if (!box.width || !box.height) return;
-  pz.k = Math.max(Math.min((box.width - 60) / W, (box.height - 60) / H, 1.4), 0.55);
-  pz.x = (box.width - W * pz.k) / 2;
-  pz.y = (box.height - H * pz.k) / 2;
+  pz.k = Math.max(Math.min((box.width - 60) / W, (box.height - 60) / H, 1.4), 0.3);
+  pz.x = (box.width - W * pz.k) / 2 - bb.x * pz.k;
+  pz.y = (box.height - H * pz.k) / 2 - bb.y * pz.k;
   applyTransform();
 }
 

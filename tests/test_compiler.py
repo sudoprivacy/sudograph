@@ -1413,3 +1413,44 @@ def test_instances_expand_per_type_and_nest_inside_it():
 def test_a_type_node_says_how_many_rows_it_holds():
     """The way in has to be visible, not something found by toggling."""
     assert "n.kind === 'type' && n.count" in _html()
+
+
+def test_a_container_uses_the_same_layout_algorithm_as_the_graph():
+    """ELK throws UnsupportedGraphException when an edge crosses into a
+    container laid out by a different algorithm — and gaps do point at rows, a
+    hook names the person who owes it. It threw on the second expansion and left
+    the canvas on its previous frame, which read as the click doing nothing."""
+    html = _html()
+    container = html.split("c.children = mine.map(box)", 1)[1].split("};", 1)[0]
+    assert "'elk.algorithm': 'layered'" in container
+
+
+def test_member_edges_are_filtered_once_and_only_once():
+    """The layout was built from one array and the renderer walked another,
+    indexed independently, so every edge came out attached to the wrong pair."""
+    html = _html()
+    body = html.split("async function draw()", 1)[1]
+    assert body.count("e.rel !== 'member'") == 1
+    assert "!(shown.get(e.to)?.kind === 'instance' && e.rel === 'member')" not in body
+
+
+def test_everything_touching_an_instance_except_membership_survives():
+    """`member` says which type a row belongs to and the box it sits in already
+    says that. Which supplier a contract names, and who owes a gap, are the
+    reason for expanding at all."""
+    v = _real().view
+    live = [
+        e for e in v["edges"]
+        if e["rel"] != "member" and ("/" in e["from"] or "/" in e["to"])
+    ]
+    rels = {e["rel"] for e in live}
+    assert "link" in rels and "owned_by" in rels
+    assert len(live) > 20
+
+
+def test_the_fit_is_measured_from_what_was_drawn():
+    """With nested children ELK does not fill in the root's size reliably, and
+    fitting to a phantom 1x1 box threw the whole graph off the left edge."""
+    html = _html()
+    assert "scene.getBBox()" in html
+    assert "lastLaid" not in html
