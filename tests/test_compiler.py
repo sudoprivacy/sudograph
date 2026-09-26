@@ -1388,3 +1388,28 @@ def test_the_implied_bridge_is_named_after_its_two_readings():
     bridge used to carry the literal placeholder "bridge" into the UI."""
     b = app_mod.bundle(spec_mod.load(REAL_FIXTURE))
     assert b["bridges"][0]["label"] == "账面 → 重述"
+
+
+def test_the_legend_is_in_the_header_not_a_footer_corner():
+    """It was present and nobody found it: 11px dim grey at the far right of a
+    footer. A legend nobody finds is a legend nobody has."""
+    html = _html()
+    header = html.split("<header>", 1)[1].split("</header>", 1)[0]
+    assert 'id="legend"' in header
+
+
+def test_instances_expand_per_type_and_nest_inside_it():
+    """Expanding used to be one global switch that scattered every row across
+    the picture with nothing to say where any of them came from. A type now
+    opens on its own and holds its rows."""
+    html = _html()
+    assert "state.expanded" in html and "state.instances" not in html
+    # ELK lays the rows out inside their type, so the answer to "where did these
+    # come from" is the box they are in.
+    assert "'elk.hierarchyHandling': 'INCLUDE_CHILDREN'" in html
+    assert "c.children = mine.map(box)" in html
+
+
+def test_a_type_node_says_how_many_rows_it_holds():
+    """The way in has to be visible, not something found by toggling."""
+    assert "n.kind === 'type' && n.count" in _html()

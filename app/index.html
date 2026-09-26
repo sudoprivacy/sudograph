@@ -57,6 +57,8 @@
   #cy text{fill:#dfe4ec;font-size:11px;pointer-events:auto;cursor:text}
   #cy text.num{font-variant-numeric:tabular-nums;fill:#eef3fb;font-weight:600}
   #cy g.node rect{transition:stroke .12s}
+  #cy g.node[data-open] > rect{fill-opacity:.16;stroke-dasharray:6 4}
+  #cy g.node[data-kind=type][data-count]{cursor:pointer}
   #cy g.node.dim{opacity:.13}
   #cy g.node.hit rect{stroke:#e8eef8;stroke-width:3}
   #cy g.node.entry rect{stroke:var(--entry);stroke-width:4}
@@ -74,8 +76,14 @@
   /* A legend, because the colours are the whole vocabulary and a reader who has
      to infer them is reading a puzzle. Business words, not the spec's field
      names: nobody outside this repo knows what a "hook" is. */
-  #legend{display:flex;gap:13px;flex-wrap:wrap;align-items:center;margin-left:auto}
-  #legend span{display:flex;gap:5px;align-items:center;white-space:nowrap}
+  /* In the header, not tucked into a footer corner: a legend nobody finds is
+     a legend nobody has. The kinds are structural — a connector, a gap, a
+     figure, an object type — so this stays four or five entries whatever the
+     domain, and does not grow with the business vocabulary. */
+  #legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-left:auto;
+          font-size:11px;padding:3px 10px;border:1px solid var(--line);
+          border-radius:6px;background:#0e1117}
+  #legend span{display:flex;gap:5px;align-items:center;white-space:nowrap;color:var(--ink)}
   #legend i{width:11px;height:11px;border-radius:3px;display:inline-block;
             border:1px solid #2b3140}
   #legend u{width:17px;height:0;border-top:1.5px solid;display:inline-block}
@@ -91,17 +99,15 @@
   <span id="dims" style="display:flex;gap:14px;flex-wrap:wrap"></span>
   <label>桥 <select id="bridge"></select></label>
   <button id="bridgeBtn">桥视图</button>
-  <button id="instBtn">显示实例</button>
+  <button id="instBtn">全部展开</button>
   <button id="fit">复位</button>
+  <span id="legend"></span>
 </header>
 <main>
   <div id="cy"></div>
   <aside id="panel"><p class="muted">点一个节点看它的来历。</p></aside>
 </main>
-<footer>
-  <span id="status" style="display:flex;gap:16px;flex-wrap:wrap"></span>
-  <span id="legend"></span>
-</footer>
+<footer><span id="status" style="display:flex;gap:16px;flex-wrap:wrap"></span></footer>
 
 <script>
 const BUNDLE = __BUNDLE__;
@@ -115,7 +121,7 @@ const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '�
    away from a static diagram in the first place. Visibility is a view decision,
    so it belongs here; the figures still come only from the compiler. */
 const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
-                instances: false };
+                expanded: new Set() };
 
 /* ── controls ──────────────────────────────────────────────────────── */
 $('title').textContent = BUNDLE.ontology;
@@ -244,12 +250,43 @@ async function draw() {
 
   const shown = new Map();
   for (const n of v.nodes) {
-    if (!state.instances && n.kind === 'instance') continue;
+    if (n.kind === 'instance' && !state.expanded.has(n.type)) continue;
     shown.set(n.id, n);
   }
   // Same rule the compiler follows: an edge whose other end is not on the canvas
   // is not drawn, rather than drawn to a node invented for it.
   const edges = v.edges.filter(e => shown.has(e.from) && shown.has(e.to));
+
+  // Instances are laid out *inside* their type rather than beside it. Expanding
+  // a type used to scatter its rows across the picture with nothing to say where
+  // they had come from; nesting them means the answer is the box they are in.
+  const box = (n) => {
+    const m = measure(n.label, n.value != null ? fmt(n.value) : null);
+    const c = { id: n.id, width: m.w, height: m.h };
+    const pin = (KINDS[n.kind] || {}).layer;
+    if (pin) c.layoutOptions = { 'elk.layered.layering.layerConstraint': pin };
+    return c;
+  };
+  const kids = new Map();
+  for (const n of shown.values())
+    if (n.kind === 'instance') (kids.get(n.type) || kids.set(n.type, []).get(n.type)).push(n);
+
+  const children = [];
+  for (const n of shown.values()) {
+    if (n.kind === 'instance') continue;
+    const c = box(n);
+    const mine = kids.get(n.id);
+    if (mine?.length) {
+      c.children = mine.map(box);
+      c.layoutOptions = {
+        ...(c.layoutOptions || {}),
+        'elk.padding': '[top=34,left=14,bottom=14,right=14]',
+        'elk.algorithm': 'rectpacking',
+        'elk.aspectRatio': '2.4',
+      };
+    }
+    children.push(c);
+  }
 
   const laid = await elk.layout({
     id: 'root',
@@ -258,22 +295,27 @@ async function draw() {
       'elk.layered.spacing.nodeNodeBetweenLayers': '80',
       'elk.spacing.nodeNode': '34',
       'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+      'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
       // Left to itself ELK lays this out very wide and very short, which wastes
       // the height and shrinks every label to fit the width.
       'elk.aspectRatio': '1.4',
     },
-    children: [...shown.values()].map(n => {
-      const m = measure(n.label, n.value != null ? fmt(n.value) : null);
-      const c = { id: n.id, width: m.w, height: m.h };
-      const pin = (KINDS[n.kind] || {}).layer;
-      if (pin) c.layoutOptions = { 'elk.layered.layering.layerConstraint': pin };
-      return c;
-    }),
-    edges: edges.map((e, i) => ({ id: 'e' + i, sources: [e.from], targets: [e.to] })),
+    children,
+    edges: edges
+      .filter(e => !(shown.get(e.to)?.kind === 'instance' && e.rel === 'member'))
+      .map((e, i) => ({ id: 'e' + i, sources: [e.from], targets: [e.to] })),
   });
   lastLaid = laid;
 
-  const pos = new Map((laid.children || []).map(c => [c.id, c]));
+  // Nested children carry coordinates relative to their parent; flatten once so
+  // the renderer only ever deals in absolute positions.
+  const pos = new Map();
+  (function walk(list, ox, oy) {
+    for (const c of list || []) {
+      pos.set(c.id, { ...c, x: c.x + ox, y: c.y + oy });
+      walk(c.children, c.x + ox, c.y + oy);
+    }
+  })(laid.children, 0, 0);
   const svg = el('svg', { width: '100%', height: '100%' });
   const defs = el('defs');
   for (const [name, e] of Object.entries(EDGES)) {
@@ -311,6 +353,8 @@ async function draw() {
     // selecting when they drag across a label today.
     g.dataset.nodeId = n.id;
     g.dataset.kind = n.kind;
+    if (n.count) g.dataset.count = n.count;
+    if (n.kind === 'type' && state.expanded.has(n.id)) g.dataset.open = '1';
     if (entries.has(n.id)) g.classList.add('entry');
     else if (carried.has(n.id)) g.classList.add('carriedN');
     else if (d) g.classList.add('dim');
@@ -320,16 +364,31 @@ async function draw() {
       stroke: (GRADE[n.completeness] || ['#2b3140'])[0],
       'stroke-width': 2,
     }));
+    const open = n.kind === 'type' && state.expanded.has(n.id);
     const val = n.value != null ? fmt(n.value) : null;
-    const t1 = el('text', { x: p.width / 2, y: val ? 18 : 19, 'text-anchor': 'middle' });
-    t1.textContent = n.label;
+    // A type says how many rows it holds and whether they are showing, so the
+    // way in is visible rather than something to discover by toggling.
+    const head = n.kind === 'type' && n.count
+      ? `${n.label}  ${open ? '▾' : '▸'}${n.count}` : n.label;
+    const t1 = el('text', {
+      x: open ? 10 : p.width / 2, y: val ? 18 : 19,
+      'text-anchor': open ? 'start' : 'middle' });
+    t1.textContent = head;
     g.appendChild(t1);
     if (val) {
       const t2 = el('text', { x: p.width / 2, y: 34, 'text-anchor': 'middle', class: 'num' });
       t2.textContent = val;
       g.appendChild(t2);
     }
-    g.addEventListener('click', ev => { ev.stopPropagation(); select(n); });
+    g.addEventListener('click', ev => {
+      ev.stopPropagation();
+      if (n.kind === 'type' && n.count) {
+        state.expanded.has(n.id) ? state.expanded.delete(n.id) : state.expanded.add(n.id);
+        draw().then(() => select(n));
+        return;
+      }
+      select(n);
+    });
     gNodes.appendChild(g);
   }
 
@@ -519,8 +578,9 @@ function showBridge(d) {
 }
 
 $('instBtn').onclick = () => {
-  state.instances = !state.instances;
-  $('instBtn').classList.toggle('on', state.instances);
+  const all = view().nodes.filter(n => n.kind === 'type' && n.count).map(n => n.id);
+  const anyClosed = all.some(t => !state.expanded.has(t));
+  state.expanded = new Set(anyClosed ? all : []);
   draw();
 };
 /* Fit, then refuse to shrink past legibility. A graph scaled until the labels
