@@ -12,7 +12,7 @@
   :root{
     --bg:#11141a; --panel:#171b23; --line:#242a36; --ink:#dfe4ec; --dim:#8a93a6;
     --raw:#3f7f68; --hook:#9a6a2f; --derived:#3a5f9e; --type:#4a4f5c; --inst:#2c313c;
-    --entry:#c0503c; --carried:#7a5aa8; --bad:#c0503c; --ok:#3f7f68;
+    --edge:#39404f; --entry:#c0503c; --carried:#7a5aa8; --bad:#c0503c; --ok:#3f7f68;
     color-scheme: dark;
   }
   *{box-sizing:border-box}
@@ -69,7 +69,17 @@
   .entry{border-left:3px solid var(--entry);padding-left:9px;margin:9px 0}
   .carried{border-left:3px solid var(--carried);padding-left:9px;margin:9px 0}
   footer{padding:5px 16px;border-top:1px solid var(--line);background:var(--panel);
-         font-size:11px;color:var(--dim);display:flex;gap:16px;flex-wrap:wrap}
+         font-size:11px;color:var(--dim);display:flex;gap:16px;flex-wrap:wrap;
+         align-items:center}
+  /* A legend, because the colours are the whole vocabulary and a reader who has
+     to infer them is reading a puzzle. Business words, not the spec's field
+     names: nobody outside this repo knows what a "hook" is. */
+  #legend{display:flex;gap:13px;flex-wrap:wrap;align-items:center;margin-left:auto}
+  #legend span{display:flex;gap:5px;align-items:center;white-space:nowrap}
+  #legend i{width:11px;height:11px;border-radius:3px;display:inline-block;
+            border:1px solid #2b3140}
+  #legend u{width:17px;height:0;border-top:1.5px solid;display:inline-block}
+  #legend u.dash{border-top-style:dashed}
   @media (max-width:800px){ main{flex-direction:column} aside{width:auto;height:44%;
     border-left:none;border-top:1px solid var(--line)} }
 </style>
@@ -88,7 +98,10 @@
   <div id="cy"></div>
   <aside id="panel"><p class="muted">点一个节点看它的来历。</p></aside>
 </main>
-<footer id="status"></footer>
+<footer>
+  <span id="status" style="display:flex;gap:16px;flex-wrap:wrap"></span>
+  <span id="legend"></span>
+</footer>
 
 <script>
 const BUNDLE = __BUNDLE__;
@@ -136,7 +149,7 @@ for (const [dim, values] of Object.entries(BUNDLE.axes)) {
 
 for (const br of BUNDLE.bridges) {
   const o = document.createElement('option');
-  o.value = br.name; o.textContent = br.label + `  (${br.from} → ${br.to})`;
+  o.value = br.name; o.textContent = br.label;
   $('bridge').appendChild(o);
 }
 if (!BUNDLE.bridges.length) {
@@ -162,8 +175,33 @@ function defaultBridgeName() {
   return b ? (b.name || `${b.from}->${b.to}`) : '';
 }
 
-const COLOR = { raw:'--raw', hook:'--hook', derived:'--derived', type:'--type', instance:'--inst' };
+/* One table. The renderer colours nodes from it, the legend is built from it,
+   and ELK's layer constraint is read from it — so a new kind cannot appear on
+   the canvas without a name in the legend and a row to sit on. */
+const KINDS = {
+  raw:      { var:'--raw',      name:'取数点',     layer:'FIRST' },
+  hook:     { var:'--hook',     name:'缺口'                      },
+  derived:  { var:'--derived',  name:'算出来的数'                },
+  type:     { var:'--type',     name:'对象类型'                  },
+  instance: { var:'--inst'                                       },
+};
+const GRADE = { partial:['#6b5325','部分'], missing:['#6e3a2e','缺失'] };
+const EDGES = {
+  flow:    { dash:'', colour:'--edge', name:'流向'      },
+  affects: { dash:'dash', colour:'--hook', name:'使它暂定' },
+};
+const edgeStyle = rel => EDGES[rel === 'affects' ? 'affects' : 'flow'];
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+$('legend').innerHTML =
+  Object.values(KINDS).filter(k => k.name)
+    .map(k => `<span><i style="background:var(${k.var})"></i>${k.name}</span>`).join('') +
+  Object.values(EDGES)
+    .map(e => `<span><u class="${e.dash}" style="border-top-color:${
+      css(e.colour)}"></u>${e.name}</span>`).join('') +
+  `<span>边框：` + Object.values(GRADE)
+    .map(([c, label]) => `<i style="background:transparent;border-color:${c}"></i>${label}`)
+    .join('') + `</span>`;
 
 /* Rendered as SVG, not canvas, and the reason is commenting rather than taste.
    A canvas is one opaque element: no text to select and no element to point at,
@@ -220,10 +258,16 @@ async function draw() {
       'elk.layered.spacing.nodeNodeBetweenLayers': '80',
       'elk.spacing.nodeNode': '34',
       'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+      // Left to itself ELK lays this out very wide and very short, which wastes
+      // the height and shrinks every label to fit the width.
+      'elk.aspectRatio': '1.4',
     },
     children: [...shown.values()].map(n => {
       const m = measure(n.label, n.value != null ? fmt(n.value) : null);
-      return { id: n.id, width: m.w, height: m.h };
+      const c = { id: n.id, width: m.w, height: m.h };
+      const pin = (KINDS[n.kind] || {}).layer;
+      if (pin) c.layoutOptions = { 'elk.layered.layering.layerConstraint': pin };
+      return c;
     }),
     edges: edges.map((e, i) => ({ id: 'e' + i, sources: [e.from], targets: [e.to] })),
   });
@@ -232,10 +276,10 @@ async function draw() {
   const pos = new Map((laid.children || []).map(c => [c.id, c]));
   const svg = el('svg', { width: '100%', height: '100%' });
   const defs = el('defs');
-  for (const [name, colour] of [['a', '#39404f'], ['w', '#9a6a2f']]) {
+  for (const [name, e] of Object.entries(EDGES)) {
     const m = el('marker', { id: 'arw-' + name, viewBox: '0 0 10 10', refX: '9',
       refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto-start-reverse' });
-    m.appendChild(el('path', { d: 'M0,0 L10,5 L0,10 z', fill: colour }));
+    m.appendChild(el('path', { d: 'M0,0 L10,5 L0,10 z', fill: css(e.colour) }));
     defs.appendChild(m);
   }
   svg.appendChild(defs);
@@ -252,11 +296,11 @@ async function draw() {
       d: pts.map((q, j) => (j ? 'L' : 'M') + q.x + ',' + q.y).join(' '),
       fill: 'none',
       'stroke-width': e.rel === 'links' ? 2 : 1.2,
-      stroke: e.rel === 'affects' ? '#9a6a2f' : '#39404f',
-      'marker-end': 'url(#arw-' + (e.rel === 'affects' ? 'w' : 'a') + ')',
+      stroke: css(edgeStyle(e.rel).colour),
+      'marker-end': 'url(#arw-' + (e.rel === 'affects' ? 'affects' : 'flow') + ')',
       opacity: e.rel === 'member' ? 0.22 : 0.7,
     });
-    if (e.rel === 'affects') p.setAttribute('stroke-dasharray', '5 4');
+    if (edgeStyle(e.rel).dash) p.setAttribute('stroke-dasharray', '5 4');
     gEdges.appendChild(p);
   }
 
@@ -272,9 +316,8 @@ async function draw() {
     else if (d) g.classList.add('dim');
     g.appendChild(el('rect', {
       width: p.width, height: p.height, rx: 6,
-      fill: css(COLOR[n.kind] || '--type'),
-      stroke: n.completeness === 'missing' ? '#6e3a2e'
-            : n.completeness === 'partial' ? '#6b5325' : '#2b3140',
+      fill: css((KINDS[n.kind] || KINDS.type).var),
+      stroke: (GRADE[n.completeness] || ['#2b3140'])[0],
       'stroke-width': 2,
     }));
     const val = n.value != null ? fmt(n.value) : null;

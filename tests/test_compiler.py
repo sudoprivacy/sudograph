@@ -1268,3 +1268,123 @@ def test_the_payload_cannot_close_the_script_tag():
     html = app_mod.render(b)
     assert "</script><script>alert(1)" not in html
     assert "<\/script>" in html
+
+
+# ── the app: properties that cost real time to rediscover ──────────────
+#
+# Each of these was found by looking at a rendered page and being told it was
+# wrong, which is expensive. They are asserted rather than merely commented so
+# that a later change has to argue with a failing test instead of quietly
+# undoing them.
+
+def _html() -> str:
+    return app_mod.render(app_mod.bundle(spec_mod.load(REAL_FIXTURE)))
+
+
+def test_the_graph_is_svg_because_a_canvas_cannot_be_commented_on():
+    """A canvas is one opaque element: nothing to select and nothing to point
+    at, so an anchored comment has nowhere to attach and a drag-select grabs the
+    whole picture. Every node must be a real element carrying real text."""
+    html = _html()
+    assert "createElementNS" in html and "http://www.w3.org/2000/svg" in html
+    assert "<canvas" not in html
+    assert "data-node-id" in html or "dataset.nodeId" in html
+    # Prose may name cytoscape — the comments explain why it is not here, and
+    # that reasoning is the point of keeping them. What must not come back is a
+    # call into it.
+    for call in ("cytoscape(", "cytoscape.use", "cy.add", "cy.layout", "cy.fit"):
+        assert call not in html, call
+
+
+def test_the_layout_engine_is_elk_and_only_elk():
+    """Layout was never cytoscape's contribution — cytoscape-elk is an adapter
+    that calls elkjs. Dropping cytoscape kept the layout and lost 365 KB."""
+    assert "new ELK()" in _html()
+    assert [
+        os.path.join(app_mod._ROOT, "app", "vendor", "elk.bundled.js")
+    ] == app_mod.VENDOR
+
+
+def test_connectors_are_pinned_to_the_top_row():
+    """ELK otherwise places each raw by how deep its own chain runs, so one
+    feeding a short branch drifts into the middle and stops reading as a source
+    — which was most of what made the graph hard to take in.
+
+    Asserted against the kind table rather than a literal in the renderer: the
+    pin has to survive, the spelling does not."""
+    html = _html()
+    assert "layerConstraint" in html
+    # Slice the kind table first: "raw:" also occurs in the inlined layout
+    # engine and in the bundle's own JSON.
+    table = html.split("const KINDS", 1)[1].split("};", 1)[0]
+    raw_row = next(ln for ln in table.splitlines() if ln.strip().startswith("raw:"))
+    assert "FIRST" in raw_row, raw_row
+
+
+def test_one_table_drives_colour_legend_and_layer():
+    """A kind that can appear on the canvas but not in the legend is how the
+    graph became unreadable the first time. Parallel tables drift; this one
+    cannot, because the renderer reads the same rows the legend is built from."""
+    html = _html()
+    assert "const KINDS" in html
+    # No second colour map to fall out of step with it.
+    assert "const COLOR" not in html
+    assert "Object.values(KINDS)" in html          # the legend is built from it
+    assert "KINDS[n.kind]" in html                 # and so is the node fill
+
+    # The renderer must not carry a literal of any colour the table owns:
+    # that is how the canvas and the legend start disagreeing.
+    table = html.split("const KINDS", 1)[1].split("};", 1)[0]
+    body = html.split("async function draw()", 1)[1]
+    palette = dict(re.findall(r"--(\w+):(#[0-9a-fA-F]{6})", html))
+    for var in re.findall(r"var:'--(\w+)'", table):
+        literal = palette.get(var)
+        if literal:
+            assert literal not in body, f"{var} hardcoded in the renderer: {literal}"
+
+
+def test_the_app_handles_touch():
+    """Dropping cytoscape meant giving up its input handling. Leaving touch out
+    would make the graph unusable on a phone — a worse regression than the one
+    the rewrite fixed. touch-action:none stops the browser scrolling the page
+    instead of panning the graph."""
+    html = _html()
+    assert "pointerdown" in html and "pointermove" in html
+    assert "touch-action:none" in html
+
+
+def test_the_legend_names_every_colour_in_business_words():
+    """The colours are the whole vocabulary; a reader who has to infer them is
+    reading a puzzle. And nobody outside this repo knows what a "hook" is."""
+    html = _html()
+    for word in ("取数点", "缺口", "算出来的数", "对象类型"):
+        assert word in html, word
+
+
+def test_a_raw_is_joined_to_what_it_supplies():
+    """Three connectors used to sit unattached at the top of every graph. The
+    relationship was in the spec all along and checked on every compile; it was
+    simply never drawn. Provenance is the first question anyone asks of a
+    figure, so the edge that answers it cannot be the missing one."""
+    v = _real().view
+    supplies = {(e["from"], e["to"]) for e in v["edges"] if e["rel"] == "supplies"}
+    assert ("R-LEDGER", "委外合同") in supplies
+    # Corroboration is visible as two connectors reaching the same type.
+    assert ("R-KINGDEE", "账面委外") in supplies
+    assert ("R-LEDGER", "账面委外") in supplies
+
+
+@pytest.mark.parametrize("fold_over", [20, 1])
+def test_no_node_is_stranded(fold_over):
+    """An isolated node teaches a reader only that the graph has noise in it."""
+    v = _real(fold_over=fold_over).view
+    touched = {e for edge in v["edges"] for e in (edge["from"], edge["to"])}
+    stranded = [n["id"] for n in v["nodes"] if n["id"] not in touched]
+    assert stranded == []
+
+
+def test_the_implied_bridge_is_named_after_its_two_readings():
+    """With exactly two readings the pairing is implied, and the synthesised
+    bridge used to carry the literal placeholder "bridge" into the UI."""
+    b = app_mod.bundle(spec_mod.load(REAL_FIXTURE))
+    assert b["bridges"][0]["label"] == "账面 → 重述"

@@ -102,7 +102,11 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5) -> dict[str, Any]:
             {"name": n, "from": b["from"], "to": b["to"], "label": b.get("label", n)}
             for n, b in s.bridges.items()
         ]
-        or ([{"name": "", "from": bases[0], "to": bases[1], "label": "bridge"}] if pairs else []),
+        or (
+            [{"name": "", "from": bases[0], "to": bases[1], "label": f"{bases[0]} → {bases[1]}"}]
+            if pairs
+            else []
+        ),
         "views": views,
         "diffs": diffs,
     }
