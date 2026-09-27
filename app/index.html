@@ -29,7 +29,10 @@
   button.on{border-color:var(--entry);color:#fff}
   main{flex:1;display:flex;min-height:0}
   #cy{flex:1;min-width:0}
-  aside{width:340px;border-left:1px solid var(--line);background:var(--panel);
+  /* The panel sits on the left because the carrier puts comments on the right:
+     two columns of text on the same edge means the one you are reading and the
+     one you are writing overlap, and a reader loses whichever is underneath. */
+  aside{order:-1;width:340px;border-right:1px solid var(--line);background:var(--panel);
         overflow:auto;padding:14px 16px}
   aside h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;
            color:var(--dim);margin:18px 0 8px;font-weight:600}
@@ -57,6 +60,9 @@
   #cy text{fill:#dfe4ec;font-size:11px;pointer-events:auto;cursor:text}
   #cy text.num{font-variant-numeric:tabular-nums;fill:#eef3fb;font-weight:600}
   #cy g.node rect{transition:stroke .12s}
+  #cy g.closer{cursor:pointer}
+  #cy text.closer-mark{fill:var(--dim);font-size:15px;cursor:pointer}
+  #cy g.closer:hover text.closer-mark{fill:#dfe4ec}
   #cy g.node[data-open] > rect{fill-opacity:.16;stroke-dasharray:6 4}
   #cy g.node[data-kind=type][data-count]{cursor:pointer}
   #cy g.node.dim{opacity:.13}
@@ -409,10 +415,30 @@ async function draw() {
       t2.textContent = val;
       g.appendChild(t2);
     }
+    // Opening is a click; closing is a control. A click that toggles makes the
+    // open state depend on how many times you have clicked, which is unusable
+    // for the thing a graph is actually for: pointing at a node and saying
+    // something about it. Every such click used to close what you were pointing
+    // at, so the second click landed somewhere that no longer existed.
+    if (open) {
+      const closer = el('g', { class: 'closer' });
+      closer.appendChild(el('rect', {
+        x: p.width - 26, y: 4, width: 22, height: 20, rx: 5, fill: 'transparent' }));
+      const x = el('text', {
+        x: p.width - 15, y: 19, 'text-anchor': 'middle', class: 'closer-mark' });
+      x.textContent = '×';
+      closer.appendChild(x);
+      closer.addEventListener('click', ev => {
+        ev.stopPropagation();
+        state.expanded.delete(n.id);
+        draw().then(() => select(n));
+      });
+      g.appendChild(closer);
+    }
     g.addEventListener('click', ev => {
       ev.stopPropagation();
-      if (n.kind === 'type' && n.count) {
-        state.expanded.has(n.id) ? state.expanded.delete(n.id) : state.expanded.add(n.id);
+      if (n.kind === 'type' && n.count && !open) {
+        state.expanded.add(n.id);
         draw().then(() => select(n));
         return;
       }
