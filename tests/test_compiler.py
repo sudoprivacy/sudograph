@@ -1630,3 +1630,25 @@ def test_the_gap_taking_a_residual_must_say_it_holds_the_figure():
     bad = _mutated_real(**{"hooks/H-台账账面差/affects": []})
     problems = spec_mod.check(bad)
     assert any("does not list it in 'affects'" in p for p in problems), problems
+
+
+def test_a_node_is_measured_from_the_same_lines_it_draws():
+    """A box sized for two lines and drawn with three overflows it, and nothing
+    says so — the layout is simply wrong by one line everywhere. So there is one
+    description of what a node says, and both the sizing and the drawing read it.
+    """
+    with open(app_mod.TEMPLATE, encoding="utf-8") as fh:
+        html = fh.read()
+    calls = [line.strip() for line in html.splitlines() if "measure(" in line]
+    assert [c for c in calls if c.startswith("function measure")], calls
+    others = [c for c in calls if not c.startswith("function measure")]
+    assert others and all("measure(linesOf(" in c for c in others), others
+    assert html.count("linesOf(") == 3, "measured once, drawn once, defined once"
+
+
+def test_a_plug_wears_its_difference():
+    """The number a plug exists to expose was one click away, which is the same
+    silent absorption the plug is there to prevent."""
+    with open(app_mod.TEMPLATE, encoding="utf-8") as fh:
+        html = fh.read()
+    assert "n.residual != null" in html.split("function linesOf")[1].split("function measure")[0]

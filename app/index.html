@@ -59,6 +59,7 @@
   #cy{cursor:grab;user-select:text;touch-action:none}
   #cy text{fill:#dfe4ec;font-size:11px;pointer-events:auto;cursor:text}
   #cy text.num{font-variant-numeric:tabular-nums;fill:#eef3fb;font-weight:600}
+  #cy text.sub{font-variant-numeric:tabular-nums;fill:var(--hook);font-size:10px}
   #cy g.node rect{transition:stroke .12s}
   #cy g.closer{cursor:pointer}
   #cy text.closer-mark{fill:var(--dim);font-size:15px;cursor:pointer}
@@ -238,13 +239,29 @@ const elk = new ELK();
 const pz = { x: 0, y: 0, k: 1 };
 let scene = null;
 
-function measure(label, value) {
-  const lines = [label, value].filter(x => x != null && x !== '');
+// What a node says, in one place. Measuring and drawing read the same list, so
+// a line added to one cannot go missing from the other's box — the class of
+// fault that had the graph laid out for a size it was not drawn at.
+function linesOf(n, open) {
+  const head = n.kind === 'type' && n.count
+    ? `${n.label}  ${open ? '▾' : '▸'}${n.count}`
+    : (n.kind === 'hook' && n.waiting_on)
+      ? `${n.label}  · ${n.waiting_on} 项`
+      : n.label;
+  // A plug exists to expose a difference against an independent measure, so the
+  // difference goes on the face of it. Showing only the total left the check
+  // one click away, which is the same silent absorption the plug is there to
+  // prevent.
+  const residual = n.residual != null ? `差 ${fmt(n.residual)}` : null;
+  return [head, n.value != null ? fmt(n.value) : null, residual].filter(x => x != null);
+}
+
+function measure(lines) {
   // CJK is about one em per character, Latin about half. ELK only needs the
   // extents, not perfection.
   const widest = Math.max(...lines.map(t =>
     [...String(t)].reduce((w, c) => w + (c.charCodeAt(0) > 0x2e80 ? 12 : 6.6), 0)));
-  return { w: Math.min(Math.max(widest + 24, 72), 260), h: lines.length > 1 ? 44 : 30 };
+  return { w: Math.min(Math.max(widest + 24, 72), 260), h: 16 + 14 * lines.length };
 }
 
 /* One draw at a time, and only the newest survives. `draw` awaits the layout
@@ -284,7 +301,7 @@ async function draw() {
   // a type used to scatter its rows across the picture with nothing to say where
   // they had come from; nesting them means the answer is the box they are in.
   const box = (n) => {
-    const m = measure(n.label, n.value != null ? fmt(n.value) : null);
+    const m = measure(linesOf(n, state.expanded.has(n.id)));
     const c = { id: n.id, width: m.w, height: m.h };
     const pin = (KINDS[n.kind] || {}).layer;
     if (pin) c.layoutOptions = { 'elk.layered.layering.layerConstraint': pin };
@@ -394,27 +411,17 @@ async function draw() {
       'stroke-width': 2,
     }));
     const open = n.kind === 'type' && state.expanded.has(n.id);
-    // Only a type is expandable, and only a type gets the arrow. A derived node
-    // whose value happens to be a count carried the same "▸16" and read as an
-    // invitation to click that did nothing. A gap shows how many rows it is
-    // holding up — the first thing anyone asks of a named gap is *which* rows
-    // it is holding — and that number has to survive those rows being folded.
-    const val = n.value != null ? fmt(n.value) : null;
-    const head = n.kind === 'type' && n.count
-      ? `${n.label}  ${open ? '▾' : '▸'}${n.count}`
-      : (n.kind === 'hook' && n.waiting_on)
-        ? `${n.label}  · ${n.waiting_on} 项`
-        : n.label;
-    const t1 = el('text', {
-      x: open ? 10 : p.width / 2, y: val ? 18 : 19,
-      'text-anchor': open ? 'start' : 'middle' });
-    t1.textContent = head;
-    g.appendChild(t1);
-    if (val) {
-      const t2 = el('text', { x: p.width / 2, y: 34, 'text-anchor': 'middle', class: 'num' });
-      t2.textContent = val;
-      g.appendChild(t2);
-    }
+    const lines = linesOf(n, open);
+    lines.forEach((text, i) => {
+      const t = el('text', {
+        x: open ? 10 : p.width / 2,
+        y: lines.length === 1 ? 19 : 18 + 16 * i,
+        'text-anchor': open ? 'start' : 'middle',
+        ...(i === 1 ? { class: 'num' } : i > 1 ? { class: 'sub' } : {}),
+      });
+      t.textContent = text;
+      g.appendChild(t);
+    });
     // Opening is a click; closing is a control. A click that toggles makes the
     // open state depend on how many times you have clicked, which is unusable
     // for the thing a graph is actually for: pointing at a node and saying

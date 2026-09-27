@@ -201,7 +201,7 @@ nodes:
     op: "select sum(金额) from 账面委外"
   台账账面差:
     kind: derived
-    label: 台账合计与账面之差（平衡项）
+    label: 台账口径的委外合计（对账用）
     op: "委外合计"
     plug_against: 账面委外投入
     residual_to: H-台账账面差
