@@ -1726,3 +1726,22 @@ def test_layout_rank_comes_from_the_kinds_themselves():
     v = _real().view
     rank = {n["kind"]: n["layer"] for n in v["nodes"] if n["kind"] in spec_mod.NODE_KINDS}
     assert rank == {k: i for i, k in enumerate(spec_mod.NODE_KINDS)}
+
+
+def test_a_volatile_count_never_shares_a_text_node_with_a_stable_label():
+    """A comment anchored to a label has to survive the graph being redrawn, and
+    the label itself never changes. A count beside it changes whenever a row is
+    added or a gap clears — so joined into one string, the anchor breaks on the
+    next recount. Two comments orphaned exactly this way the moment gaps learned
+    to say "· 11 项".
+
+    Separate parts, separate text nodes: the label's own text stays
+    byte-identical for the life of the node.
+    """
+    html = _html()
+    body = html.split("function linesOf", 1)[1].split("function measure", 1)[0]
+    # The label is a part of its own, never interpolated with the count.
+    assert "[n.label, mark]" in body
+    assert "${n.label}" not in body
+    draw = html.split("async function draw()", 1)[1]
+    assert "el('tspan'" in draw

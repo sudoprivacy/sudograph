@@ -60,6 +60,7 @@
   #cy text{fill:#dfe4ec;font-size:11px;pointer-events:auto;cursor:text}
   #cy text.num{font-variant-numeric:tabular-nums;fill:#eef3fb;font-weight:600}
   #cy text.sub{font-variant-numeric:tabular-nums;fill:var(--hook);font-size:10px}
+  #cy tspan.mark{fill:var(--dim);font-variant-numeric:tabular-nums}
   #cy g.node rect{transition:stroke .12s}
   #cy g.closer{cursor:pointer}
   #cy text.closer-mark{fill:var(--dim);font-size:15px;cursor:pointer}
@@ -247,28 +248,38 @@ const elk = new ELK();
 const pz = { x: 0, y: 0, k: 1 };
 let scene = null;
 
-// What a node says, in one place. Measuring and drawing read the same list, so
-// a line added to one cannot go missing from the other's box — the class of
-// fault that had the graph laid out for a size it was not drawn at.
+// What a node says, in one place: a list of lines, each a list of parts.
+// Measuring and drawing read the same list, so a line added to one cannot go
+// missing from the other's box — the fault that had the graph laid out for a
+// size it was not drawn at.
+//
+// The split into parts is not cosmetic. A label is stable for the life of the
+// node; a count beside it changes whenever a row is added or a gap clears. Put
+// in the same text node they become one string, and every comment anchored to
+// that string breaks the next time the count moves — which is how two comments
+// on gap nodes orphaned the moment those gaps learned to say "· 11 项". Drawn
+// as separate parts, the label's own text stays byte-identical forever.
 function linesOf(n, open) {
-  const head = n.kind === 'type' && n.count
-    ? `${n.label}  ${open ? '▾' : '▸'}${n.count}`
-    : (n.kind === 'hook' && n.waiting_on)
-      ? `${n.label}  · ${n.waiting_on} 项`
-      : n.label;
+  const mark = n.kind === 'type' && n.count
+    ? `  ${open ? '▾' : '▸'}${n.count}`
+    : (n.kind === 'hook' && n.waiting_on) ? `  · ${n.waiting_on} 项` : null;
   // A plug exists to expose a difference against an independent measure, so the
   // difference goes on the face of it. Showing only the total left the check
   // one click away, which is the same silent absorption the plug is there to
   // prevent.
   const residual = n.residual != null ? `差 ${fmt(n.residual)}` : null;
-  return [head, n.value != null ? fmt(n.value) : null, residual].filter(x => x != null);
+  return [
+    mark ? [n.label, mark] : [n.label],
+    n.value != null ? [fmt(n.value)] : null,
+    residual ? [residual] : null,
+  ].filter(x => x != null);
 }
 
 function measure(lines) {
   // CJK is about one em per character, Latin about half. ELK only needs the
   // extents, not perfection.
-  const widest = Math.max(...lines.map(t =>
-    [...String(t)].reduce((w, c) => w + (c.charCodeAt(0) > 0x2e80 ? 12 : 6.6), 0)));
+  const widest = Math.max(...lines.map(parts =>
+    [...parts.join('')].reduce((w, c) => w + (c.charCodeAt(0) > 0x2e80 ? 12 : 6.6), 0)));
   return { w: Math.min(Math.max(widest + 24, 72), 260), h: 16 + 14 * lines.length };
 }
 
@@ -440,14 +451,19 @@ async function draw() {
     }));
     const open = n.kind === 'type' && state.expanded.has(n.id);
     const lines = linesOf(n, open);
-    lines.forEach((text, i) => {
+    lines.forEach((parts, i) => {
       const t = el('text', {
         x: open ? 10 : p.width / 2,
         y: lines.length === 1 ? 19 : 18 + 16 * i,
         'text-anchor': open ? 'start' : 'middle',
         ...(i === 1 ? { class: 'num' } : i > 1 ? { class: 'sub' } : {}),
       });
-      t.textContent = text;
+      // One tspan per part, so a volatile part never rewrites a stable one.
+      parts.forEach((part, j) => {
+        const span = el('tspan', j ? { class: 'mark' } : {});
+        span.textContent = part;
+        t.appendChild(span);
+      });
       g.appendChild(t);
     });
     // Opening is a click; closing is a control. A click that toggles makes the
