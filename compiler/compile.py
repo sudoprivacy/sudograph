@@ -473,12 +473,31 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         if d.get("residual_to"):
             edges.append({"from": name, "to": d["residual_to"], "rel": "residual_to"})
 
+    # How many rows each gap is holding up, so the number survives folding: the
+    # rows themselves may be collapsed, but "waiting on 2 contracts" is the part
+    # a reviewer needs either way.
+    #
+    # Counted from the spec rather than from the edges already emitted — the
+    # edge that carries this is produced further down, and reading it here gave
+    # every gap a confident zero.
+    cited_by: dict[str, int] = {}
+    for tname, rows in s.instances.items():
+        props = s.types[tname].get("props") or {}
+        for prop, d in props.items():
+            if d.get("type") != "ref" or d.get("to") != "hook":
+                continue
+            for row in rows:
+                ref = row.get(prop)
+                if ref in s.hooks:
+                    cited_by[ref] = cited_by.get(ref, 0) + 1
+
     for hname, h in s.hooks.items():
         nodes.append(
             {
                 "id": hname,
                 "kind": "hook",
                 "layer": 1,
+                "waiting_on": cited_by.get(hname, 0),
                 "label": h.get("label", hname),
                 "resolve_when": h.get("resolve_when"),
                 "owner": h.get("owner"),
@@ -496,6 +515,38 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
             # The person was folded away with their group; the edge still has to
             # land somewhere, so it lands on the type.
             edges.append({"from": hname, "to": owner.split("/", 1)[0], "rel": "owned_by"})
+
+    # A gap is cited by the rows that are waiting on it, and that is the first
+    # thing anyone asks of one: "合同原件未到" — which contracts? The rows name
+    # the hook in a ref property, the compiler already checks every one of them
+    # resolves, and the graph drew the hook's *effects* and its *owner* while
+    # leaving out the rows themselves. A gap with no visible subjects reads as a
+    # note pinned to nothing.
+    for tname, rows in s.instances.items():
+        props = s.types[tname].get("props") or {}
+        hook_refs = [
+            p for p, d in props.items() if d.get("type") == "ref" and d.get("to") == "hook"
+        ]
+        if not hook_refs:
+            continue
+        idp = s.types[tname]["id"]
+        if folded_types[tname]:
+            # The rows are not on the canvas, so the edge lands on the type —
+            # same rule the link edges follow. The count on the gap itself is
+            # what carries the detail once the rows are folded away.
+            continue
+        for row in rows:
+            for prop in hook_refs:
+                ref = row.get(prop)
+                if ref and ref in s.hooks:
+                    edges.append(
+                        {
+                            "from": ref,
+                            "to": f"{tname}/{row.get(idp)}",
+                            "rel": "cites",
+                            "via": prop,
+                        }
+                    )
 
     # A raw supplies the properties that name it in `from`. The relationship is
     # already in the spec and already checked on every compile

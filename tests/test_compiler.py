@@ -1489,3 +1489,32 @@ def test_only_the_node_group_is_named():
     assert named, "no dataset assignments found — did the renderer change shape?"
     assert set(named) == {"g"}, f"something other than the node group is named: {set(named)}"
     assert "g.dataset.nodeId = n.id;" in body
+
+
+def test_a_gap_says_how_many_rows_it_is_holding():
+    """A gap that nothing points at reads as an opinion. The first question
+    anyone asks of one is *which* rows, and the answer has to survive those rows
+    being folded away — which is the usual state, since folding is what keeps a
+    real ontology readable.
+
+    The count comes from the spec, not from the edges: the edge that carries it
+    is emitted further down the same function, and reading it here gave every
+    gap a confident zero.
+    """
+    s = spec_mod.load(REAL_FIXTURE)
+    for fold_over in (1, 999):
+        v = compile_mod.compile_spec(s, basis=BOOK, fold_over=fold_over).view
+        waiting = {n["id"]: n.get("waiting_on") for n in v["nodes"] if n["kind"] == "hook"}
+        assert waiting["H-待合同"] == 2 and waiting["H-供应商未派人"] == 11
+        # Whatever is folded, no edge may point at a row that is not drawn.
+        ids = {n["id"] for n in v["nodes"]}
+        assert all(e["to"] in ids and e["from"] in ids for e in v["edges"])
+
+    folded = compile_mod.compile_spec(s, basis=BOOK, fold_over=1).view
+    assert not [n for n in folded["nodes"] if n["kind"] == "instance"]
+    assert not [e for e in folded["edges"] if e["rel"] == "cites"]
+
+    # Unfolded, the gap reaches each row that cites it, one edge apiece.
+    big = compile_mod.compile_spec(s, basis=BOOK, fold_over=999).view
+    cites = [e for e in big["edges"] if e["rel"] == "cites" and e["from"] == "H-待合同"]
+    assert len(cites) == 2 and len({e["to"] for e in cites}) == 2

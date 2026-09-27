@@ -196,7 +196,8 @@ const EDGES = {
   flow:    { dash:'', colour:'--edge', name:'流向'      },
   affects: { dash:'dash', colour:'--hook', name:'使它暂定' },
 };
-const edgeStyle = rel => EDGES[rel === 'affects' ? 'affects' : 'flow'];
+const edgeStyle = rel =>
+  EDGES[(rel === 'affects' || rel === 'cites') ? 'affects' : 'flow'];
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 $('legend').innerHTML =
@@ -361,7 +362,7 @@ async function draw() {
       fill: 'none',
       'stroke-width': e.rel === 'links' ? 2 : 1.2,
       stroke: css(edgeStyle(e.rel).colour),
-      'marker-end': 'url(#arw-' + (e.rel === 'affects' ? 'affects' : 'flow') + ')',
+      'marker-end': 'url(#arw-' + ((e.rel === 'affects' || e.rel === 'cites') ? 'affects' : 'flow') + ')',
       opacity: e.rel === 'member' ? 0.22 : 0.7,
     });
     if (edgeStyle(e.rel).dash) p.setAttribute('stroke-dasharray', '5 4');
@@ -387,11 +388,17 @@ async function draw() {
       'stroke-width': 2,
     }));
     const open = n.kind === 'type' && state.expanded.has(n.id);
+    // Only a type is expandable, and only a type gets the arrow. A derived node
+    // whose value happens to be a count carried the same "▸16" and read as an
+    // invitation to click that did nothing. A gap shows how many rows it is
+    // holding up — the first thing anyone asks of a named gap is *which* rows
+    // it is holding — and that number has to survive those rows being folded.
     const val = n.value != null ? fmt(n.value) : null;
-    // A type says how many rows it holds and whether they are showing, so the
-    // way in is visible rather than something to discover by toggling.
     const head = n.kind === 'type' && n.count
-      ? `${n.label}  ${open ? '▾' : '▸'}${n.count}` : n.label;
+      ? `${n.label}  ${open ? '▾' : '▸'}${n.count}`
+      : (n.kind === 'hook' && n.waiting_on)
+        ? `${n.label}  · ${n.waiting_on} 项`
+        : n.label;
     const t1 = el('text', {
       x: open ? 10 : p.width / 2, y: val ? 18 : 19,
       'text-anchor': open ? 'start' : 'middle' });
