@@ -460,6 +460,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 "lineage": lin[name],
                 "provisional_because": prov[name],
                 "plug_against": d.get("plug_against"),
+                "residual_to": d.get("residual_to"),
                 "residual": c.values.get(f"{name}__residual"),
                 "completeness": grade[name],
             }
@@ -467,11 +468,17 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         # Lineage as edges too, so a renderer can draw the path a reviewer walks.
         for src in lin[name]["inputs"]:
             edges.append({"from": src, "to": name, "rel": "feeds"})
-        # Authored on the node, emitted as edges, exactly like hook.affects.
+        # The measure a plug is checked against is an *input* to it — the plug
+        # is our total minus that measure — so it points in, like everything
+        # else a node is computed from. Pointing out read as the plug feeding
+        # the measure, which is the opposite of what a plug is for.
         if d.get("plug_against"):
-            edges.append({"from": name, "to": d["plug_against"], "rel": "plug_against"})
-        if d.get("residual_to"):
-            edges.append({"from": name, "to": d["residual_to"], "rel": "residual_to"})
+            edges.append({"from": d["plug_against"], "to": name, "rel": "plug_against"})
+        # `residual_to` is deliberately not an edge. The gap it names already
+        # points at this node — that is what check() requires of it — and drawing
+        # the reverse as well put two arrows between the same pair in opposite
+        # directions, which reads as a loop and lays out as one. Where the
+        # remainder lands is on the node, and the panel says it.
 
     # How many rows each gap is holding up, so the number survives folding: the
     # rows themselves may be collapsed, but "waiting on 2 contracts" is the part

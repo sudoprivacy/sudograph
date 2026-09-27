@@ -561,8 +561,13 @@ function showNode(n) {
     rows.push(`<h2>直接输入</h2><ul>${n.lineage.inputs.map(x => `<li>${x}</li>`).join('')}</ul>`);
   if (n.lineage?.leaves?.length)
     rows.push(`<h2>最终依赖的叶子</h2><ul>${n.lineage.leaves.map(x => `<li>${x}</li>`).join('')}</ul>`);
-  if (n.residual != null)
+  // A remainder with nowhere named is a remainder that got absorbed, so the
+  // two are shown together or not at all.
+  if (n.residual != null) {
+    rows.push(`<div class="kv"><span>对照</span><span>${n.plug_against ?? '—'}</span></div>`);
     rows.push(`<div class="kv"><span>残差</span><span>${fmt(n.residual)}</span></div>`);
+    rows.push(`<div class="kv"><span>差额挂在</span><span>${n.residual_to ?? '—'}</span></div>`);
+  }
   // Every property is either an upstream fact or a decision made here, never
   // both. It is the hardest rule in the model and the app was not showing it,
   // which made the panel a list of numbers with no idea who owns any of them.

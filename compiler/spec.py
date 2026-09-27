@@ -541,6 +541,16 @@ def check(s: Spec) -> list[str]:
                 )
             elif residual not in s.hooks:
                 out.append(f"node {nname}: residual_to {residual!r} is not a hook")
+            elif nname not in (s.hooks[residual].get("affects") or []):
+                # The remainder lands in that gap, so that gap is exactly what
+                # keeps this figure provisional. Requiring it to say so means
+                # the relation is drawn once, in one direction, instead of the
+                # graph carrying an arrow each way between the same pair.
+                out.append(
+                    f"hook {residual} takes {nname}'s residual but does not list it in "
+                    f"'affects' — a figure carrying an unexplained remainder is "
+                    f"provisional on that gap by definition"
+                )
         if n.get("kind") not in NODE_KINDS:
             out.append(f"node {nname}: kind {n.get('kind')!r} is not one of {NODE_KINDS}")
         # A node may compute differently under each basis. Everything about a

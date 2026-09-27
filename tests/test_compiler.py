@@ -1600,3 +1600,33 @@ def test_a_gap_says_how_many_rows_it_is_holding():
     big = compile_mod.compile_spec(s, basis=BOOK, fold_over=999).view
     cites = [e for e in big["edges"] if e["rel"] == "cites" and e["from"] == "H-待合同"]
     assert len(cites) == 2 and len({e["to"] for e in cites}) == 2
+
+
+def test_a_plug_and_its_gap_have_one_arrow_between_them():
+    """Two arrows in opposite directions between the same pair reads as a loop,
+    and lays out as one. The gap points at the figure it holds up; where the
+    remainder lands is a property of the figure, not a second arrow back.
+
+    And the measure a plug is checked against points *into* it: a plug is our
+    total minus that measure, so it is an input like any other. Pointing out
+    said the plug feeds the measure, which is the opposite of the check.
+    """
+    v = compile_mod.compile_spec(spec_mod.load(REAL_FIXTURE), basis=BOOK).view
+    plug, gap = "台账账面差", "H-台账账面差"
+    pairs = {(e["from"], e["to"]) for e in v["edges"]}
+    assert not any((a, b) in pairs and (b, a) in pairs for a, b in pairs)
+    assert (gap, plug) in pairs and (plug, gap) not in pairs
+
+    into = {e["from"] for e in v["edges"] if e["to"] == plug and e["rel"] == "plug_against"}
+    assert into == {"账面委外投入"}
+
+    node = next(n for n in v["nodes"] if n["id"] == plug)
+    assert node["residual"] == 668_000 and node["residual_to"] == gap
+
+
+def test_the_gap_taking_a_residual_must_say_it_holds_the_figure():
+    """Otherwise the link exists in the spec and nowhere on the canvas — the
+    figure carries an unexplained remainder and looks settled."""
+    bad = _mutated_real(**{"hooks/H-台账账面差/affects": []})
+    problems = spec_mod.check(bad)
+    assert any("does not list it in 'affects'" in p for p in problems), problems
