@@ -1432,7 +1432,7 @@ def test_member_edges_are_filtered_once_and_only_once():
     indexed independently, so every edge came out attached to the wrong pair."""
     html = _html()
     body = html.split("async function draw()", 1)[1]
-    assert body.count("e.rel !== 'member'") == 1
+    assert body.count("e.rel === 'member') continue") == 1
     assert "!(shown.get(e.to)?.kind === 'instance' && e.rel === 'member')" not in body
 
 
@@ -1592,9 +1592,13 @@ def test_a_gap_says_how_many_rows_it_is_holding():
         ids = {n["id"] for n in v["nodes"]}
         assert all(e["to"] in ids and e["from"] in ids for e in v["edges"])
 
+    # Folded, the rows are gone but the gap still reaches the box holding them:
+    # one edge, not one per row, since the count on the gap says how many.
     folded = compile_mod.compile_spec(s, basis=BOOK, fold_over=1).view
     assert not [n for n in folded["nodes"] if n["kind"] == "instance"]
-    assert not [e for e in folded["edges"] if e["rel"] == "cites"]
+    landed = [e for e in folded["edges"] if e["rel"] == "cites"]
+    assert ("H-待合同", "委外合同") in {(e["from"], e["to"]) for e in landed}
+    assert len(landed) == len({(e["from"], e["to"]) for e in landed})
 
     # Unfolded, the gap reaches each row that cites it, one edge apiece.
     big = compile_mod.compile_spec(s, basis=BOOK, fold_over=999).view
@@ -1667,3 +1671,17 @@ def test_the_legend_is_infra_and_says_so_plainly():
     assert "KINDS[" not in html.split("const KINDS", 1)[0]
     for word in ("数从哪儿来", "还差什么", "点开看每一行"):
         assert html.count(word) == 1, word
+
+
+def test_an_edge_to_a_hidden_row_lands_on_the_box_holding_it():
+    """Rows are hidden by default, so most of the time the interesting edges end
+    somewhere that is not drawn. Dropping them left a gap pointing at nothing and
+    no way to learn that opening that type is where the answer is — the relation
+    was in the model and on no canvas.
+    """
+    html = _html()
+    body = html.split("async function draw()", 1)[1].split("const box =", 1)[0]
+    # The row's type stands in for it, rather than the edge being discarded.
+    assert "n.kind === 'instance' && !state.expanded.has(n.type) ? n.type : id" in body
+    # Deduped, and a box may not point at itself.
+    assert "seenEdge" in body and "from === to" in body

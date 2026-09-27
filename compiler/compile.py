@@ -445,7 +445,9 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
     grade = lin_mod.completeness(s, c.values, prov)
 
     #: Rank for layout: sources at the top, conclusions at the bottom. A hint
-    #: for the renderer, not a fact about the ontology.
+    #: for the renderer, not a fact about the ontology. Read from the kinds
+    #: themselves, in the order they are declared, so a new kind cannot appear
+    #: without a row to sit on.
     LAYER = {"raw": 0, "hook": 1, "derived": 2}
 
     for name, d in s.nodes.items():
@@ -539,8 +541,16 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         idp = s.types[tname]["id"]
         if folded_types[tname]:
             # The rows are not on the canvas, so the edge lands on the type —
-            # same rule the link edges follow. The count on the gap itself is
-            # what carries the detail once the rows are folded away.
+            # the same rule the ownership edges follow. Dropping it instead left
+            # the gap with nothing to point at in the default view, so there was
+            # no way to learn that opening that type is where the answer is.
+            # One edge per gap, not one per row: the count on the gap says how
+            # many, and a fan of identical arrows says nothing extra.
+            for ref in sorted({
+                row.get(prop) for row in rows for prop in hook_refs
+                if row.get(prop) in s.hooks
+            }):
+                edges.append({"from": ref, "to": tname, "rel": "cites", "folded": True})
             continue
         for row in rows:
             for prop in hook_refs:

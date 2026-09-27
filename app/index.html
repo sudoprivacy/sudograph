@@ -291,19 +291,39 @@ async function draw() {
     if (n.kind === 'instance' && !state.expanded.has(n.type)) continue;
     shown.set(n.id, n);
   }
-  // Same rule the compiler follows: an edge whose other end is not on the canvas
-  // is not drawn, rather than drawn to a node invented for it.
+  // A row that is not on the canvas is still inside its type, so an edge that
+  // reached the row reaches the type instead of vanishing. Dropping it is how a
+  // gap ended up pointing at nothing in the default view: the relation was in
+  // the model and drawn nowhere, so the only way to learn that opening that type
+  // is where the answer lives was to be told.
+  //
+  // One edge per pair, not one per row — the count on the gap says how many, and
+  // a fan of identical arrows into the same box says nothing extra.
   //
   // `member` is dropped once the rows are nested: it says which type a row
-  // belongs to, and the box it sits in already says that. Everything else that
-  // touches an instance — which supplier a contract names, who owes a gap — is
-  // the reason for expanding in the first place and has to survive.
+  // belongs to, and the box it sits in already says that.
   //
   // Filtered once, here, so the array the layout is built from and the array
   // the renderer walks are the same one. They were two, indexed independently,
   // and every edge came out attached to the wrong pair.
-  const edges = v.edges.filter(e =>
-    shown.has(e.from) && shown.has(e.to) && e.rel !== 'member');
+  const byId = new Map(v.nodes.map(n => [n.id, n]));
+  const at = id => {
+    const n = byId.get(id);
+    return n && n.kind === 'instance' && !state.expanded.has(n.type) ? n.type : id;
+  };
+  const edges = [];
+  const seenEdge = new Set();
+  for (const e of v.edges) {
+    if (e.rel === 'member') continue;
+    const from = at(e.from), to = at(e.to);
+    // A row pointing at a row of its own type collapses to the box pointing at
+    // itself, which is not a relation anyone can read.
+    if (from === to || !shown.has(from) || !shown.has(to)) continue;
+    const key = from + ' ' + to + ' ' + e.rel;
+    if (seenEdge.has(key)) continue;
+    seenEdge.add(key);
+    edges.push(from === e.from && to === e.to ? e : { ...e, from, to, folded: true });
+  }
 
   // Instances are laid out *inside* their type rather than beside it. Expanding
   // a type used to scatter its rows across the picture with nothing to say where
