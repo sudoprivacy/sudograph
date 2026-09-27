@@ -1728,23 +1728,26 @@ def test_layout_rank_comes_from_the_kinds_themselves():
     assert rank == {k: i for i, k in enumerate(spec_mod.NODE_KINDS)}
 
 
-def test_a_volatile_count_never_shares_a_text_node_with_a_stable_label():
-    """A comment anchored to a label has to survive the graph being redrawn, and
-    the label itself never changes. A count beside it changes whenever a row is
-    added or a gap clears — so joined into one string, the anchor breaks on the
-    next recount. Two comments orphaned exactly this way the moment gaps learned
-    to say "· 11 项".
+def test_a_count_reads_as_secondary_to_the_name_beside_it():
+    """A label and the count beside it are different things to read — what the
+    node is, and how much of it there is — so the count is its own part and can
+    sit back visually instead of competing with the name.
 
-    Separate parts, separate text nodes: the label's own text stays
-    byte-identical for the life of the node.
+    This started life asserting something else: that splitting them kept comment
+    anchors from breaking. That was wrong. Two comments did orphan when a count
+    was appended, and they did come back when it was split out, and neither fact
+    caused the other — the anchoring engine resolves both spellings, and what
+    was breaking them was a scoring fault on its side, since fixed. The test is
+    kept, pointed at the reason that survived.
     """
     html = _html()
     body = html.split("function linesOf", 1)[1].split("function measure", 1)[0]
-    # The label is a part of its own, never interpolated with the count.
     assert "[n.label, mark]" in body
     assert "${n.label}" not in body
     draw = html.split("async function draw()", 1)[1]
     assert "el('tspan'" in draw
+    # The part that carries it is styled back, which is the whole point.
+    assert "tspan.mark{fill:var(--dim)" in html.replace(" ", "")
 
 
 def test_the_deliverable_is_text_all_the_way_through():

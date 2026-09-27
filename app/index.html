@@ -253,12 +253,16 @@ let scene = null;
 // missing from the other's box — the fault that had the graph laid out for a
 // size it was not drawn at.
 //
-// The split into parts is not cosmetic. A label is stable for the life of the
-// node; a count beside it changes whenever a row is added or a gap clears. Put
-// in the same text node they become one string, and every comment anchored to
-// that string breaks the next time the count moves — which is how two comments
-// on gap nodes orphaned the moment those gaps learned to say "· 11 项". Drawn
-// as separate parts, the label's own text stays byte-identical forever.
+// A line is a list of parts because a label and the count beside it are not the
+// same kind of thing to read: the label is what the node is, the count is how
+// much of it there is. Separate parts let the count sit back visually instead
+// of competing with the name.
+//
+// It was first written for a different reason — keeping a comment anchor from
+// breaking when the count moves — and that reason turned out to be wrong. The
+// anchoring engine resolves either way; what was actually breaking anchors was
+// a scoring fault on its side, since fixed. Kept for the reading, not for the
+// anchor.
 function linesOf(n, open) {
   const mark = n.kind === 'type' && n.count
     ? `  ${open ? '▾' : '▸'}${n.count}`
