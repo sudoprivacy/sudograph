@@ -684,8 +684,7 @@ def test_the_adjusting_entry_is_computed_from_the_difference():
     booked = {e.node: e for e in d.entries}
     assert set(booked) == {"委外cap", "待坐实金额"}
     assert booked["委外cap"].amount == -6_625_000
-    assert booked["委外cap"].debit == "研发费用-委外"
-    assert booked["委外cap"].credit == "开发支出-委外"
+    assert booked["委外cap"].posts == {"借": "研发费用-委外", "贷": "开发支出-委外"}
     assert booked["委外cap"].because == "H-待合同"
     assert booked["委外cap"].ops == {
         BOOK: "select sum(金额_不含税) from 委外合同 where 认定 = '资本化'",
@@ -753,9 +752,11 @@ def test_silence_under_one_basis_is_refused_rather_than_read_as_zero():
 
 
 def test_half_an_entry_does_not_balance():
-    bad = _mutated_real(**{"nodes/委外cap/entry": {"debit": "研发费用-委外"}})
+    """The bridge declares the slots, so a partly filled entry is a spec error in
+    any domain — not just in the one whose arity the compiler happened to know."""
+    bad = _mutated_real(**{"nodes/委外cap/entry": {"posts": {"借": "研发费用-委外"}}})
     problems = spec_mod.check(bad)
-    assert any("needs both 'debit' and 'credit'" in p for p in problems), problems
+    assert any("fills ['借'] but the bridge declares" in p for p in problems), problems
 
 
 def test_an_expression_naming_an_undeclared_basis_is_refused():
@@ -1019,17 +1020,18 @@ def test_each_reading_carries_its_own_reason():
 def test_past_two_readings_the_bridges_must_be_declared():
     """Three readings offer three pairings and only some are anything anyone
     wants. An undeclared bridge is a deliverable nobody agreed to produce."""
-    edits = _three_readings()
-    del edits["bridges"]
-    problems = spec_mod.check(_mutated_real(**edits))
+    problems = spec_mod.check(_mutated_real(**_three_readings(bridges=None)))
     assert any("no 'bridges'" in p for p in problems), problems
 
 
 def test_two_readings_need_no_bridge_declaration():
     """Generalise on the third instance, not the second: with exactly two there
-    is one meaningful pairing and naming it adds nothing."""
-    s = spec_mod.load(REAL_FIXTURE)
+    is one meaningful pairing, so dropping the declaration still compiles and
+    still produces the crossing."""
+    s = _mutated_real(bridges=None)
     assert len(s.bases) == 2 and s.bridges == {}
+    assert spec_mod.check(s) == []
+    assert f"{BOOK}->{RESTATED}|" in app_mod.bundle(s)["diffs"]
 
 
 def test_a_bridge_must_span_two_declared_readings():
@@ -1224,7 +1226,7 @@ def test_the_bundle_holds_every_reading_and_slice():
 
 def test_the_bundle_carries_the_bridge_diffs_not_the_means_to_compute_them():
     b = app_mod.bundle(spec_mod.load(REAL_FIXTURE))
-    whole = b["diffs"]["账面->重述|"]
+    whole = b["diffs"]["账面到重述|"]
     assert whole["posted"] == -6_625_000
     assert {e["node"] for e in whole["entries"]} == {"委外cap", "待坐实金额"}
 
@@ -1267,7 +1269,7 @@ def test_the_payload_cannot_close_the_script_tag():
          "bridges": [], "views": {}, "diffs": {}}
     html = app_mod.render(b)
     assert "</script><script>alert(1)" not in html
-    assert "<\/script>" in html
+    assert r"<\/script>" in html
 
 
 # ── the app: properties that cost real time to rediscover ──────────────
@@ -1357,7 +1359,7 @@ def test_the_legend_names_every_colour_in_business_words():
     """The colours are the whole vocabulary; a reader who has to infer them is
     reading a puzzle. And nobody outside this repo knows what a "hook" is."""
     html = _html()
-    for word in ("取数点", "缺口", "算出来的数", "对象类型"):
+    for word in ("取数点", "缺口", "算出来的值", "对象类型"):
         assert word in html, word
 
 
@@ -1489,6 +1491,86 @@ def test_only_the_node_group_is_named():
     assert named, "no dataset assignments found — did the renderer change shape?"
     assert set(named) == {"g"}, f"something other than the node group is named: {set(named)}"
     assert "g.dataset.nodeId = n.id;" in body
+
+
+#: Words that belong to one trade. The pilot is an audit, so audit words are the
+#: ones that leak; the list is here rather than in a review checklist because a
+#: reviewer notices the first one and misses the fourth.
+TRADE_WORDS = [
+    "分录", "过账", "入账", "凭证", "科目", "借方", "贷方", "计提", "试算", "抽凭",
+    "审计", "账面", "重述", "委外", "台账",
+    "debit", "credit", "journal", "ledger", "audit",
+]
+
+
+def test_the_renderer_holds_no_trade_vocabulary():
+    """The pilot is an audit; the framework is not.
+
+    Every noun the bridge panel shows used to be an accounting word typed into
+    the template, which quietly made the renderer an audit tool. They now come
+    from the bridge, and this is what keeps them there: the next hand to reach
+    for 分录 gets a red test instead of a shipped assumption.
+    """
+    with open(app_mod.TEMPLATE, encoding="utf-8") as fh:
+        html = fh.read()
+    leaked = [w for w in TRADE_WORDS if w in html]
+    assert leaked == [], f"{leaked} — take the word from the spec, not the template"
+
+
+def test_a_bridge_names_what_a_crossing_produces():
+    """A declared bridge speaks its own trade; an undeclared one reads plainly."""
+    spoken = app_mod.bundle(spec_mod.load(REAL_FIXTURE))["diffs"]["账面到重述|"]["vocab"]
+    assert spoken == {
+        "entry_noun": "调整分录", "posted_noun": "过账合计", "carried_noun": "顺带变动",
+    }
+    plain = app_mod.bundle(_mutated_real(bridges=None))["diffs"][f"{BOOK}->{RESTATED}|"]
+    assert plain["vocab"] == spec_mod.BRIDGE_VOCAB
+
+
+def test_every_declared_word_is_one_the_renderer_reads():
+    """A word in the schema that nothing renders is a knob that does nothing —
+    the spec author sets it, sees no change, and stops trusting the schema."""
+    with open(app_mod.TEMPLATE, encoding="utf-8") as fh:
+        html = fh.read()
+    unread = [
+        k for k in spec_mod.BRIDGE_VOCAB
+        if f"w.{k}" not in html and f"d.vocab.{k}" not in html
+    ]
+    assert unread == [], f"{unread} declared but never shown"
+
+
+def test_an_entry_lands_in_slots_the_bridge_names():
+    """Two slots is accounting's arity, not the framework's. A bridge that
+    declares three gets three, and the check still catches a missing one."""
+    edits = {
+        "bridges/账面到重述/slots": ["来源", "去向", "经手"],
+        "nodes/委外cap/entry": {"posts": {"来源": "A", "去向": "B", "经手": "C"}},
+    }
+    ok = _mutated_real(**edits)
+    assert spec_mod.check(ok) == []
+    d = diff_mod.diff(ok, BOOK, RESTATED)
+    assert {e.node: e.posts for e in d.entries}["委外cap"]["经手"] == "C"
+
+    edits["nodes/委外cap/entry"] = {"posts": {"来源": "A", "去向": "B"}}
+    assert any("but the bridge declares" in p for p in spec_mod.check(_mutated_real(**edits)))
+
+
+def test_an_entry_that_lands_nowhere_is_a_memo_not_an_error():
+    """Dropping 'posts' says the difference is real and moves nothing. It stays
+    in the entry list, and stays out of the total that claims things moved."""
+    s = _mutated_real(**{"nodes/委外cap/entry": None})
+    assert spec_mod.check(s) == []
+    d = diff_mod.diff(s, BOOK, RESTATED)
+    assert {e.node: e.amount for e in d.entries} == {"委外cap": -6_625_000, "待坐实金额": 6_625_000}
+    assert d.posted() == 0
+
+
+def test_the_superseded_spelling_is_refused_by_name():
+    """A migration nobody is told about is a migration that gets re-guessed.
+    The old keys name the new one, the way the expression language does."""
+    bad = _mutated_real(**{"nodes/委外cap/entry": {"debit": "A", "credit": "B"}})
+    problems = spec_mod.check(bad)
+    assert any("uses 'debit' — write posts:" in p for p in problems), problems
 
 
 def test_a_gap_says_how_many_rows_it_is_holding():

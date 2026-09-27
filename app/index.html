@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>sudograph</title>
-<!-- Vendored, not linked. An audit deliverable is opened from disk at a client
+<!-- Vendored, not linked. A deliverable is opened from disk at a client
      site, and a CDN reference turns "open this file" into "open this file, on a
      machine with internet, on a day the CDN is up". Both libraries are MIT. -->
 <script>/*__VENDOR__*/</script>
@@ -116,7 +116,7 @@ const $ = id => document.getElementById(id);
 const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '—');
 /* Instances are off by default. The scalar graph — raw, hooks, derived figures,
    types — is what a reviewer reads; the rows behind a type are a drill-down. On
-   the real ledger the 31 instance nodes outnumber the 15 figures two to one and
+   the real pilot the 31 instance nodes outnumber the 15 figures two to one and
    shrink every label past reading, which is the exact complaint that sent us
    away from a static diagram in the first place. Visibility is a view decision,
    so it belongs here; the figures still come only from the compiler. */
@@ -187,7 +187,7 @@ function defaultBridgeName() {
 const KINDS = {
   raw:      { var:'--raw',      name:'取数点',     layer:'FIRST' },
   hook:     { var:'--hook',     name:'缺口'                      },
-  derived:  { var:'--derived',  name:'算出来的数'                },
+  derived:  { var:'--derived',  name:'算出来的值'                },
   type:     { var:'--type',     name:'对象类型'                  },
   instance: { var:'--inst'                                       },
 };
@@ -428,7 +428,8 @@ async function draw() {
   $('status').innerHTML =
     `<span>${shown.size} 节点 · ${edges.length} 边</span>` +
     `<span class="${bad.length ? 'fail' : ''}">${v.checks.length - bad.length}/${v.checks.length} 检查通过</span>` +
-    (d ? `<span>桥 ${d.bases[0]} → ${d.bases[1]}：${d.entries.length} 条分录，过账 ${fmt(d.posted)}</span>` : '');
+    (d ? `<span>桥 ${d.bases[0]} → ${d.bases[1]}：${d.entries.length} 条${
+        d.vocab.entry_noun}，${d.vocab.posted_noun} ${fmt(d.posted)}</span>` : '');
 
   if (d) showBridge(d); else showChecks(v);
 }
@@ -583,18 +584,26 @@ function showChecks(v) {
     : `<h2>检查</h2><p class="muted">${v.checks.length} 条全部通过。点一个节点看它的来历。</p>`;
 }
 
+// Every trade-specific noun below rides on the diff. The renderer knows that a
+// crossing produces things, that some of them land and the rest are carried —
+// never what a given trade calls them.
 function showBridge(d) {
-  const part = [`<h2>调整分录</h2>`];
+  const w = d.vocab;
+  const part = [`<h2>${w.entry_noun}</h2>`];
   for (const e of d.entries) {
+    const lands = Object.entries(e.posts || {});
     part.push(`<div class="entry"><strong>${e.label}</strong>
       <div class="val">${fmt(e.amount)}</div>
       <div class="muted">${fmt(e.before)} → ${fmt(e.after)}</div>
-      ${e.debit ? `<div>借 ${e.debit} · 贷 ${e.credit}</div>` : '<div class="muted">备查，不过账</div>'}
+      ${lands.length
+        ? `<div>${lands.map(([slot, where]) => `${slot} ${where}`).join(' · ')}</div>`
+        : `<div class="muted">仅记录，不计入${w.posted_noun}</div>`}
       <div class="muted">因为 ${e.because}</div></div>`);
   }
-  part.push(`<div class="kv"><span>过账合计</span><span>${fmt(d.posted)}</span></div>`);
+  part.push(`<div class="kv"><span>${w.posted_noun}</span><span>${fmt(d.posted)}</span></div>`);
   if (d.carried.length) {
-    part.push(`<h2>顺带变动</h2><p class="muted">由上面的分录带动，不重复入账。</p>`);
+    part.push(`<h2>${w.carried_noun}</h2><p class="muted">由上面的${
+      w.entry_noun}带动，不另计入${w.posted_noun}。</p>`);
     for (const c of d.carried)
       part.push(`<div class="carried"><strong>${c.label}</strong>
         <div>${fmt(c.amount)}</div>

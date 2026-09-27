@@ -36,7 +36,7 @@ from .spec import Spec
 
 @dataclass
 class Entry:
-    """One adjusting entry: a decided divergence, with its reason and its sides."""
+    """One decided divergence, with its reason and where it lands."""
 
     node: str
     label: str
@@ -44,8 +44,7 @@ class Entry:
     after: Any
     amount: Any
     because: str | None = None
-    debit: str | None = None
-    credit: str | None = None
+    posts: dict[str, str] = field(default_factory=dict)
     ops: dict[str, str] = field(default_factory=dict)
 
     def as_dict(self) -> dict:
@@ -56,8 +55,7 @@ class Entry:
             "after": self.after,
             "amount": self.amount,
             "because": self.because,
-            "debit": self.debit,
-            "credit": self.credit,
+            "posts": self.posts,
             "ops": self.ops,
         }
 
@@ -91,6 +89,10 @@ class Diff:
     at: dict[str, str] = field(default_factory=dict)
     entries: list[Entry] = field(default_factory=list)
     carried: list[Carried] = field(default_factory=list)
+    #: What this trade calls what a crossing produces, from the bridge. Carried
+    #: on the diff rather than looked up by the consumer so that every surface —
+    #: app, CLI, anything downstream of as_dict — says the same words.
+    vocab: dict[str, str] = field(default_factory=dict)
     #: Differences with no entry anywhere above them. A figure that moved for no
     #: recorded reason is the one outcome this module exists to make impossible,
     #: so it is reported rather than rendered as just another number.
@@ -106,17 +108,22 @@ class Diff:
         return sum(e.amount for e in self.entries if isinstance(e.amount, (int, float)))
 
     def posted(self) -> Any:
-        """Only the entries that name where they post.
+        """Only the entries that name where they land.
 
-        A divergence can be real and still not be a journal entry — a memo
-        figure such as "how much is waiting on materials" exists under one basis
-        and not the other, and nothing in a ledger moves for it. Totalling those
-        alongside real postings would report a net effect that no account shows.
+        A divergence can be real and still land nowhere — a memo figure such as
+        "how much is waiting on materials" exists under one reading and not the
+        other, and nothing downstream moves for it. Totalling those alongside
+        the ones that do land would report a net effect nothing shows.
+
+        Presence of `posts` is the signal, not a guess from which slots are
+        filled: the spec says where an entry lands or it says nothing, and the
+        bridge's declared slots are what makes a half-filled one a spec error
+        rather than a figure that silently drops out of this total.
         """
         return sum(
             e.amount
             for e in self.entries
-            if e.debit and e.credit and isinstance(e.amount, (int, float))
+            if e.posts and isinstance(e.amount, (int, float))
         )
 
     def as_dict(self) -> dict:
@@ -127,6 +134,7 @@ class Diff:
             "entries": [e.as_dict() for e in self.entries],
             "carried": [c.as_dict() for c in self.carried],
             "unexplained": self.unexplained,
+            "vocab": self.vocab,
             "total": self.total(),
             "posted": self.posted(),
         }
@@ -160,7 +168,12 @@ def diff(
     ca = compile_mod.compile_spec(s, at=at, basis=before, fold_over=fold_over, top_n=top_n)
     cb = compile_mod.compile_spec(s, at=at, basis=after, fold_over=fold_over, top_n=top_n)
 
-    d = Diff(ontology=s.name, bases=(before, after), at=dict(at or {}))
+    d = Diff(
+        ontology=s.name,
+        bases=(before, after),
+        at=dict(at or {}),
+        vocab=s.vocab_for(before, after),
+    )
 
     # Where the author wrote two expressions, the restatement was decided.
     decided: set[str] = set()
@@ -183,8 +196,7 @@ def diff(
                 after=vb,
                 amount=amount,
                 because=s.reason_for(name, after),
-                debit=entry.get("debit"),
-                credit=entry.get("credit"),
+                posts=dict(entry.get("posts") or {}),
                 ops={before: op_a, after: op_b},
             )
         )

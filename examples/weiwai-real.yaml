@@ -17,6 +17,17 @@ dimensions: [期间]
 
 bases: [账面, 重述]
 
+# 两个口径之间的差额叫什么，由这里说 —— renderer 不认识"分录"这个词。
+bridges:
+  账面到重述:
+    from: 账面
+    to: 重述
+    label: 账面 → 重述
+    entry_noun: 调整分录
+    posted_noun: 过账合计
+    carried_noun: 顺带变动
+    slots: [借, 贷]
+
 types:
   委外合同:
     label: 委外开发合同（按期间拆分）
@@ -168,8 +179,7 @@ nodes:
     op@重述: "select sum(金额_不含税) from 委外合同 where 认定 = '资本化' and 状态 = '已确认'"
     because: H-待合同
     entry:
-      debit: 研发费用-委外
-      credit: 开发支出-委外
+      posts: {借: 研发费用-委外, 贷: 开发支出-委外}
   待坐实金额:
     kind: derived
     label: 尚待材料坐实的金额

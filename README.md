@@ -167,8 +167,7 @@ nodes:
     op@重述:  "select sum(金额_不含税) from 委外合同 where 认定 = '资本化' and 状态 = '已确认'"
     because: H-待合同          # must cite a raw or a hook, not free text
     entry:
-      debit:  研发费用-委外
-      credit: 开发支出-委外
+      posts: {借: 研发费用-委外, 贷: 开发支出-委外}   # slots named by the bridge
 ```
 
 ```bash

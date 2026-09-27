@@ -70,7 +70,12 @@ class Spec:
     #: exactly what a basis does NOT do — a basis is a complete reading of all
     #: the facts, so bases list rather than multiply.
     dimensions: list[str] = field(default_factory=list)
-    #: name -> {from, to}: which pairs of readings produce adjusting entries.
+    #: name -> {from, to}: which pairs of readings produce entries, plus what a
+    #: crossing is *called* here (see BRIDGE_VOCAB) and which `slots` an entry
+    #: fills. Audit says "adjusting entry", "post", debit and credit; a budget
+    #: revision says "variance" and names one pool. Neither is the compiler's to
+    #: assume, so the words travel with the spec like every other label, and the
+    #: renderer reads them instead of spelling one domain into the UI.
     #: Required once there are more than two readings, because past two "the
     #: difference" stops being obvious and an undeclared bridge is a deliverable
     #: nobody agreed to produce.
@@ -113,6 +118,21 @@ class Spec:
         if basis and f"entry@{basis}" in n:
             return n[f"entry@{basis}"] or {}
         return n.get("entry") or {}
+
+    def slots_arriving_at(self, basis: str | None) -> list[list[str]]:
+        """The slot sets declared by the bridges that end at this reading."""
+        return [
+            list(b["slots"])
+            for b in self.bridges.values()
+            if isinstance(b, dict) and b.get("to") == basis and b.get("slots")
+        ]
+
+    def vocab_for(self, before: str | None, after: str | None) -> dict[str, str]:
+        """What the bridge between these two readings calls what it produces."""
+        for b in self.bridges.values():
+            if isinstance(b, dict) and b.get("from") == before and b.get("to") == after:
+                return bridge_vocab(b)
+        return bridge_vocab(None)
 
     def sources_of(self, type_name: str, prop: str) -> list[str]:
         """The raws that supply this property. More than one means corroborated."""
@@ -176,6 +196,70 @@ def load(path: str) -> Spec:
     if problems:
         raise SpecError("spec is invalid:\n  - " + "\n  - ".join(problems))
     return s
+
+
+#: What a bridge calls the things a crossing produces. Every one of these is a
+#: word some domain uses and another does not, which is why they are declared
+#: rather than written into the renderer. The defaults say only what is
+#: structurally true, so an undeclared spec reads plainly instead of reading as
+#: accounting.
+BRIDGE_VOCAB = {
+    "entry_noun": "差异",       # a difference someone decided
+    "posted_noun": "合计",      # the sum of the ones that land somewhere
+    "carried_noun": "连带差异",  # a difference something upstream caused
+}
+
+
+def bridge_vocab(b: dict | None) -> dict[str, str]:
+    """A bridge's own words, filled in with the structurally-true ones."""
+    b = b or {}
+    return {k: (b.get(k) or d) for k, d in BRIDGE_VOCAB.items()}
+
+
+def _entry_problems(s: Spec, nname: str, basis: str) -> list[str]:
+    """Where a decided difference lands, checked against the bridge's own slots.
+
+    An entry that names nowhere is legitimate — a memo figure exists under one
+    reading and nothing moves for it — so `posts` is optional. What is not
+    optional is filling the slots the bridge declared: accounting needs both
+    halves or the entry does not balance, and a spec that declares three slots
+    needs three. Declaring them is what makes the check possible without the
+    compiler knowing any one domain's arity.
+    """
+    entry = s.entry_for(nname, basis)
+    if not entry:
+        return []
+    out: list[str] = []
+    for gone, now in (("debit", "posts"), ("credit", "posts")):
+        if gone in entry:
+            return [
+                f"node {nname}: entry for {basis!r} uses {gone!r} — write "
+                f"{now}: {{<slot>: <where>}} instead, naming the slots this "
+                f"ontology's bridge declares"
+            ]
+    extra = set(entry) - {"posts"}
+    if extra:
+        out.append(f"node {nname}: entry for {basis!r} has unknown keys: {sorted(extra)}")
+    posts = entry.get("posts")
+    if posts is None:
+        return out
+    if not isinstance(posts, dict) or not posts:
+        out.append(
+            f"node {nname}: entry for {basis!r} has an empty 'posts' — drop it to mean "
+            f"the difference lands nowhere, which is a different statement from "
+            f"landing in no named place"
+        )
+        return out
+    if not all(isinstance(k, str) and isinstance(v, str) and v.strip() for k, v in posts.items()):
+        out.append(f"node {nname}: entry for {basis!r}: every slot must name where it lands")
+        return out
+    wanted = s.slots_arriving_at(basis)
+    if wanted and not any(set(posts) == set(w) for w in wanted):
+        out.append(
+            f"node {nname}: entry for {basis!r} fills {sorted(posts)} but the bridge "
+            f"declares {sorted(wanted[0])} — a partly filled entry is worse than none"
+        )
+    return out
 
 
 def check(s: Spec) -> list[str]:
@@ -338,7 +422,7 @@ def check(s: Spec) -> list[str]:
     if len(s.bases) > 2 and not s.bridges:
         out.append(
             f"{len(s.bases)} readings are declared but no 'bridges' — "
-            f"say which pairs produce adjusting entries; with more than two, "
+            f"say which pairs are deliverables; with more than two, "
             f"'the difference' is no longer a single thing"
         )
     seen_pairs: dict[tuple[str, str], str] = {}
@@ -346,9 +430,23 @@ def check(s: Spec) -> list[str]:
         if not isinstance(b, dict):
             out.append(f"bridge {bname} must be a mapping with 'from' and 'to'")
             continue
-        extra = set(b) - {"from", "to", "label"}
+        extra = set(b) - {"from", "to", "label", "slots", *BRIDGE_VOCAB}
         if extra:
             out.append(f"bridge {bname} has unknown keys: {sorted(extra)}")
+        for word in BRIDGE_VOCAB:
+            if word in b and not (isinstance(b[word], str) and b[word].strip()):
+                out.append(f"bridge {bname}: {word} must be a non-empty name")
+        slots = b.get("slots")
+        if slots is not None:
+            if not isinstance(slots, list) or not slots:
+                out.append(
+                    f"bridge {bname}: slots must be a non-empty list of the places an "
+                    f"entry fills, e.g. [debit, credit]"
+                )
+            elif not all(isinstance(x, str) and x.strip() for x in slots):
+                out.append(f"bridge {bname}: every slot must be a non-empty name")
+            elif len(set(slots)) != len(slots):
+                out.append(f"bridge {bname}: slots repeat: {slots}")
         a, z = b.get("from"), b.get("to")
         for end, which in ((a, "from"), (z, "to")):
             if end is None:
@@ -492,11 +590,7 @@ def check(s: Spec) -> list[str]:
                 )
             elif reason not in provenance:
                 out.append(f"node {nname}: because for {b!r} is {reason!r}, not a raw or a hook")
-            # Both sides or neither: a one-sided entry does not balance, and half
-            # an entry posted into a ledger is worse than none.
-            entry = s.entry_for(nname, b)
-            if entry and not (entry.get("debit") and entry.get("credit")):
-                out.append(f"node {nname}: entry for {b!r} needs both 'debit' and 'credit'")
+            out += _entry_problems(s, nname, b)
         if n.get("kind") == "derived":
             if not n.get("op") and not diverges:
                 out.append(f"derived node {nname} needs an 'op'")

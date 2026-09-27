@@ -47,17 +47,19 @@ def _report_diff(d: diff_mod.Diff, *, as_json: bool) -> int:
         return 0 if d.explained else 3
 
     before, after = d.bases
+    w = d.vocab
     print(f"{d.ontology}  {before} -> {after}" + _where(d.at))
     print()
-    print(f"adjusting entries ({len(d.entries)})")
+    print(f"{w['entry_noun']} ({len(d.entries)})")
     for e in d.entries:
         print(f"  {e.node}: {_money(e.before)} -> {_money(e.after)}  ({_money(e.amount)})")
-        if e.debit and e.credit:
-            print(f"      Dr {e.debit}  Cr {e.credit}")
+        if e.posts:
+            print("      " + "  ".join(f"{slot} {where}" for slot, where in e.posts.items()))
         else:
-            print("      (memo — posts nowhere)")
+            print(f"      (memo — nothing lands, not in {w['posted_noun']})")
         print(f"      because: {e.because}")
-    print(f"  posted {_money(d.posted())}   (all differences {_money(d.total())})")
+    print(f"  {w['posted_noun']} {_money(d.posted())}"
+          f"   (all differences {_money(d.total())})")
 
     if d.carried:
         print()
@@ -106,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--diff",
         metavar="BEFORE:AFTER",
-        help="compile under both bases and derive the adjusting entries between them",
+        help="compile under both readings and derive the entries between them",
     )
     args = ap.parse_args(argv)
     try:
