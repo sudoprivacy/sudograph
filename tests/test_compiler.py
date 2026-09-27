@@ -1652,3 +1652,18 @@ def test_a_plug_wears_its_difference():
     with open(app_mod.TEMPLATE, encoding="utf-8") as fh:
         html = fh.read()
     assert "n.residual != null" in html.split("function linesOf")[1].split("function measure")[0]
+
+
+def test_the_legend_is_infra_and_says_so_plainly():
+    """The five kinds are the framework's, not an ontology's, so their names
+    stay abstract enough to carry any of them — and the plain reading goes in a
+    second field rather than into the name, where it would have to be rewritten
+    per domain. Nothing downstream writes either one.
+    """
+    html = _html()
+    table = html.split("const KINDS", 1)[1].split("};", 1)[0]
+    assert "does:" in table and "${k.does" in html
+    # The table is the only place these words exist: no per-ontology override.
+    assert "KINDS[" not in html.split("const KINDS", 1)[0]
+    for word in ("数从哪儿来", "还差什么", "点开看每一行"):
+        assert html.count(word) == 1, word

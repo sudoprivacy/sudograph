@@ -94,6 +94,7 @@
   #legend i{width:11px;height:11px;border-radius:3px;display:inline-block;
             border:1px solid #2b3140}
   #legend u{width:17px;height:0;border-top:1.5px solid;display:inline-block}
+  #legend em{color:var(--dim);font-style:normal;margin-left:5px}
   #legend u.dash{border-top-style:dashed}
   @media (max-width:800px){ main{flex-direction:column} aside{width:auto;height:44%;
     border-left:none;border-top:1px solid var(--line)} }
@@ -191,12 +192,18 @@ function defaultBridgeName() {
 /* One table. The renderer colours nodes from it, the legend is built from it,
    and ELK's layer constraint is read from it — so a new kind cannot appear on
    the canvas without a name in the legend and a row to sit on. */
+/* `name` is the kind itself and stays abstract — the same five kinds carry an
+   restatement, a budget and a stock count, so a name that reads well for one
+   would be wrong for the others. `does` is where the plain reading goes: what a
+   reader is looking at, and what they can do with it. Both are fixed here, in
+   the infra; nothing downstream writes them, which is exactly why they cannot
+   borrow a word from whatever the first ontology happened to be about. */
 const KINDS = {
-  raw:      { var:'--raw',      name:'取数点',     layer:'FIRST' },
-  hook:     { var:'--hook',     name:'缺口'                      },
-  derived:  { var:'--derived',  name:'算出来的值'                },
-  type:     { var:'--type',     name:'对象类型'                  },
-  instance: { var:'--inst'                                       },
+  raw:      { var:'--raw',   name:'取数点',   does:'数从哪儿来',   layer:'FIRST' },
+  hook:     { var:'--hook',  name:'缺口',     does:'还差什么'                    },
+  derived:  { var:'--derived', name:'算出来的值'                                 },
+  type:     { var:'--type',  name:'对象类型', does:'点开看每一行'                },
+  instance: { var:'--inst'                                                       },
 };
 const GRADE = { partial:['#6b5325','部分'], missing:['#6e3a2e','缺失'] };
 const EDGES = {
@@ -209,7 +216,8 @@ const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).
 
 $('legend').innerHTML =
   Object.values(KINDS).filter(k => k.name)
-    .map(k => `<span><i style="background:var(${k.var})"></i>${k.name}</span>`).join('') +
+    .map(k => `<span><i style="background:var(${k.var})"></i>${k.name}${
+      k.does ? `<em>${k.does}</em>` : ''}</span>`).join('') +
   Object.values(EDGES)
     .map(e => `<span><u class="${e.dash}" style="border-top-color:${
       css(e.colour)}"></u>${e.name}</span>`).join('') +
