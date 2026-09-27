@@ -21,6 +21,13 @@ import yaml
 from . import expr
 
 OWNERS = ("source", "ontology")
+#: The kinds a node can be. Not a field anyone writes: the block a thing is
+#: declared in says which one it is — `raw:` a reading taken from a system,
+#: `hooks:` something missing, `nodes:` something computed — and each block
+#: requires different fields, so a thing put in the wrong one fails on the
+#: fields rather than on a label. Asking for the kind as well meant the same
+#: fact was stated twice and could disagree with itself: a node in `nodes:`
+#: declaring `kind: raw` passed check() and was then silently never computed.
 NODE_KINDS = ("raw", "hook", "derived")
 OP_CLASSES = ("DerivedOp", "RecordableOp", "BlockedOp")
 PROP_TYPES = ("string", "money", "number", "date", "enum", "ref", "bool")
@@ -551,8 +558,12 @@ def check(s: Spec) -> list[str]:
                     f"'affects' — a figure carrying an unexplained remainder is "
                     f"provisional on that gap by definition"
                 )
-        if n.get("kind") not in NODE_KINDS:
-            out.append(f"node {nname}: kind {n.get('kind')!r} is not one of {NODE_KINDS}")
+        if "kind" in n:
+            out.append(
+                f"node {nname}: drop 'kind' — everything under 'nodes' is computed. "
+                f"A reading taken from a system goes in 'raw', something missing goes "
+                f"in 'hooks'; the block says which it is"
+            )
         # A node may compute differently under each basis. Everything about a
         # divergence is refused unless it is explained, because a divergence is
         # exactly what becomes an adjusting entry: an unexplained one is an
@@ -601,14 +612,13 @@ def check(s: Spec) -> list[str]:
             elif reason not in provenance:
                 out.append(f"node {nname}: because for {b!r} is {reason!r}, not a raw or a hook")
             out += _entry_problems(s, nname, b)
-        if n.get("kind") == "derived":
-            if not n.get("op") and not diverges:
-                out.append(f"derived node {nname} needs an 'op'")
-            elif n.get("op"):
-                try:
-                    expr.parse(n["op"])
-                except expr.ExprError as e:
-                    out.append(f"node {nname}: op does not parse: {e}")
+        if not n.get("op") and not diverges:
+            out.append(f"node {nname} needs an 'op' — everything under 'nodes' is computed")
+        elif n.get("op"):
+            try:
+                expr.parse(n["op"])
+            except expr.ExprError as e:
+                out.append(f"node {nname}: op does not parse: {e}")
 
     for cname, spec_ in s.checks.items():
         # Either a bare expression (must hold in every slice) or a mapping

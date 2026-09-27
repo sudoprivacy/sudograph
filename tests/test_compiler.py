@@ -1685,3 +1685,44 @@ def test_an_edge_to_a_hidden_row_lands_on_the_box_holding_it():
     assert "n.kind === 'instance' && !state.expanded.has(n.type) ? n.type : id" in body
     # Deduped, and a box may not point at itself.
     assert "seenEdge" in body and "from === to" in body
+
+
+def test_the_block_a_thing_is_declared_in_says_what_it_is():
+    """Nobody picks a kind. `raw:` is a reading taken from a system, `hooks:` is
+    something missing, `nodes:` is something computed — and each block asks for
+    different fields, so a thing in the wrong one fails on the fields rather than
+    on a label.
+
+    Asking for the kind as well stated the same fact twice and let it disagree
+    with itself: a node under `nodes:` declaring `kind: raw` passed check() and
+    was then silently never computed.
+    """
+    v = _real().view
+    kinds = {n["id"]: n["kind"] for n in v["nodes"]}
+    assert kinds["R-KINGDEE"] == "raw"          # declared under raw:
+    assert kinds["H-待合同"] == "hook"           # declared under hooks:
+    assert kinds["委外cap"] == "derived"         # declared under nodes:
+    assert kinds["委外合同"] == "type"           # declared under types:
+
+    problems = spec_mod.check(_mutated_real(**{"nodes/委外cap/kind": "raw"}))
+    assert any("drop 'kind'" in p for p in problems), problems
+
+
+def test_the_kinds_are_a_closed_set_the_infra_owns():
+    """The five are the framework's, fixed here — an ontology cannot add one, so
+    a reader who learns them once has learned every graph this produces."""
+    v = _real(fold_over=1).view
+    big = _real(fold_over=999).view
+    seen = {n["kind"] for n in v["nodes"]} | {n["kind"] for n in big["nodes"]}
+    assert seen == set(spec_mod.NODE_KINDS) | {"type", "instance"}
+
+    # And the renderer names exactly those, no more and no fewer.
+    table = _html().split("const KINDS", 1)[1].split("};", 1)[0]
+    assert set(re.findall(r"^\s*(\w+):\s*\{", table, re.M)) == seen
+
+
+def test_layout_rank_comes_from_the_kinds_themselves():
+    """A second list of kinds, ordered by hand, is one that drifts."""
+    v = _real().view
+    rank = {n["kind"]: n["layer"] for n in v["nodes"] if n["kind"] in spec_mod.NODE_KINDS}
+    assert rank == {k: i for i, k in enumerate(spec_mod.NODE_KINDS)}

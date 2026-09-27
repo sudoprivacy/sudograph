@@ -31,7 +31,7 @@ def direct_inputs(s: Spec, basis: str | None = None) -> dict[str, set[str]]:
     out: dict[str, set[str]] = {}
     for name, d in s.nodes.items():
         src = d.get(f"op@{basis}") if basis and f"op@{basis}" in d else d.get("op")
-        if d.get("kind") != "derived" or not src:
+        if not src:
             out[name] = set()
             continue
         ast = expr.parse(src)

@@ -171,7 +171,6 @@ instances:
 
 nodes:
   委外cap:
-    kind: derived
     label: 委外资本化额
     # 账面：凡判定资本化的全部入账。重述：只认材料坐实的那部分。
     # 差额 = 本次重分类的金额，由 compiler 算，不手写。
@@ -181,32 +180,26 @@ nodes:
     entry:
       posts: {借: 研发费用-委外, 贷: 开发支出-委外}
   待坐实金额:
-    kind: derived
     label: 尚待材料坐实的金额
     # 账面上没有这个桶——所以是 "0"，不是留空。留空和「还没算」长得一样。
     op@账面: "0"
     op@重述: "select sum(金额_不含税) from 委外合同 where 认定 = '资本化' and 状态 <> '已确认'"
     because: H-待合同
   委外合计:
-    kind: derived
     label: 台账口径合计（含待坐实）
     op: "委外cap + 待坐实金额"
   费用化金额:
-    kind: derived
     label: 判定为费用化的金额
     op: "select sum(金额_不含税) from 委外合同 where 认定 = '费用化'"
   账面委外投入:
-    kind: derived
     label: 金蝶账面的委外投入（独立度量）
     op: "select sum(金额) from 账面委外"
   台账账面差:
-    kind: derived
     label: 台账口径的委外合计（对账用）
     op: "委外合计"
     plug_against: 账面委外投入
     residual_to: H-台账账面差
   合同笔数:
-    kind: derived
     label: 台账条目数
     op: "select count(*) from 委外合同"
 

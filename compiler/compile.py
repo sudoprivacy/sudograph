@@ -19,7 +19,7 @@ from typing import Any
 
 from . import expr
 from . import lineage as lin_mod
-from .spec import Spec
+from .spec import NODE_KINDS, Spec
 
 
 @dataclass
@@ -168,7 +168,7 @@ def op_for(node: dict, basis: str | None) -> str | None:
 
 def _order(s: Spec, basis: str | None = None) -> list[str]:
     """Topologically order derived nodes; raise on a cycle."""
-    derived = {n: d for n, d in s.nodes.items() if d.get("kind") == "derived"}
+    derived = dict(s.nodes)
     deps = {
         n: expr.referenced_names(expr.parse(op_for(d, basis) or "0")) & set(derived)
         for n, d in derived.items()
@@ -448,14 +448,14 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
     #: for the renderer, not a fact about the ontology. Read from the kinds
     #: themselves, in the order they are declared, so a new kind cannot appear
     #: without a row to sit on.
-    LAYER = {"raw": 0, "hook": 1, "derived": 2}
+    LAYER = {k: i for i, k in enumerate(NODE_KINDS)}
 
     for name, d in s.nodes.items():
         nodes.append(
             {
                 "id": name,
-                "kind": d.get("kind"),
-                "layer": LAYER.get(d.get("kind"), 2),
+                "kind": "derived",
+                "layer": LAYER["derived"],
                 "label": d.get("label", name),
                 "value": c.values.get(name),
                 "op": op_for(d, c.basis),
@@ -598,7 +598,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
     aggregated_by: dict[str, list[str]] = {}
     for name, d in s.nodes.items():
         src = op_for(d, c.basis)
-        if d.get("kind") != "derived" or not src:
+        if not src:
             continue
         for tname in expr.aggregated_types(expr.parse(src)):
             aggregated_by.setdefault(tname, []).append(name)

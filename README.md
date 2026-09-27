@@ -162,7 +162,6 @@ bases: [账面, 重述]
 
 nodes:
   委外cap:
-    kind: derived
     op@账面:  "select sum(金额_不含税) from 委外合同 where 认定 = '资本化'"
     op@重述:  "select sum(金额_不含税) from 委外合同 where 认定 = '资本化' and 状态 = '已确认'"
     because: H-待合同          # must cite a raw or a hook, not free text
