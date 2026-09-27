@@ -1454,3 +1454,38 @@ def test_the_fit_is_measured_from_what_was_drawn():
     html = _html()
     assert "scene.getBBox()" in html
     assert "lastLaid" not in html
+
+
+def test_every_node_id_is_unique_within_a_view():
+    """A contract with the comment host, not an internal tidiness rule: an
+    anchor keyed on `data-node-id` is rejected outright if the selector matches
+    more than one element, because anchoring to the wrong node is worse than
+    honestly reporting a lost one. Holds in every reading and every slice, and
+    with instances expanded — which is when the id count triples."""
+    b = app_mod.bundle(spec_mod.load(REAL_FIXTURE))
+    for key, v in b["views"].items():
+        ids = [n["id"] for n in v["nodes"]]
+        assert len(ids) == len(set(ids)), f"duplicate id in view {key}"
+
+    # An id must also not mean one thing in one view and something else in
+    # another: a comment outlives the view it was made in.
+    kinds: dict[str, str] = {}
+    for v in b["views"].values():
+        for n in v["nodes"]:
+            assert kinds.setdefault(n["id"], n["kind"]) == n["kind"], n["id"]
+
+
+def test_only_the_node_group_is_named():
+    """The comment host anchors to the innermost element that declares an
+    identity — any `data-*`, not just ours. So a `data-testid` on the `<rect>`,
+    or anything similar on a `<text>`, would silently drag the anchor down to
+    half a node: a comment about a figure would attach to its border.
+
+    Asserted against every `dataset` assignment in the renderer rather than
+    against `dataset.nodeId` alone, because the rule is about naming at all."""
+    html = _html()
+    body = html.split("async function draw()", 1)[1].split("function select(", 1)[0]
+    named = re.findall(r"(\w+)\.dataset\.\w+\s*=", body)
+    assert named, "no dataset assignments found — did the renderer change shape?"
+    assert set(named) == {"g"}, f"something other than the node group is named: {set(named)}"
+    assert "g.dataset.nodeId = n.id;" in body
