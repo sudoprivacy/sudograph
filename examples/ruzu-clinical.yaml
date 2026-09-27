@@ -1,0 +1,135 @@
+# Second domain, deliberately far from the first: enrolment in a clinical trial.
+#
+# It is here as evidence rather than as a demo. The framework was built while
+# looking at one audit, and a framework built while looking at one thing tends
+# to encode that thing without anyone deciding to. The way to find out is to
+# write something that shares none of its vocabulary — no money, no ledger, no
+# entries — and see what the compiler refuses.
+#
+# What it exercises: two readings of the same facts, a bridge whose slots are
+# neither debit nor credit, a gap with an owner, two independent systems
+# asserting the same figure, and an op that writes an ontology-owned field.
+#
+# Data is invented. Only the shape is real.
+ontology: 临床试验入组
+
+dimensions: [中心]
+bases: [上报, 清洗后]
+
+bridges:
+  上报到清洗:
+    from: 上报
+    to: 清洗后
+    label: 中心上报 → 数据清洗后
+    entry_noun: 口径调整
+    posted_noun: 净调整
+    carried_noun: 连带变动
+    slots: [移入, 移出]
+
+types:
+  受试者:
+    label: 受试者
+    description: 一名筛选或入组的受试者，是所有人数口径的最小单位
+    id: 受试者编号
+    dimensions: { 中心: 中心 }
+    props:
+      受试者编号: { type: string, owner: source, from: R-EDC }
+      中心:      { type: string, owner: source, from: R-EDC }
+      筛选日期:   { type: date,   owner: source, from: R-EDC }
+      知情同意:   { type: enum,   owner: source, from: R-ICF, values: [已回收, 未回收] }
+      # Two systems assert this independently: EDC is what the site typed in,
+      # the weekly report is what the monitor saw. One of them alone is a claim.
+      入组判定:
+        type: enum
+        owner: source
+        from: [R-EDC, R-WEEKLY]
+        values: [已入组, 筛选失败]
+        corroboration: { at_least: 2, prefer: R-EDC }
+      分析集:    { type: enum, owner: ontology, values: [主分析集, 待核查集, 不纳入] }
+      缺口:      { type: ref,  owner: ontology, to: hook, nullable: true }
+
+  监查员:
+    label: 临床监查员
+    id: 工号
+    props:
+      工号: { type: string, owner: source,   from: R-CRA }
+      姓名: { type: string, owner: source,   from: R-CRA }
+      负责中心: { type: string, owner: ontology }
+
+raw:
+  R-CRA:
+    label: 监查员名册
+    connector: "python -m ai_dev_browser.tools.download --profile edc --path 监查员"
+    provides: [工号, 姓名]
+  R-EDC:
+    label: EDC 系统导出
+    connector: "python -m ai_dev_browser.tools.download --profile edc --path 受试者列表"
+    provides: [受试者编号, 中心, 筛选日期, 入组判定]
+  R-WEEKLY:
+    label: 中心监查周报
+    connector: "python -m ai_dev_browser.tools.download --profile edc --path 监查周报"
+    provides: [入组判定]
+  R-ICF:
+    label: 知情同意书扫描件台账
+    connector: "python -m ai_dev_browser.tools.download --profile edc --path 知情同意"
+    provides: [知情同意]
+
+hooks:
+  H-同意书未回收:
+    label: 知情同意书未回收
+    blocked_on: R-ICF
+    resolve_when: "该受试者的签署页扫描件归档，或确认其未实际签署"
+    owner: 监查员/CRA-01
+    affects: [入组数]
+  H-两系统不一致:
+    label: EDC 与周报对入组判定不一致
+    blocked_on: R-WEEKLY
+    resolve_when: "逐例核对 EDC 与周报，不一致处由中心出具说明"
+    owner: 监查员/CRA-02
+    affects: [入组数]
+
+instances:
+  监查员:
+    - { 工号: CRA-01, 姓名: 监查甲, 负责中心: 中心甲 }
+    - { 工号: CRA-02, 姓名: 监查乙, 负责中心: 中心乙 }
+
+  受试者:
+    - { 受试者编号: S-001, 中心: 中心甲, 筛选日期: '2026-03-02', 知情同意: 已回收, 入组判定@R-EDC: 已入组,   入组判定@R-WEEKLY: 已入组,   分析集: 主分析集 }
+    - { 受试者编号: S-002, 中心: 中心甲, 筛选日期: '2026-03-05', 知情同意: 已回收, 入组判定@R-EDC: 已入组,   入组判定@R-WEEKLY: 已入组,   分析集: 主分析集 }
+    - { 受试者编号: S-003, 中心: 中心甲, 筛选日期: '2026-03-09', 知情同意: 未回收, 入组判定@R-EDC: 已入组,   入组判定@R-WEEKLY: 已入组,   分析集: 待核查集, 缺口: H-同意书未回收 }
+    - { 受试者编号: S-004, 中心: 中心乙, 筛选日期: '2026-03-11', 知情同意: 已回收, 入组判定@R-EDC: 已入组,   入组判定@R-WEEKLY: 筛选失败, 分析集: 待核查集, 缺口: H-两系统不一致 }
+    - { 受试者编号: S-005, 中心: 中心乙, 筛选日期: '2026-03-14', 知情同意: 已回收, 入组判定@R-EDC: 筛选失败, 入组判定@R-WEEKLY: 筛选失败, 分析集: 不纳入 }
+    - { 受试者编号: S-006, 中心: 中心乙, 筛选日期: '2026-03-18', 知情同意: 未回收, 入组判定@R-EDC: 已入组,   入组判定@R-WEEKLY: 已入组,   分析集: 待核查集, 缺口: H-同意书未回收 }
+
+nodes:
+  入组数:
+    label: 入组人数
+    # 上报：中心说入组就算。清洗后：还要同意书在手。
+    op@上报: "select count(*) from 受试者 where 入组判定 = '已入组'"
+    op@清洗后: "select count(*) from 受试者 where 入组判定 = '已入组' and 知情同意 = '已回收'"
+    because: H-同意书未回收
+    entry:
+      posts: { 移入: 主分析集, 移出: 待核查集 }
+  待核查数:
+    label: 待核查人数
+    # 上报口径里没有这个桶，所以是 "0"，不是留空。
+    op@上报: "0"
+    op@清洗后: "select count(*) from 受试者 where 入组判定 = '已入组' and 知情同意 = '未回收'"
+    because: H-同意书未回收
+  筛选例数:
+    label: 筛选例数
+    op: "select count(*) from 受试者"
+
+checks:
+  入组不超过筛选: "入组数 <= 筛选例数"
+
+ops:
+  归集分析集:
+    label: 判定一名受试者进入哪个分析集
+    class: DerivedOp
+    params:
+      受试者: { type: ref,  to: 受试者 }
+      判定:   { type: enum, values: [主分析集, 待核查集, 不纳入] }
+      依据:   { type: ref,  to: [raw, hook] }
+    writes: [分析集]
+    intent: required

@@ -1756,3 +1756,39 @@ def test_the_deliverable_is_text_all_the_way_through():
         raw = open(path, "rb").read()
         stray = sorted({b for b in raw if b < 9 or 13 < b < 32})
         assert stray == [], f"{path} carries control bytes {stray}"
+
+
+def test_every_example_still_compiles_the_way_ci_checks_it():
+    """The JSON schema is a second statement of the rules, and it drifted: the
+    suite was green while `kind` was still required there and `entry` still
+    demanded a debit and a credit. CI would have caught it and a local run did
+    not, which is the wrong way round.
+
+    Same entry point, not a reimplementation — a copy of this check is a third
+    statement of the rules and would drift too.
+    """
+    import tools.check_examples as check_examples
+
+    assert check_examples.main() == 0
+
+
+def test_the_framework_carries_a_domain_that_shares_none_of_the_first_one():
+    """A framework built while looking at one thing encodes that thing unless
+    something keeps proving otherwise. The second example has no money, no
+    ledger and no entries, and it exercises the same five kinds, two readings, a
+    bridge, corroboration between two systems, and an op.
+
+    If the kinds were really audit concepts in disguise, this is where it shows.
+    """
+    s = spec_mod.load(os.path.join(os.path.dirname(REAL_FIXTURE), "ruzu-clinical.yaml"))
+    d = diff_mod.diff(s, "上报", "清洗后")
+    assert d.explained
+    # The crossing speaks its own domain, down to the slots an entry fills.
+    assert d.vocab["entry_noun"] == "口径调整"
+    assert {e.node: e.posts for e in d.entries}["入组数"] == {
+        "移入": "主分析集", "移出": "待核查集"
+    }
+    # Two independent systems disagreeing on one row, resolved the same way a
+    # ledger disagreement is: the row cites a gap and the spec says who governs.
+    v = compile_mod.compile_spec(s, basis="上报").view
+    assert {n["kind"] for n in v["nodes"]} <= set(spec_mod.NODE_KINDS) | {"type", "instance"}

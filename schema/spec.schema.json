@@ -50,6 +50,31 @@
           },
           "label": {
             "type": "string"
+          },
+          "entry_noun": {
+            "type": "string",
+            "minLength": 1,
+            "description": "what a decided difference is called here"
+          },
+          "posted_noun": {
+            "type": "string",
+            "minLength": 1,
+            "description": "what the total of the ones that land is called"
+          },
+          "carried_noun": {
+            "type": "string",
+            "minLength": 1,
+            "description": "what a difference something upstream caused is called"
+          },
+          "slots": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "The places an entry crossing this bridge must fill. Accounting declares two; another domain declares as many as it has."
           }
         }
       }
@@ -431,18 +456,10 @@
     "node": {
       "type": "object",
       "required": [
-        "kind",
         "label"
       ],
       "additionalProperties": false,
       "properties": {
-        "kind": {
-          "enum": [
-            "raw",
-            "hook",
-            "derived"
-          ]
-        },
         "label": {
           "type": "string"
         },
@@ -465,55 +482,40 @@
         "entry": {
           "type": "object",
           "required": [
-            "debit",
-            "credit"
+            "posts"
           ],
           "additionalProperties": false,
           "properties": {
-            "debit": {
-              "type": "string"
-            },
-            "credit": {
-              "type": "string"
+            "posts": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Where the difference lands, keyed by the slots the bridge declares. Omit `entry` entirely to say it lands nowhere."
             }
           },
-          "description": "Where the derived difference posts. Both sides or neither — half an entry does not balance."
+          "description": "Where the derived difference lands. The slot names are the bridge's, not the framework's; a partly filled entry is refused against the bridge's declared slots."
         }
-      },
-      "if": {
-        "properties": {
-          "kind": {
-            "const": "derived"
-          }
-        },
-        "required": [
-          "kind"
-        ]
-      },
-      "then": {
-        "anyOf": [
-          {
-            "required": [
-              "op"
-            ]
-          },
-          {
-            "not": {
-              "propertyNames": {
-                "not": {
-                  "pattern": "^op@.+"
-                }
-              }
-            },
-            "description": "reads as: at least one property name matches ^op@"
-          }
-        ]
       },
       "patternProperties": {
         "^(op|because|entry)@.+": {
           "description": "This node's expression, reason, or posting under one declared reading. Overrides the bare key for that reading alone."
         }
-      }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "op"
+          ]
+        },
+        {
+          "patternProperties": {
+            "^op@": {}
+          },
+          "minProperties": 2
+        }
+      ]
     },
     "op": {
       "type": "object",
