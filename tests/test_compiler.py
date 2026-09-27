@@ -1745,3 +1745,14 @@ def test_a_volatile_count_never_shares_a_text_node_with_a_stable_label():
     assert "${n.label}" not in body
     draw = html.split("async function draw()", 1)[1]
     assert "el('tspan'" in draw
+
+
+def test_the_deliverable_is_text_all_the_way_through():
+    """A stray control byte makes the whole file binary to anything that checks
+    — a publishing API refused it, and the deliverable simply stopped updating
+    while every test stayed green. Cheap to assert, invisible otherwise.
+    """
+    for path in (app_mod.TEMPLATE, *app_mod.VENDOR):
+        raw = open(path, "rb").read()
+        stray = sorted({b for b in raw if b < 9 or 13 < b < 32})
+        assert stray == [], f"{path} carries control bytes {stray}"

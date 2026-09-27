@@ -330,7 +330,7 @@ async function draw() {
     // A row pointing at a row of its own type collapses to the box pointing at
     // itself, which is not a relation anyone can read.
     if (from === to || !shown.has(from) || !shown.has(to)) continue;
-    const key = from + ' ' + to + ' ' + e.rel;
+    const key = JSON.stringify([from, to, e.rel]);
     if (seenEdge.has(key)) continue;
     seenEdge.add(key);
     edges.push(from === e.from && to === e.to ? e : { ...e, from, to, folded: true });
