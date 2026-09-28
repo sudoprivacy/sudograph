@@ -1817,5 +1817,9 @@ def test_panning_does_not_capture_the_pointer_on_press():
     move = host.split("host.addEventListener('pointermove'", 1)[1].split("const release", 1)[0]
     assert "setPointerCapture" in move, "capture must be taken once it is a drag"
     assert "DRAG_SLOP" in move, "and only past a movement threshold"
+    # And it may not take the gesture down with it when it fails: capture is an
+    # improvement to panning, not a precondition, and it throws for any pointer
+    # the browser does not consider live.
+    assert "try {" in move and "catch" in move, "capture must not throw out of the move"
     # Exactly one place takes it, so a second call site cannot reintroduce this.
     assert html.count("setPointerCapture") == 1

@@ -588,8 +588,16 @@ function applyTransform() {
     if (!drag.moved) {
       if (Math.hypot(dx, dy) < DRAG_SLOP) return;
       drag.moved = true;
-      host.setPointerCapture?.(e.pointerId);
       host.style.cursor = 'grabbing';
+      // Capture keeps the pan alive when the pointer crosses the frame edge or
+      // something that swallows events. It is an improvement to the gesture,
+      // not a precondition for it, so it must not be able to break one: it
+      // throws whenever the pointer is not a live capturable one, and thrown
+      // from here that would abandon the move half-applied.
+      try {
+        host.setPointerCapture?.(e.pointerId);
+        drag.captured = true;
+      } catch { /* pan on without it; it simply stops at the boundary */ }
     }
     pz.x = drag.ox + dx;
     pz.y = drag.oy + dy;
@@ -600,7 +608,9 @@ function applyTransform() {
     live.delete(e.pointerId);
     if (live.size < 2) pinch = null;
     if (drag && e.pointerId === drag.id) {
-      if (drag.moved) host.releasePointerCapture?.(e.pointerId);
+      if (drag.captured) {
+        try { host.releasePointerCapture?.(e.pointerId); } catch { /* already gone */ }
+      }
       drag = null;
       host.style.cursor = '';
     }
