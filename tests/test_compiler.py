@@ -1825,21 +1825,103 @@ def test_panning_does_not_capture_the_pointer_on_press():
     assert html.count("setPointerCapture") == 1
 
 
+CAP_FIXTURE = os.path.join(os.path.dirname(REAL_FIXTURE), "weiwai-capitalisation.yaml")
+
+
+def _cap(**edits):
+    return _mutate(CAP_FIXTURE, edits)
+
+
+def test_a_column_can_be_generated_instead_of_stored():
+    """The rule the whole model rests on: a relationship is generated, never
+    synchronised. A figure written out per row beside a prose note saying how it
+    was obtained is a synchronisation — change the gross amount and nothing tells
+    you the net one is now wrong.
+
+    The values it produces are the ones that were there by hand, to the unit.
+    """
+    s = spec_mod.load(CAP_FIXTURE)
+    c = compile_mod.compile_spec(s)
+    v = compile_mod.compile_spec(s, fold_over=999).view
+    net = {
+        n["id"].split("/", 1)[1]: n["props"]["金额_不含税"]
+        for n in v["nodes"] if n["kind"] == "instance" and n["type"] == "委外合同"
+    }
+    assert net == {
+        "C-001": 3_773_585, "C-002": 3_396_226, "C-003": 4_314_151,
+        "C-004": 1_886_792, "C-005": 2_248_358,
+    }
+    # And the aggregates over them are unchanged by the change.
+    assert c.values["委外cap"] == 7_169_811
+    assert c.values["委外待补金额"] == 4_314_151
+
+
+def test_a_computed_column_does_not_say_who_owns_it():
+    """A formula is a decision of ours, so the column is ontology-owned by
+    construction. Declaring it again is the one place the two could disagree —
+    the same reason `kind` stopped being a field."""
+    s = spec_mod.load(CAP_FIXTURE)
+    assert s.owner_of("委外合同", "金额_不含税") == "ontology"
+    bad = _cap(**{"types/委外合同/props/金额_不含税/owner": "ontology"})
+    assert any("drop 'owner'" in p for p in spec_mod.check(bad))
+
+
+def test_a_computed_column_may_not_also_be_written_by_hand():
+    """One of the two is stale the moment the other changes."""
+    bad = _cap(**{"instances/委外合同/0/金额_不含税": 1})
+    problems = spec_mod.check(bad)
+    assert any("also write this by hand" in p for p in problems), problems
+
+
+def test_a_computed_column_only_names_things_that_exist():
+    bad = _cap(**{"types/委外合同/props/金额_不含税/op": "金额_含税 / 没这个东西"})
+    assert any("which is neither a property of" in p for p in spec_mod.check(bad))
+
+
+def test_computed_columns_may_not_form_a_cycle():
+    """Reported with the loop spelled out, since the useful part of a cycle is
+    which names are on it."""
+    s = _cap(**{
+        "types/委外合同/props/金额_不含税/op": "金额_税 + 1",
+        "types/委外合同/props/金额_税": {"type": "money", "op": "金额_不含税 * 0.06"},
+    })
+    with pytest.raises(ValueError, match="cycle among computed values"):
+        compile_mod.compile_spec(s)
+
+
 def test_a_decided_figure_must_cite_its_evidence():
     """A node whose expression is a bare literal has no inputs, so nothing
     upstream accounts for it. A rate, a threshold, a materiality level — that is
-    exactly where a magic number hides, and the rest of the model has no way to
-    reach it: lineage stops at a constant.
-
-    So a constant is the one figure that must name the raw or hook it rests on,
-    and it is exempt from the rule that a citation implies a divergence — its
-    citation is evidence, not authority for reading differently.
-    """
-    bad = _mutated_real(**{"nodes/重要性水平": {"label": "重要性水平", "op": "500000"}})
+    exactly where a magic number hides."""
+    bad = _cap(**{"nodes/进项税率/because": None})
     problems = spec_mod.check(bad)
     assert any("decided figure, not a computed one" in p for p in problems), problems
 
-    ok = _mutated_real(**{
-        "nodes/重要性水平": {"label": "重要性水平", "op": "500000", "because": "R-KINGDEE"},
-    })
-    assert spec_mod.check(ok) == []
+
+def test_computed_money_is_rounded_by_a_declared_scale():
+    """A division leaves fifteen decimals, and then the sum of the figures shown
+    stops equalling the sum shown. Half-up, because that is the money convention
+    and what the hand-written figures had used."""
+    s = spec_mod.load(CAP_FIXTURE)
+    v = compile_mod.compile_spec(s, fold_over=999).view
+    vals = [n["props"]["金额_不含税"] for n in v["nodes"] if n["kind"] == "instance"
+            and n["type"] == "委外合同"]
+    assert all(isinstance(x, int) for x in vals), vals
+
+    cents = _cap(**{"types/委外合同/props/金额_不含税/scale": 2})
+    v2 = compile_mod.compile_spec(cents, fold_over=999).view
+    got = {n["id"]: n["props"]["金额_不含税"] for n in v2["nodes"]
+           if n["kind"] == "instance" and n["type"] == "委外合同"}
+    assert got["委外合同/C-001"] == 3_773_584.91
+
+    assert any("'scale' is how a money column is rounded" in p
+               for p in spec_mod.check(_cap(**{"types/委外合同/props/供应商/scale": 2})))
+
+
+def test_the_panel_shows_a_computed_column_its_formula():
+    """A derived node shows its expression; a computed column that did not would
+    be the prose note again, one level down."""
+    b = app_mod.bundle(spec_mod.load(CAP_FIXTURE))
+    group = next(g for v in b["views"].values() for g in v["groups"] if g["type"] == "委外合同")
+    assert group["ops"]["金额_不含税"] == "金额_含税 / (1 + 进项税率)"
+    assert "ops[k]" in _html()

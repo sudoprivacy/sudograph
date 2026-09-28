@@ -93,7 +93,11 @@ class Spec:
         if not t:
             return None
         p = (t.get("props") or {}).get(prop)
-        return p.get("owner") if p else None
+        if not p:
+            return None
+        # A formula is a decision of ours, so a computed property is
+        # ontology-owned without having to say so.
+        return "ontology" if "op" in p else p.get("owner")
 
     def types_with(self, prop: str) -> list[str]:
         return [tn for tn, t in self.types.items() if prop in (t.get("props") or {})]
@@ -237,6 +241,60 @@ def _is_literal(n: dict) -> bool:
     return True
 
 
+def _computed_prop_problems(s: Spec, tname: str, pname: str, p: dict) -> list[str]:
+    """A property whose value is generated rather than stored.
+
+    Two shapes, one mechanism. Over the row's own columns it is arithmetic —
+    `金额_含税 / (1 + 进项税率)`. Over related rows it is the aggregate this
+    language already has, with `this` standing for the row being computed —
+    `select sum(金额) from 委外合同 where 供应商 = this`. The second is what
+    other ontologies model as a separate "derived property" declaration of
+    fixed shape; reusing the expression language covers it without a second
+    thing to learn, validate, and answer the same question differently.
+
+    The rule that matters is the one the whole file exists for: a relationship
+    must be **generated**, never **synchronised**. A figure written out by hand
+    beside a prose note saying how it was obtained is a synchronisation — change
+    one side and nothing tells you the other is now wrong.
+    """
+    if "op" not in p:
+        return []
+    out: list[str] = []
+    where = f"{tname}.{pname}"
+    if not isinstance(p["op"], str) or not p["op"].strip():
+        return [f"{where}: op must be an expression"]
+    try:
+        ast = expr.parse(p["op"])
+    except expr.ExprError as e:
+        return [f"{where}: op does not parse: {e}"]
+
+    if p.get("from"):
+        out.append(f"{where}: a computed property cannot have 'from' — it is not upstream")
+
+    # Written out per row *and* computed is the contradiction this exists to
+    # remove: one of them is stale the moment the other changes.
+    written = [r for r in s.instances.get(tname, []) if pname in r]
+    if written:
+        out.append(
+            f"{where}: {len(written)} row(s) also write this by hand — a computed "
+            f"property is generated, and a value beside the formula is the copy "
+            f"that goes stale"
+        )
+
+    # Names must resolve to something: a sibling column, a node, or `this`.
+    props = set((s.types.get(tname) or {}).get("props") or {})
+    known = props | set(s.nodes) | {"this"}
+    for name in expr.referenced_names(ast):
+        if name not in known:
+            out.append(
+                f"{where}: op names {name!r}, which is neither a property of "
+                f"{tname} nor a computed node"
+            )
+    if "this" in expr.referenced_names(ast) and not (s.types.get(tname) or {}).get("id"):
+        out.append(f"{where}: op uses 'this' but {tname} declares no 'id' for it to mean")
+    return out
+
+
 def _entry_problems(s: Spec, nname: str, basis: str) -> list[str]:
     """Where a decided difference lands, checked against the bridge's own slots.
 
@@ -332,8 +390,18 @@ def check(s: Spec) -> list[str]:
             where = f"{tname}.{pname}"
             if p.get("type") not in PROP_TYPES:
                 out.append(f"{where}: type {p.get('type')!r} is not one of {PROP_TYPES}")
-            owner = p.get("owner")
-            if owner not in OWNERS:
+            # A computed property is ontology-owned by construction: a formula
+            # is a decision of ours, and nothing upstream can supply it. So the
+            # owner is read off the shape rather than asked for again — the same
+            # fact stated twice is a fact that can disagree with itself.
+            owner = s.owner_of(tname, pname)
+            if "op" in p and "owner" in p:
+                out.append(
+                    f"{where}: drop 'owner' — a property with an 'op' is computed here, "
+                    f"so it is owned here. Declaring it again is the one place the two "
+                    f"could disagree"
+                )
+            elif "op" not in p and owner not in OWNERS:
                 out.append(f"{where}: owner must be 'source' or 'ontology', got {owner!r}")
             # Hard rule: a source property must name the raw that supplies it.
             # `from` may be a list, which is how a figure says it is corroborated
@@ -369,6 +437,11 @@ def check(s: Spec) -> list[str]:
                     )
             if owner == "ontology" and p.get("from"):
                 out.append(f"{where}: ontology property cannot have 'from' — it is not upstream")
+            if "scale" in p:
+                if p.get("type") != "money":
+                    out.append(f"{where}: 'scale' is how a money column is rounded")
+                elif not isinstance(p["scale"], int) or p["scale"] < 0:
+                    out.append(f"{where}: scale must be a non-negative whole number")
             if p.get("type") == "enum" and not p.get("values"):
                 out.append(f"{where}: an enum needs 'values'")
             # A ref is how one object reaches another. Until now the only thing
@@ -403,6 +476,7 @@ def check(s: Spec) -> list[str]:
             # same in the data and are opposite in the business: one is a gap
             # to chase, the other is a finding. Saying which is cheap here and
             # impossible to recover later.
+            out += _computed_prop_problems(s, tname, pname, p)
             numeric_and_nullable = p.get("nullable") and p.get("type") in ("money", "number")
             if numeric_and_nullable and p.get("absent") not in ("gap", "zero"):
                 out.append(

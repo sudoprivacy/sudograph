@@ -195,8 +195,7 @@
     "prop": {
       "type": "object",
       "required": [
-        "type",
-        "owner"
+        "type"
       ],
       "additionalProperties": false,
       "properties": {
@@ -273,6 +272,15 @@
               "description": "Which source governs when they disagree. Never sufficient on its own."
             }
           }
+        },
+        "op": {
+          "type": "string",
+          "description": "This column is computed, not stored. The same restricted SQL the nodes use, evaluated once per row: bare names are the row's own columns or a node, and `this` is the row's id, so `select sum(x) from T where ref = this` aggregates the rows linked to it. A property with an op must not also be written out per row, and must not declare 'owner' — a formula is a decision of ours, so it is owned here by construction."
+        },
+        "scale": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Decimal places a money column is kept in; default 0. Computed money is rounded half-up to it, so a division cannot leave fifteen decimals in a figure nobody would write."
         }
       },
       "allOf": [
@@ -397,7 +405,24 @@
             ]
           }
         }
-      ]
+      ],
+      "if": {
+        "required": [
+          "op"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "owner"
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "owner"
+        ]
+      }
     },
     "raw": {
       "type": "object",

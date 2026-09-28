@@ -659,11 +659,14 @@ function showNode(n) {
   // both. It is the hardest rule in the model and the app was not showing it,
   // which made the panel a list of numbers with no idea who owns any of them.
   if (n.props) {
-    const owners = (view().groups.find(g => g.type === n.type) || {}).owners || {};
+    const g = view().groups.find(x => x.type === n.type) || {};
+    const owners = g.owners || {}, ops = g.ops || {};
     rows.push(`<h2>属性</h2>` + Object.entries(n.props).map(([k, val]) =>
       `<div class="kv"><span>${k} <span class="own ${owners[k] || ''}">${
-        owners[k] === 'source' ? '上游' : owners[k] === 'ontology' ? '本体' : ''
-      }</span></span><span>${fmt(val)}</span></div>`).join(''));
+        ops[k] ? '算出' : owners[k] === 'source' ? '上游' : owners[k] === 'ontology' ? '本体' : ''
+      }</span></span><span>${fmt(val)}</span></div>` +
+      // A computed column shows its formula, exactly as a derived node does.
+      (ops[k] ? `<div class="op">${ops[k]}</div>` : '')).join(''));
   }
   if (n.kind === 'type') rows.push(showGroup(n.id));
   $('panel').innerHTML = rows.join('');

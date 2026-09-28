@@ -14,7 +14,8 @@ reshape the truth.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from . import expr
@@ -154,6 +155,28 @@ def _corroborate(s: Spec, c: Compiled) -> Spec:
     )
 
 
+def _money_scale(value: Any, prop: dict) -> Any:
+    """Round a computed money figure to the precision its type is kept in.
+
+    A division produces fifteen decimals, and a money column that carries them
+    is wrong in two ways at once: nobody writes an amount like that, and the sum
+    of the displayed figures stops equalling the displayed sum. So the rounding
+    is a property of the column, decided once, rather than something each
+    expression remembers to do.
+
+    Half-up, because that is what money conventions use and what the figures
+    being replaced here were rounded by; Python's own round() is half-even and
+    would disagree on exact halves. `scale` defaults to 0 — whole units — and a
+    currency kept in cents declares `scale: 2`.
+    """
+    if prop.get("type") != "money" or not isinstance(value, (int, float)):
+        return value
+    scale = prop.get("scale", 0)
+    q = Decimal(1).scaleb(-scale)
+    rounded = Decimal(str(value)).quantize(q, rounding=ROUND_HALF_UP)
+    return int(rounded) if scale == 0 else float(rounded)
+
+
 def op_for(node: dict, basis: str | None) -> str | None:
     """The expression this node uses under `basis`.
 
@@ -166,22 +189,65 @@ def op_for(node: dict, basis: str | None) -> str | None:
     return node.get("op")
 
 
-def _order(s: Spec, basis: str | None = None) -> list[str]:
-    """Topologically order derived nodes; raise on a cycle."""
-    derived = dict(s.nodes)
-    deps = {
-        n: expr.referenced_names(expr.parse(op_for(d, basis) or "0")) & set(derived)
-        for n, d in derived.items()
+#: A vertex is either a scalar node — ("node", name) — or a computed column of
+#: a type — ("prop", type, prop). They share one graph because they genuinely
+#: depend on each other in both directions: a column may read a node (a rate
+#: decided once and applied per row), and a node aggregates over columns that
+#: may themselves be computed. Ordering them separately means guessing which
+#: kind goes first, and the guess is wrong for any spec that does both.
+def _order(s: Spec, basis: str | None = None) -> list[tuple]:
+    """Topologically order everything with a value; raise on a cycle."""
+    computed = {
+        (t, pn)
+        for t, tdef in s.types.items()
+        for pn, pdef in (tdef.get("props") or {}).items()
+        if "op" in pdef
     }
-    out: list[str] = []
-    temp: set[str] = set()
-    done: set[str] = set()
+    by_type: dict[str, set[str]] = {}
+    for t, pn in computed:
+        by_type.setdefault(t, set()).add(pn)
 
-    def visit(n: str, trail: list[str]) -> None:
+    def of(src: str) -> tuple[set, set]:
+        """(node deps, prop deps) of one expression."""
+        ast = expr.parse(src or "0")
+        names = expr.referenced_names(ast)
+        nodes = {("node", n) for n in names & set(s.nodes)}
+        props = set()
+        # Whatever this aggregates over, it reads that type's computed columns.
+        for t in expr.aggregated_types(ast):
+            props |= {("prop", t, pn) for pn in by_type.get(t, ())}
+        return nodes, props
+
+    deps: dict[tuple, set] = {}
+    for n, d in s.nodes.items():
+        a, b = of(op_for(d, basis))
+        deps[("node", n)] = a | b
+    for t, pn in computed:
+        pdef = s.types[t]["props"][pn]
+        a, b = of(op_for(pdef, basis))
+        # A sibling column of the same row is a dependency too.
+        siblings = {
+            ("prop", t, x)
+            for x in expr.referenced_names(expr.parse(op_for(pdef, basis) or "0"))
+            & by_type.get(t, set())
+        }
+        deps[("prop", t, pn)] = a | b | siblings
+    derived = deps
+    out: list[tuple] = []
+    temp: set[tuple] = set()
+    done: set[tuple] = set()
+
+    def show(v: tuple) -> str:
+        return v[1] if v[0] == "node" else f"{v[1]}.{v[2]}"
+
+    def visit(n: tuple, trail: list[tuple]) -> None:
         if n in done:
             return
         if n in temp:
-            raise ValueError("cycle among derived nodes: " + " -> ".join([*trail, n]))
+            raise ValueError(
+                "cycle among computed values: "
+                + " -> ".join(show(x) for x in [*trail, n])
+            )
         temp.add(n)
         for d in sorted(deps[n]):
             visit(d, [*trail, n])
@@ -231,16 +297,49 @@ def compile_spec(
         s = _restrict(s, at)
     s = _corroborate(s, c)
 
+    # Rows are copied before anything computes into them, so a compile never
+    # writes back into the spec it was handed.
+    work = {t: [dict(r) for r in rows] for t, rows in s.instances.items()}
+    s = replace(s, instances=work)
+
     # ── values ────────────────────────────────────────────────────────
-    for name in _order(s, basis):
-        node = s.nodes[name]
-        src = op_for(node, basis)
-        if not src:
+    for vertex in _order(s, basis):
+        if vertex[0] == "node":
+            name = vertex[1]
+            src = op_for(s.nodes[name], basis)
+            if not src:
+                continue
+            try:
+                c.values[name] = expr.evaluate(expr.parse(src), dict(c.values), s.instances)
+            except expr.ExprError as e:
+                c.checks.append(Check(f"node/{name}", False, str(e)))
             continue
-        try:
-            c.values[name] = expr.evaluate(expr.parse(src), dict(c.values), s.instances)
-        except expr.ExprError as e:
-            c.checks.append(Check(f"node/{name}", False, str(e)))
+
+        # A computed column: one evaluation per row, with the row's own columns
+        # in scope and `this` bound to its id, so an aggregate can say which
+        # rows belong to it.
+        _, tname, pname = vertex
+        src = op_for(s.types[tname]["props"][pname], basis)
+        idp = s.types[tname].get("id")
+        for row in work.get(tname, []):
+            scope = {**c.values, **row}
+            if idp:
+                scope["this"] = row.get(idp)
+            try:
+                row[pname] = _money_scale(
+                    expr.evaluate(expr.parse(src), scope, s.instances),
+                    s.types[tname]["props"][pname],
+                )
+            except expr.ExprError as e:
+                row[pname] = None
+                c.checks.append(
+                    Check(f"computed/{tname}/{row.get(idp)}/{pname}", False, str(e))
+                )
+            except TypeError:
+                # An input this row does not have. The result is missing rather
+                # than wrong, and the row's own gap is what says why — the same
+                # rule a nullable column already lives under.
+                row[pname] = None
 
     # ── articulation checks: the unit tier ────────────────────────────
     # Assertions the author wrote, evaluated over the node values this same
@@ -687,7 +786,12 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 "buckets": buckets,
                 "top": top,
                 "id_prop": idp,
-                "owners": {p: d.get("owner") for p, d in props.items()},
+                "owners": {p: s.owner_of(tname, p) for p in props},
+                # How a computed column got its value, so the panel can show the
+                # formula the way a derived node shows its expression. A figure
+                # whose derivation is only in the author's head is the thing
+                # this replaced.
+                "ops": {p: d["op"] for p, d in props.items() if "op" in d},
             }
         )
         for name in aggregated_by.get(tname, ()):
