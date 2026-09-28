@@ -223,6 +223,20 @@ def bridge_vocab(b: dict | None) -> dict[str, str]:
     return {k: (b.get(k) or d) for k, d in BRIDGE_VOCAB.items()}
 
 
+def _is_literal(n: dict) -> bool:
+    """True when every expression this node carries is a bare constant."""
+    srcs = [v for k, v in n.items() if k == "op" or k.startswith("op@")]
+    if not srcs:
+        return False
+    for src in srcs:
+        try:
+            if not isinstance(expr.parse(src), expr.Lit):
+                return False
+        except expr.ExprError:
+            return False
+    return True
+
+
 def _entry_problems(s: Spec, nname: str, basis: str) -> list[str]:
     """Where a decided difference lands, checked against the bridge's own slots.
 
@@ -594,7 +608,21 @@ def check(s: Spec) -> list[str]:
         # its own, because "why is the restated figure different" and "why is the
         # tax figure different" are not the same answer.
         provenance = set(s.raw) | set(s.hooks)
-        if not diverges:
+        # A node whose expression is a bare literal has no inputs, so nothing
+        # upstream can account for it. A figure decided rather than computed —
+        # a rate, a threshold, a materiality level — is exactly where a magic
+        # number hides, so the citation is not optional there and the divergence
+        # rule below does not apply to it.
+        literal = _is_literal(n)
+        if literal and not s.reason_for(nname, None) and not any(
+            s.reason_for(nname, b) for b in (s.bases or [None])
+        ):
+            out.append(
+                f"node {nname} is a decided figure, not a computed one — cite the raw "
+                f"or hook it rests on with 'because'. A number with no inputs and no "
+                f"evidence is the thing this model exists to refuse"
+            )
+        if not diverges and not literal:
             for stray in [k for k in n if k.partition("@")[0] in ("because", "entry")]:
                 out.append(
                     f"node {nname}: has {stray!r} but computes the same under every reading"

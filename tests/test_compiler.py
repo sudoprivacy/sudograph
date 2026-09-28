@@ -1823,3 +1823,23 @@ def test_panning_does_not_capture_the_pointer_on_press():
     assert "try {" in move and "catch" in move, "capture must not throw out of the move"
     # Exactly one place takes it, so a second call site cannot reintroduce this.
     assert html.count("setPointerCapture") == 1
+
+
+def test_a_decided_figure_must_cite_its_evidence():
+    """A node whose expression is a bare literal has no inputs, so nothing
+    upstream accounts for it. A rate, a threshold, a materiality level — that is
+    exactly where a magic number hides, and the rest of the model has no way to
+    reach it: lineage stops at a constant.
+
+    So a constant is the one figure that must name the raw or hook it rests on,
+    and it is exempt from the rule that a citation implies a divergence — its
+    citation is evidence, not authority for reading differently.
+    """
+    bad = _mutated_real(**{"nodes/重要性水平": {"label": "重要性水平", "op": "500000"}})
+    problems = spec_mod.check(bad)
+    assert any("decided figure, not a computed one" in p for p in problems), problems
+
+    ok = _mutated_real(**{
+        "nodes/重要性水平": {"label": "重要性水平", "op": "500000", "because": "R-KINGDEE"},
+    })
+    assert spec_mod.check(ok) == []
