@@ -682,6 +682,7 @@ def check(s: Spec) -> list[str]:
         # its own, because "why is the restated figure different" and "why is the
         # tax figure different" are not the same answer.
         provenance = set(s.raw) | set(s.hooks)
+        seen_rest: set[str] = set()
         # A node whose expression is a bare literal has no inputs, so nothing
         # upstream can account for it. A figure decided rather than computed —
         # a rate, a threshold, a materiality level — is exactly where a magic
@@ -713,6 +714,19 @@ def check(s: Spec) -> list[str]:
                 )
             elif reason not in provenance:
                 out.append(f"node {nname}: because for {b!r} is {reason!r}, not a raw or a hook")
+            elif (
+                reason in s.hooks
+                and nname not in (s.hooks[reason].get("affects") or [])
+                and f"{nname}|{reason}" not in seen_rest
+            ):
+                seen_rest.add(f"{nname}|{reason}")
+                # One relation, declared once. The hook says what it holds up;
+                # the node says what it rests on. Where they are the same pair
+                # they must agree, or the canvas gets an arrow each way.
+                out.append(
+                    f"node {nname} rests on {reason}, but that hook does not list it in "
+                    f"'affects' — the same relation has to be declared from one side"
+                )
             out += _entry_problems(s, nname, b)
         if not n.get("op") and not diverges:
             out.append(f"node {nname} needs an 'op' — everything under 'nodes' is computed")

@@ -80,13 +80,13 @@ hooks:
     blocked_on: R-ICF
     resolve_when: "该受试者的签署页扫描件归档，或确认其未实际签署"
     owner: 监查员/CRA-01
-    affects: [入组数]
+    affects: [入组数, 待核查数]
   H-两系统不一致:
     label: EDC 与周报对入组判定不一致
     blocked_on: R-WEEKLY
     resolve_when: "逐例核对 EDC 与周报，不一致处由中心出具说明"
     owner: 监查员/CRA-02
-    affects: [入组数]
+    affects: [入组数, 待核查数]
 
 instances:
   监查员:

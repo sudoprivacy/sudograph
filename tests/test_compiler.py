@@ -1925,3 +1925,28 @@ def test_the_panel_shows_a_computed_column_its_formula():
     group = next(g for v in b["views"].values() for g in v["groups"] if g["type"] == "委外合同")
     assert group["ops"]["金额_不含税"] == "金额_含税 / (1 + 进项税率)"
     assert "ops[k]" in _html()
+
+
+def test_what_a_figure_rests_on_is_drawn():
+    """A decided figure must cite its evidence — and a citation that appears on
+    no canvas is the prose note again. `because` naming a raw now reaches the
+    figure as an edge.
+
+    Naming a hook does not add one: that hook already points here through its
+    own `affects`, and check() requires it to, so the relation is declared from
+    one side and drawn once. Two arrows between the same pair is the fault the
+    plug and its gap were cured of.
+    """
+    v = compile_mod.compile_spec(spec_mod.load(CAP_FIXTURE)).view
+    assert ("R-CONTRACT", "进项税率") in {
+        (e["from"], e["to"]) for e in v["edges"] if e["rel"] == "rests_on"
+    }
+    for fixture, kw in ((REAL_FIXTURE, {"basis": BOOK}), (CAP_FIXTURE, {})):
+        view = compile_mod.compile_spec(spec_mod.load(fixture), **kw).view
+        pairs = [(e["from"], e["to"]) for e in view["edges"]]
+        assert len(pairs) == len(set(pairs)), "the same pair is drawn twice"
+
+    bad = _mutated_real(**{"hooks/H-待合同/affects": ["待坐实金额"]})
+    problems = spec_mod.check(bad)
+    assert any("does not list it in 'affects'" in p for p in problems), problems
+    assert len([p for p in problems if "委外cap rests on" in p]) == 1, problems

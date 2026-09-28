@@ -569,6 +569,15 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         # Lineage as edges too, so a renderer can draw the path a reviewer walks.
         for src in lin[name]["inputs"]:
             edges.append({"from": src, "to": name, "rel": "feeds"})
+        # What a figure rests on, drawn. `because` names the raw or hook it is
+        # justified by, and until now that was a string in the spec that nothing
+        # put on the canvas — so a decided figure sat there with its evidence
+        # invisible, which is the same fault as a gap pointing at nothing. For a
+        # hook the relation usually arrives from the other side as `affects`;
+        # deduplication below keeps it to one arrow either way.
+        for b in {s.reason_for(name, c.basis), s.reason_for(name, None)}:
+            if b and b in s.raw:
+                edges.append({"from": b, "to": name, "rel": "rests_on"})
         # The measure a plug is checked against is an *input* to it — the plug
         # is our total minus that measure — so it points in, like everything
         # else a node is computed from. Pointing out read as the plug feeding
