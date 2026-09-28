@@ -538,6 +538,12 @@ function applyTransform() {
   const host = $('cy');
   const live = new Map();          // pointerId -> {x, y}
   let drag = null, pinch = null;
+  //: How far the pointer must travel before a press counts as a drag. Below it
+  //: the gesture is still a click, and the pointer must stay uncaptured — a
+  //: captured pointer sends every later event to the capturing element, so
+  //: pointerup and click land on the canvas instead of on whatever was pressed,
+  //: and nothing on the graph can be clicked at all.
+  const DRAG_SLOP = 4;
   const dist = ps => Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y);
   const mid  = ps => ({ x: (ps[0].x + ps[1].x) / 2, y: (ps[0].y + ps[1].y) / 2 });
 
@@ -562,9 +568,11 @@ function applyTransform() {
     // A drag that starts on a label is a text selection, and selecting text is
     // how a comment gets anchored — so it is left alone.
     if (e.target.tagName === 'text') return;
-    drag = { x: e.clientX, y: e.clientY, ox: pz.x, oy: pz.y, id: e.pointerId };
-    host.setPointerCapture?.(e.pointerId);
-    host.style.cursor = 'grabbing';
+    // Capture is deliberately NOT taken here. It is taken once the pointer has
+    // actually moved, because taking it on press redirects the whole rest of
+    // the gesture to this element.
+    drag = { x: e.clientX, y: e.clientY, ox: pz.x, oy: pz.y, id: e.pointerId,
+             moved: false };
   });
 
   host.addEventListener('pointermove', e => {
@@ -576,15 +584,26 @@ function applyTransform() {
       return;
     }
     if (!drag || e.pointerId !== drag.id) return;
-    pz.x = drag.ox + (e.clientX - drag.x);
-    pz.y = drag.oy + (e.clientY - drag.y);
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved) {
+      if (Math.hypot(dx, dy) < DRAG_SLOP) return;
+      drag.moved = true;
+      host.setPointerCapture?.(e.pointerId);
+      host.style.cursor = 'grabbing';
+    }
+    pz.x = drag.ox + dx;
+    pz.y = drag.oy + dy;
     applyTransform();
   });
 
   const release = e => {
     live.delete(e.pointerId);
     if (live.size < 2) pinch = null;
-    if (drag && e.pointerId === drag.id) { drag = null; host.style.cursor = ''; }
+    if (drag && e.pointerId === drag.id) {
+      if (drag.moved) host.releasePointerCapture?.(e.pointerId);
+      drag = null;
+      host.style.cursor = '';
+    }
   };
   host.addEventListener('pointerup', release);
   host.addEventListener('pointercancel', release);

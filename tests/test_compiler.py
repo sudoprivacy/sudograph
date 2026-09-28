@@ -1795,3 +1795,27 @@ def test_the_framework_carries_a_domain_that_shares_none_of_the_first_one():
     # ledger disagreement is: the row cites a gap and the spec says who governs.
     v = compile_mod.compile_spec(s, basis="上报").view
     assert {n["kind"] for n in v["nodes"]} <= set(spec_mod.NODE_KINDS) | {"type", "instance"}
+
+
+def test_panning_does_not_capture_the_pointer_on_press():
+    """Capturing on pointerdown sends every later event of that gesture to the
+    capturing element. pointerup and click then land on the canvas instead of on
+    whatever was pressed, so nothing on the graph can be clicked — the graph
+    renders perfectly and is inert.
+
+    It survived every check we ran because all of them dispatched events
+    straight at the node: a synthetic dispatch bypasses hit-testing and pointer
+    capture both, so the one mechanism at fault is the one such a test cannot
+    see. Only a real press reaches it, which is why the rule is pinned here as
+    shape instead.
+    """
+    html = _html()
+    host = html.split("host.addEventListener('pointerdown'", 1)[1]
+    press = host.split("host.addEventListener('pointermove'", 1)[0]
+    assert "setPointerCapture" not in press, "capture taken on press"
+
+    move = host.split("host.addEventListener('pointermove'", 1)[1].split("const release", 1)[0]
+    assert "setPointerCapture" in move, "capture must be taken once it is a drag"
+    assert "DRAG_SLOP" in move, "and only past a movement threshold"
+    # Exactly one place takes it, so a second call site cannot reintroduce this.
+    assert html.count("setPointerCapture") == 1
