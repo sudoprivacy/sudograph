@@ -583,6 +583,9 @@ function applyTransform() {
       zoomAt(pinch.k * (dist(ps) / pinch.d), c.x, c.y);
       return;
     }
+    // Deliberately keyed on the id recorded at press, not on `e.buttons`: a
+    // move during a real drag does not always carry the button state, and a
+    // pan that checks it stops dead halfway through the gesture.
     if (!drag || e.pointerId !== drag.id) return;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     if (!drag.moved) {
