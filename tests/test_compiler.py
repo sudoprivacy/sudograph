@@ -1981,7 +1981,9 @@ def test_comment_anchors_are_optional_and_identity_based():
     calls = [ln for ln in html.splitlines()
              if "anchors.select" in ln and not ln.strip().startswith("//")]
     assert calls == [], calls
-    assert "anchors.report();" in html.split("function select(n)", 1)[1][:600]
+    body = html.split("function select(n)", 1)[1].split("
+function ", 1)[0]
+    assert "anchors.report();" in body
     # Three states, kept apart.
     for state in ("'visible'", "'hidden'", "'missing'"):
         assert state in block, state
