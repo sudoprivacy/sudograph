@@ -1985,3 +1985,31 @@ def test_comment_anchors_are_optional_and_identity_based():
     reaches = [ln for ln in html.splitlines() if "__SHAREONE__" in ln]
     assert len(reaches) == 1, reaches
     assert "const host = () => (window.__SHAREONE__ || {}).anchors || null;" in reaches[0]
+
+
+def test_doubt_is_the_gap_colour_reaching_a_figure():
+    """Certainty was on a 2px border nobody reads, while colour — the channel
+    everyone reads — carried the kind, which position already tells you. Five of
+    seven figures in the real fixture were blue and provisional: they looked
+    settled and were not.
+
+    It is not a second channel. A hook is the doubt, and anything a hook reaches
+    carries some of it, so the fill is the kind's colour mixed toward the hook's.
+    The hue survives, so which kind it is survives with it — and it comes out
+    per path for free, because the mix follows what the gaps actually reach.
+    """
+    html = _html()
+    assert "const fillOf = n =>" in html
+    assert "fill: fillOf(n)," in html
+    # Read from the fact the compiler already computes, not a new one.
+    assert "n.provisional_because" in html.split("const fillOf", 1)[1].split("};", 1)[0]
+    # A hook is the doubt itself and is never tinted toward itself.
+    assert "n.kind === 'hook' ||" in html
+    # No literal of the palette in the renderer: the mix reads the table.
+    assert "css('--hook')" in html
+
+    # And the underlying fact really does divide the pilot's figures.
+    v = _real().view
+    figures = {n["label"]: len(n.get("provisional_because") or [])
+               for n in v["nodes"] if n["kind"] == "derived"}
+    assert any(c > 0 for c in figures.values()) and any(c == 0 for c in figures.values())

@@ -215,7 +215,36 @@ const edgeStyle = rel =>
   EDGES[(rel === 'affects' || rel === 'cites') ? 'affects' : 'flow'];
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
+/* Certainty is not a second attribute competing with kind for the reader's
+   attention — it is the gap colour reaching a figure along the edges. A hook is
+   the doubt; anything a hook reaches carries some of it; anything no hook
+   reaches is clean. `provisional_because` already says which hooks reach a
+   node, so this is that fact rendered rather than a new one.
+
+   Mixed rather than replaced, so the hue still says which kind it is. And it
+   falls out per path for free: a chain with no gap upstream stays pure, and one
+   with a gap is tinted from the gap downward, which is what "this line is
+   settled" looks like without anyone computing a line. */
+const PROVISIONAL_MIX = 0.45;
+const hex = c => {
+  const m = c.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  return m ? [1, 2, 3].map(i => parseInt(m[i], 16)) : null;
+};
+const fillOf = n => {
+  const base = css((KINDS[n.kind] || KINDS.type).var);
+  if (n.kind === 'hook' || !(n.provisional_because || []).length) return base;
+  const a = hex(base), b = hex(css('--hook'));
+  if (!a || !b) return base;
+  const ch = i => Math.round(a[i] + (b[i] - a[i]) * PROVISIONAL_MIX);
+  return `rgb(${ch(0)},${ch(1)},${ch(2)})`;
+};
+
 $('legend').innerHTML =
+  `<span><i style="background:${
+    (() => { const a = hex(css('--derived')), b = hex(css('--hook'));
+      const ch = i => Math.round(a[i] + (b[i] - a[i]) * PROVISIONAL_MIX);
+      return `rgb(${ch(0)},${ch(1)},${ch(2)})`; })()
+  }"></i>带缺口<em>颜色偏橙 = 上游还有缺口</em></span>` +
   Object.values(KINDS).filter(k => k.name)
     .map(k => `<span><i style="background:var(${k.var})"></i>${k.name}${
       k.does ? `<em>${k.does}</em>` : ''}</span>`).join('') +
@@ -450,7 +479,7 @@ async function draw() {
     else if (d) g.classList.add('dim');
     g.appendChild(el('rect', {
       width: p.width, height: p.height, rx: 6,
-      fill: css((KINDS[n.kind] || KINDS.type).var),
+      fill: fillOf(n),
       stroke: (GRADE[n.completeness] || ['#2b3140'])[0],
       'stroke-width': 2,
     }));
