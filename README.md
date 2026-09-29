@@ -16,6 +16,73 @@ node there — not here.
 
 This README only covers how to use the repo.
 
+## Where this sits
+
+The spec is the only thing anyone writes. Everything to its left is read-only,
+everything to its right is generated from it.
+
+```mermaid
+flowchart LR
+  subgraph SRC["source systems · read-only"]
+    DB[("databases<br/>ERP · GL · rosters")]
+    FILES[("files<br/>contracts · scans · exports")]
+  end
+
+  subgraph ACCESS["access tier"]
+    DRV["nexus drivers<br/>one way in per system"]
+    MIRROR["file-shaped view<br/>sources that collapse to a tree<br/>are mirrored, not copied"]
+  end
+
+  subgraph SPEC["the ontology · a git repo"]
+    RAW["raw<br/>where a figure is taken from"]
+    TYPES["types + instances<br/>the objects and their rows"]
+    METRICS["metrics<br/>named figures over those rows"]
+    HOOKS["hooks<br/>named, owned, resolvable gaps"]
+    OPS["ops<br/>the only write path"]
+  end
+
+  subgraph OUT["generated"]
+    GRAPH["graph app<br/>one self-contained file"]
+    CHECKS["checks<br/>pass or fail, per compile"]
+  end
+
+  PEOPLE["business reviewers"]
+  AGENT["agents"]
+
+  DB --> DRV
+  FILES --> DRV
+  DRV --> MIRROR
+  MIRROR --> RAW
+  RAW --> TYPES
+  TYPES --> METRICS
+  HOOKS -.->|holds up| METRICS
+  SPEC --> GRAPH
+  SPEC --> CHECKS
+  GRAPH -->|comment on a node| PEOPLE
+  PEOPLE -->|a comment is a defect report| SPEC
+  AGENT -->|reads| SPEC
+  AGENT -->|writes only through| OPS
+  OPS --> SPEC
+  OPS -.->|instruction, then confirmation| DB
+```
+
+Four properties hold this together, and each is enforced rather than intended:
+
+* **Source systems are read-only.** Connectors take; nothing writes back through
+  them. A figure that appears in two independent systems is corroborated because
+  they cannot have copied from us.
+* **Values are not in the spec.** The spec says where a figure comes from; the
+  number arrives at compile time. What is versioned in git is the reasoning, not
+  a snapshot of the data.
+* **Relationships are generated, never synchronised.** Anything stated twice can
+  disagree with itself, so it is stated once and derived everywhere else.
+* **Ops are the only write path**, and a write states its intent. Landing a
+  change in a source system is an instruction plus a later confirmation, never a
+  direct write — the round trip is itself the control.
+
+The dotted line from `ops` back to a source system is the part that is designed
+but not built.
+
 ## The loop this exists to serve
 
 **model → use → iterate**, and all three are one job rather than a setup step
