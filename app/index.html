@@ -638,17 +638,7 @@ const anchors = (() => {
     });
   };
 
-  return {
-    get live() { return !!host(); },
-    report,
-    select: n => {
-      const api = host();
-      if (!api) return;
-      wire(api);
-      tracked.add(n.id);
-      api.select({ id: n.id, label: n.label }, rectOf(n.id));
-    },
-  };
+  return { get live() { return !!host(); }, report };
 })();
 
 function select(n) {
@@ -659,7 +649,12 @@ function select(n) {
   // Lineage is the question a reviewer actually asks of a figure.
   for (const a of (n.lineage?.ancestors || [])) mark(a);
   showNode(n);
-  anchors.select(n);
+  // Deliberately NOT anchors.select(n): reading a node is not asking to comment
+  // on it. `select` tells the host "the user picked this as a comment target",
+  // and wiring it to every click made the composer pop open whenever anyone
+  // looked at anything. The host drives commenting through its own text and
+  // region selection; our side of the contract is report / hittest / reveal.
+  anchors.report();
 }
 
 function applyTransform() {

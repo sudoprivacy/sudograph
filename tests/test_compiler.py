@@ -1972,7 +1972,16 @@ def test_comment_anchors_are_optional_and_identity_based():
     assert "get live() { return !!host(); }" in block
     assert "const api = window.__SHAREONE__ && window.__SHAREONE__.anchors" not in block
     # Absent host: every entry point returns without touching it.
-    assert block.count("if (!api) return") >= 2
+    assert "if (!api) return" in block
+
+    # Reading a node is not asking to comment on it. `select` says "the user
+    # picked this as a comment target", so calling it from the click handler
+    # made the composer open whenever anyone looked at anything. The host drives
+    # commenting from its own text and region selection; this page answers.
+    calls = [ln for ln in html.splitlines()
+             if "anchors.select" in ln and not ln.strip().startswith("//")]
+    assert calls == [], calls
+    assert "anchors.report();" in html.split("function select(n)", 1)[1][:600]
     # Three states, kept apart.
     for state in ("'visible'", "'hidden'", "'missing'"):
         assert state in block, state
