@@ -246,6 +246,7 @@ const el = (tag, attrs = {}) => {
 };
 const elk = new ELK();
 const pz = { x: 0, y: 0, k: 1 };
+let rafReport = null;   // pan and zoom move every anchor; coalesce to one report a frame
 let scene = null;
 
 // What a node says, in one place: a list of lines, each a list of parts.
@@ -504,6 +505,9 @@ async function draw() {
 
   $('cy').replaceChildren(svg);
   refit();
+  // Our layout changed, so every anchor the host is tracking may have moved,
+  // appeared or gone.
+  anchors.report();
 
   const bad = v.checks.filter(c => !c.ok);
   $('status').innerHTML =
@@ -515,6 +519,109 @@ async function draw() {
   if (d) showBridge(d); else showChecks(v);
 }
 
+
+/* Comment anchors, when the page is opened inside a host that offers them.
+   Absent (opened from disk, or comments off) every call below is a no-op, so
+   nothing here can be a precondition for the graph working.
+
+   The host asks for identities, never geometry: an anchor is a set of node ids.
+   A rectangle is not an identity — it means something different after a
+   relayout, and worse, it always resolves, so a comment on a node that has gone
+   would silently point at whichever node now occupies that space.
+
+   Three states, and the difference between the last two is the whole point:
+     visible  — drawn right now, here is where
+     hidden   — we know this id; it is folded away or on another reading
+     missing  — we do not know this id at all; the thing itself is gone
+   Collapsing hidden into missing would have the page assert that content was
+   deleted when it is merely off-screen. */
+const anchors = (() => {
+  // Resolved on every use, never captured. The host injects its bridge into
+  // this frame on its own schedule, and this file is inlined at the top of the
+  // document — so reading it once at load binds to nothing and stays bound to
+  // nothing for the life of the page, silently. Found exactly that way on the
+  // first live run.
+  const host = () => (window.__SHAREONE__ || {}).anchors || null;
+  let wired = false;
+
+  const known = () => {
+    const v = view();
+    const ids = new Set(v ? v.nodes.map(n => n.id) : []);
+    for (const d of Object.values(BUNDLE.diffs || {}))
+      for (const e of d.entries || []) ids.add(e.node);
+    return ids;
+  };
+  const labelOf = id => {
+    const n = (view()?.nodes || []).find(x => x.id === id);
+    return n ? n.label : id;
+  };
+  const rectOf = id => {
+    const g = scene && scene.querySelector('g.node[data-node-id="' + CSS.escape(id) + '"]');
+    if (!g) return null;
+    const r = g.getBoundingClientRect();
+    return Number.isFinite(r.x) && r.width >= 0 && r.height >= 0
+      ? { x: r.x, y: r.y, width: r.width, height: r.height } : null;
+  };
+
+  // Everything the host is tracking, classified. Sent on our own layout
+  // changes rather than answered on demand: the page is the only thing that
+  // knows a relayout happened, and a round trip per frame is a round trip the
+  // pan cannot afford.
+  const report = () => {
+    const api = host();
+    if (!api) return;
+    wire(api);
+    const have = known();
+    api.report([...tracked].map(id => {
+      if (!have.has(id)) return { id, state: 'missing' };
+      const rect = rectOf(id);
+      return rect ? { id, state: 'visible', rect } : { id, state: 'hidden' };
+    }));
+  };
+  const tracked = new Set();
+
+  // Subscribed the first time the host is seen, whenever that turns out to be.
+  const wire = api => {
+    if (wired) return;
+    wired = true;
+    api.on('resync', ids => { for (const id of ids || []) tracked.add(id); report(); });
+    api.on('hittest', rect => {
+      const out = [];
+      for (const g of (scene ? scene.querySelectorAll('g.node') : [])) {
+        const r = g.getBoundingClientRect();
+        if (r.right < rect.x || r.x > rect.x + rect.width) continue;
+        if (r.bottom < rect.y || r.y > rect.y + rect.height) continue;
+      // Labels, not ids: the host writes the comment's name from these, and it
+      // has no way to know what the business calls anything.
+        out.push({ id: g.dataset.nodeId, label: labelOf(g.dataset.nodeId) });
+      }
+      return out;
+    });
+  // A hidden anchor is revealed by the page, because only the page knows that
+  // this id is a row inside a folded type, or lives under another reading.
+    api.on('reveal', ids => {
+      let changed = false;
+      for (const id of ids || []) {
+        const t = id.includes('/') ? id.split('/', 1)[0] : null;
+        if (t && !state.expanded.has(t)) { state.expanded.add(t); changed = true; }
+      }
+      if (changed) draw(); else report();
+    });
+  };
+
+  return {
+    get live() { return !!host(); },
+    report,
+    select: n => {
+      const api = host();
+      if (!api) return;
+      wire(api);
+      tracked.add(n.id);
+      api.select({ id: n.id, label: n.label }, rectOf(n.id));
+    },
+  };
+})();
+
 function select(n) {
   for (const g of scene.querySelectorAll('g.node')) g.classList.remove('hit');
   const mark = id => scene
@@ -523,9 +630,14 @@ function select(n) {
   // Lineage is the question a reviewer actually asks of a figure.
   for (const a of (n.lineage?.ancestors || [])) mark(a);
   showNode(n);
+  anchors.select(n);
 }
 
 function applyTransform() {
+  if (rafReport === null) rafReport = requestAnimationFrame(() => {
+    rafReport = null;
+    anchors.report();
+  });
   if (scene) scene.setAttribute('transform',
     'translate(' + pz.x + ',' + pz.y + ') scale(' + pz.k + ')');
 }

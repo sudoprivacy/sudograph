@@ -1950,3 +1950,38 @@ def test_what_a_figure_rests_on_is_drawn():
     problems = spec_mod.check(bad)
     assert any("does not list it in 'affects'" in p for p in problems), problems
     assert len([p for p in problems if "委外cap rests on" in p]) == 1, problems
+
+
+def test_comment_anchors_are_optional_and_identity_based():
+    """The graph is opened from disk as often as from a host, so the anchor
+    integration must be inert when the host is absent — never a precondition for
+    the page working.
+
+    And an anchor is a set of ids, never a rectangle. A rectangle means
+    something different after a relayout and, worse, always resolves: a comment
+    on a node that is gone would silently point at whatever now occupies that
+    space, with nothing able to notice. Identities degrade honestly instead.
+    """
+    html = _html()
+    block = html.split("const anchors = (() =>", 1)[1].split("function select(n)", 1)[0]
+    # The host is resolved on every use, never captured. It injects its bridge
+    # on its own schedule and this file is inlined at the top of the document,
+    # so reading it once at load binds to nothing — silently, for the life of
+    # the page. That is exactly what happened on the first live run.
+    assert "const host = () =>" in block
+    assert "get live() { return !!host(); }" in block
+    assert "const api = window.__SHAREONE__ && window.__SHAREONE__.anchors" not in block
+    # Absent host: every entry point returns without touching it.
+    assert block.count("if (!api) return") >= 2
+    # Three states, kept apart.
+    for state in ("'visible'", "'hidden'", "'missing'"):
+        assert state in block, state
+    # hittest answers with business words, not bare ids.
+    assert "label: labelOf(" in block
+    # Pan and zoom coalesce to one report per frame rather than one per event.
+    assert "requestAnimationFrame" in html
+    # One line reaches for the host object, and it is the guarded one. Every
+    # other use goes through `api`, so there is no second unguarded path.
+    reaches = [ln for ln in html.splitlines() if "__SHAREONE__" in ln]
+    assert len(reaches) == 1, reaches
+    assert "const host = () => (window.__SHAREONE__ || {}).anchors || null;" in reaches[0]
