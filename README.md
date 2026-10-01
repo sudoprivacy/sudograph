@@ -83,6 +83,11 @@ Four properties hold this together, and each is enforced rather than intended:
 The dotted line from `ops` back to a source system is the part that is designed
 but not built.
 
+This is the shape only. Which technology sits in each box — where the spec is
+hosted, which gate governs which kind of write, what has to run inside a
+customer's own network — is a deployment matter and lives in the design page
+this README defers to, at §7.14.
+
 ## The loop this exists to serve
 
 **model → use → iterate**, and all three are one job rather than a setup step
