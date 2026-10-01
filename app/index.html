@@ -97,6 +97,7 @@
   #legend u{width:17px;height:0;border-top:1.5px solid;display:inline-block}
   #legend em{color:var(--dim);font-style:normal;margin-left:5px}
   #legend u.dash{border-top-style:dashed}
+  #legend u.dot{border-top-style:dotted;border-top-width:2px}
   @media (max-width:800px){ main{flex-direction:column} aside{width:auto;height:44%;
     border-left:none;border-top:1px solid var(--line)} }
 </style>
@@ -209,10 +210,15 @@ const KINDS = {
 const GRADE = { partial:['#6b5325','部分'], missing:['#6e3a2e','缺失'] };
 const EDGES = {
   flow:    { dash:'', colour:'--edge', name:'流向'      },
+  guessed: { dash:'dot', colour:'--carried', name:'我们推断的关联' },
   affects: { dash:'dash', colour:'--hook', name:'使它暂定' },
 };
 const edgeStyle = rel =>
   EDGES[(rel === 'affects' || rel === 'cites') ? 'affects' : 'flow'];
+/* A link the source system maintains and one this ontology worked out are not
+   the same claim — the first is someone else's fact, the second is ours to
+   defend — so they must not be the same arrow. */
+const inferred = e => e.rel === 'links' && e.owner === 'ontology';
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 /* Certainty is not a second attribute competing with kind for the reader's
@@ -462,6 +468,10 @@ async function draw() {
       opacity: e.rel === 'member' ? 0.22 : 0.7,
     });
     if (edgeStyle(e.rel).dash) p.setAttribute('stroke-dasharray', '5 4');
+    if (inferred(e)) {
+      p.setAttribute('stroke-dasharray', '2 3');
+      p.setAttribute('stroke', css('--carried'));
+    }
     gEdges.appendChild(p);
   }
 

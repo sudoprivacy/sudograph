@@ -820,6 +820,13 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                     "to": target,
                     "rel": "links",
                     "via": prop,
+                    # Where the link comes from. A foreign key the source system
+                    # maintains and a relationship this ontology worked out are
+                    # not the same claim, and until now they were the same
+                    # arrow: one is a fact someone else is responsible for, the
+                    # other is ours to defend. The owner rule already says
+                    # which, so the edge carries it.
+                    "owner": s.owner_of(tname, prop),
                     "linked": len(linked),
                     "unlinked": len(rows) - len(linked),
                 }

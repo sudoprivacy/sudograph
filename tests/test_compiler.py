@@ -2068,3 +2068,25 @@ def test_a_unit_conversion_says_so_rather_than_being_guessed():
     # And the escape may not be claimed by something that actually computes.
     wrong = _cap(**{"nodes/委外cap/conversion": "x"})
     assert any("but this one computes something" in p for p in spec_mod.check(wrong))
+
+
+def test_a_link_we_inferred_does_not_look_like_one_the_source_maintains():
+    """A foreign key the source system keeps and a relationship this ontology
+    worked out are not the same claim: the first is someone else's fact, the
+    second is ours to defend. They were drawn as the same arrow.
+
+    The owner rule already knows which is which, so the edge carries it rather
+    than a new field being invented for the picture.
+    """
+    v = _real().view
+    links = {e["via"]: e["owner"] for e in v["edges"] if e["rel"] == "links"}
+    # The pilot has one of each, which is why this was worth separating.
+    assert links == {"供应商": "source", "对接人": "ontology"}
+
+    html = _html()
+    assert "const inferred = e =>" in html
+    assert "e.owner === 'ontology'" in html
+    # Named in the legend, since an unexplained second line style is a puzzle.
+    table = html.split("const EDGES", 1)[1].split("};", 1)[0]
+    assert "我们推断的关联" in table
+    assert "#legend u.dot" in html
