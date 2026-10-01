@@ -189,6 +189,37 @@
             "type": "string"
           },
           "description": "Dimension name -> the property of this type that carries it. A type that declares none is reference data (people, suppliers) and is never filtered out, because dropping it would break every row pointing at it."
+        },
+        "backing": {
+          "type": "object",
+          "required": [
+            "from",
+            "table",
+            "key"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": "The raw whose dsn this table lives in."
+            },
+            "table": {
+              "type": "string"
+            },
+            "key": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              },
+              "description": "Columns that identify one row. Checked for uniqueness against the live data, not assumed."
+            },
+            "where": {
+              "type": "string",
+              "description": "Which rows of the table belong to this object at all."
+            }
+          },
+          "description": "This type is a view over a table rather than a carrier of rows. Two types may bind the same table: one table often holds more than one business object."
         }
       }
     },
@@ -281,26 +312,17 @@
           "type": "integer",
           "minimum": 0,
           "description": "Decimal places a money column is kept in; default 0. Computed money is rounded half-up to it, so a division cannot leave fifteen decimals in a figure nobody would write."
+        },
+        "column": {
+          "type": "string",
+          "description": "The upstream column behind this property, when the names differ. Defaults to the property's own name."
+        },
+        "gap": {
+          "type": "string",
+          "description": "The hook that accounts for every absence of this column. Rows read from a source table carry no gap reference of ours — we do not own that table — so the column says it once instead of each row saying it."
         }
       },
       "allOf": [
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "source"
-              }
-            },
-            "required": [
-              "owner"
-            ]
-          },
-          "then": {
-            "required": [
-              "from"
-            ]
-          }
-        },
         {
           "if": {
             "properties": {
@@ -418,17 +440,13 @@
           ]
         }
       },
-      "else": {
-        "required": [
-          "owner"
-        ]
-      }
+      "else": {},
+      "description": "A source property names the raw it comes from — but a type that is a view over a table names it once on the backing instead, and that is not visible from here, so the rule is enforced by check() rather than restated weakly in this schema."
     },
     "raw": {
       "type": "object",
       "required": [
-        "label",
-        "connector"
+        "label"
       ],
       "additionalProperties": false,
       "properties": {
@@ -444,8 +462,24 @@
           "items": {
             "type": "string"
           }
+        },
+        "dsn": {
+          "type": "string",
+          "description": "A database the types read through, e.g. sqlite:///<path relative to this spec>. A raw is either a command that fetches (connector) or a database that backs tables (dsn)."
         }
-      }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "connector"
+          ]
+        },
+        {
+          "required": [
+            "dsn"
+          ]
+        }
+      ]
     },
     "hook": {
       "type": "object",

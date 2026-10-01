@@ -380,7 +380,16 @@ def compile_spec(
             # Every declared source must own up to supplying it. A corroborated
             # figure whose second source never claimed to provide it is not
             # corroborated; it is one source and a hopeful entry in a list.
+            #
+            # A column reached through a backing is exempt, and not as a
+            # convenience: `provides` is a hand-written list, and the binding is
+            # compared against the live schema. Requiring both would mean
+            # restating every column of every bound table by hand — the list
+            # that goes stale, standing in front of the check that cannot.
+            backed = bool(s.backing_of(tname))
             for src in s.sources_of(tname, pname):
+                if backed and src == s.backing_of(tname).get("from"):
+                    continue
                 r = s.raw.get(src)
                 declared = pname in (r.get("provides") or []) if r else False
                 c.checks.append(
@@ -427,7 +436,13 @@ def compile_spec(
             for col in gap_cols:
                 if row.get(col) is not None:
                     continue
-                covered = any(row.get(g) for g in gap_refs)
+                # Either this row names the gap it is waiting on, or the column
+                # says that all of its absences are the same gap. The second is
+                # not a shortcut: rows that come from somewhere else cannot be
+                # annotated — we do not own that table — and "every unshipped
+                # order is waiting on the same thing" is usually the truth
+                # anyway, said once instead of sixteen thousand times.
+                covered = bool(props[col].get("gap")) or any(row.get(g) for g in gap_refs)
                 # The consequence of an untracked gap differs by what is missing,
                 # and a message that names the wrong consequence teaches the
                 # reader to skim the next one.
@@ -443,7 +458,8 @@ def compile_spec(
                         covered,
                         ""
                         if covered
-                        else f"{col} is absent and means 'not recorded yet', but the row "
+                        else f"{col} is absent and means 'not recorded yet', but neither "
+                        f"the column nor the row names a gap for it — "
                         f"cites no hook — {cost}",
                     )
                 )

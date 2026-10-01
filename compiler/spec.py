@@ -13,6 +13,8 @@ customer's own vocabulary, because translating business terms loses them.
 
 from __future__ import annotations
 
+import os
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -148,13 +150,34 @@ class Spec:
                 return bridge_vocab(b)
         return bridge_vocab(None)
 
+    def backing_of(self, type_name: str) -> dict:
+        """The table this type is a view over, if it is one."""
+        return (self.types.get(type_name) or {}).get("backing") or {}
+
+    def column_of(self, type_name: str, prop: str) -> str:
+        """The upstream column behind a property; its own name when unmapped.
+
+        Defaulting to the property name is what keeps a spec readable when the
+        upstream happens to agree, without making the two the same thing — a
+        system that calls it FBillNo still maps cleanly.
+        """
+        p = ((self.types.get(type_name) or {}).get("props") or {}).get(prop) or {}
+        return p.get("column") or prop
+
     def sources_of(self, type_name: str, prop: str) -> list[str]:
         """The raws that supply this property. More than one means corroborated."""
         p = ((self.types.get(type_name) or {}).get("props") or {}).get(prop) or {}
         f = p.get("from")
         if isinstance(f, list):
             return list(f)
-        return [f] if f else []
+        if f:
+            return [f]
+        # A type that is a view over a table does not repeat the source on every
+        # column. Saying it once on the backing is the whole point; `from` stays
+        # available for the column that genuinely comes from somewhere else,
+        # which is how corroboration is expressed.
+        backing = self.backing_of(type_name)
+        return [backing["from"]] if backing.get("from") else []
 
     def corroborated(self, type_name: str) -> dict[str, list[str]]:
         """prop -> its independent sources, for the properties that have several.
@@ -209,6 +232,26 @@ def load(path: str) -> Spec:
     problems = check(s)
     if problems:
         raise SpecError("spec is invalid:\n  - " + "\n  - ".join(problems))
+
+    # A type that is a view over a table is unusable without the table, and a
+    # compile over zero rows would answer every question with nothing rather
+    # than refusing. So the binding is compared against the live schema here, at
+    # the only entrance, and the rows arrive with it.
+    #
+    # This is what makes "a binding is not a copy" enforceable rather than
+    # merely stated: a copy cannot be wrong about its source, only out of date,
+    # and nothing can tell you which.
+    if any(s.backing_of(t) for t in s.types):
+        from . import bind as bind_mod
+
+        base = os.path.dirname(os.path.abspath(path))
+        broken = bind_mod.verify(s, base)
+        if broken:
+            raise SpecError(
+                "the spec claims things the source does not say:\n  - "
+                + "\n  - ".join(broken)
+            )
+        s = bind_mod.bind_all(s, base)
     return s
 
 
@@ -274,6 +317,63 @@ def _is_literal(n: dict) -> bool:
         except expr.ExprError:
             return False
     return True
+
+
+#: What a type's `backing` may say. The table is named, not described: nothing
+#: here restates what the database already knows — column types, indexes, which
+#: foreign keys exist. Those are read back and compared, because a fact we write
+#: down that the source also holds is a fact that can drift. What is written is
+#: what the database cannot answer: which table carries this business object,
+#: which columns identify a row of it, and which rows belong to it at all.
+BACKING_KEYS = ("from", "table", "key", "where")
+
+
+def _backing_problems(s: Spec, tname: str, t: dict) -> list[str]:
+    b = t.get("backing")
+    if b is None:
+        return []
+    out: list[str] = []
+    if not isinstance(b, dict):
+        return [f"type {tname}: backing must be a mapping with 'from', 'table' and 'key'"]
+    extra = set(b) - set(BACKING_KEYS)
+    if extra:
+        out.append(f"type {tname}: backing has unknown keys: {sorted(extra)}")
+    if s.instances.get(tname):
+        out.append(
+            f"type {tname} is backed by a table and also carries rows inline — one of "
+            f"them is a copy, and the copy is the one that goes stale"
+        )
+    src = b.get("from")
+    if not src:
+        out.append(f"type {tname}: backing needs 'from' naming the raw it reads through")
+    elif src not in s.raw:
+        out.append(f"type {tname}: backing reads through unknown raw {src!r}")
+    elif not s.raw[src].get("dsn"):
+        out.append(
+            f"type {tname}: backing reads through {src!r}, which declares no 'dsn' — "
+            f"a raw that backs a table is a database, not a command"
+        )
+    if not b.get("table"):
+        out.append(f"type {tname}: backing needs 'table'")
+    key = b.get("key")
+    props = t.get("props") or {}
+    if not isinstance(key, list) or not key:
+        out.append(
+            f"type {tname}: backing needs 'key' — the columns that identify one row. "
+            f"Without it two rows of the source are indistinguishable here"
+        )
+    else:
+        mapped = {s.column_of(tname, pn) for pn in props}
+        for col in key:
+            if col not in mapped:
+                out.append(
+                    f"type {tname}: key column {col!r} is not behind any property — "
+                    f"a row cannot be identified by something the ontology cannot see"
+                )
+    # Two objects may share one table, which is the point of binding rather than
+    # mirroring: Orders carries an order and a shipment, and they are not the
+    # same thing to anyone in the business.
+    return out
 
 
 def _computed_prop_problems(s: Spec, tname: str, pname: str, p: dict) -> list[str]:
@@ -422,6 +522,7 @@ def check(s: Spec) -> list[str]:
         props = t.get("props") or {}
         if t.get("id") and t["id"] not in props:
             out.append(f"type {tname}: id property {t['id']!r} is not among its props")
+        out += _backing_problems(s, tname, t)
         for pname, p in props.items():
             where = f"{tname}.{pname}"
             if p.get("type") not in PROP_TYPES:
@@ -473,6 +574,23 @@ def check(s: Spec) -> list[str]:
                     )
             if owner == "ontology" and p.get("from"):
                 out.append(f"{where}: ontology property cannot have 'from' — it is not upstream")
+            # A column may account for all of its own absences. Rows read from
+            # someone else's table carry no gap reference of ours, so without
+            # this a backed type could never satisfy the absence rule — and the
+            # rule is right, so the declaration moves rather than the rule.
+            if "gap" in p:
+                if p["gap"] not in s.hooks:
+                    out.append(f"{where}: gap {p['gap']!r} is not a declared hook")
+                elif not p.get("nullable"):
+                    out.append(
+                        f"{where}: declares a gap for its absences but is not nullable — "
+                        f"it has none"
+                    )
+                elif p.get("absent") != "gap":
+                    out.append(
+                        f"{where}: names a gap but absent is {p.get('absent')!r}; a gap "
+                        f"accounts for 'not recorded yet', not for a determined nil"
+                    )
             if "scale" in p:
                 if p.get("type") != "money":
                     out.append(f"{where}: 'scale' is how a money column is rounded")
@@ -521,8 +639,11 @@ def check(s: Spec) -> list[str]:
                 )
 
     for rname, r in s.raw.items():
-        if not r.get("connector"):
-            out.append(f"raw {rname} needs a 'connector' (one executable command)")
+        if not r.get("connector") and not r.get("dsn"):
+            out.append(
+                f"raw {rname} needs a 'connector' (one executable command) or a 'dsn' "
+                f"(a database the types read through)"
+            )
         for pname in r.get("provides") or []:
             if not s.types_with(pname):
                 out.append(f"raw {rname} claims to provide {pname!r}, which no type declares")

@@ -18,6 +18,7 @@ import yaml
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from compiler import bind as bind_mod
 from compiler import compile as compile_mod
 from compiler import diff as diff_mod
 from compiler import spec as spec_mod
@@ -42,6 +43,7 @@ def main() -> int:
         return 1
 
     failures: list[str] = []
+    skipped: list[str] = []
     for path in paths:
         name = os.path.relpath(path, ROOT)
         with open(path, encoding="utf-8") as fh:
@@ -51,7 +53,16 @@ def main() -> int:
 
         try:
             s = spec_mod.load(path)
+        except bind_mod.BindingError as e:
+            # An example that reads a real database cannot run where that
+            # database is not. Said out loud and counted separately: a skip
+            # that reads as a pass is how a suite stops meaning anything.
+            skipped.append(f"{name}: {e}")
+            continue
         except spec_mod.SpecError as e:
+            if "no database at" in str(e):
+                skipped.append(f"{name}: the source database is not on this machine")
+                continue
             failures.append(f"{name}: {e}")
             continue
 

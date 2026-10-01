@@ -22,6 +22,7 @@ import yaml
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from compiler import app as app_mod
+from compiler import bind as bind_mod
 from compiler import apply as apply_mod
 from compiler import compile as compile_mod
 from compiler import diff as diff_mod
@@ -2090,3 +2091,164 @@ def test_a_link_we_inferred_does_not_look_like_one_the_source_maintains():
     table = html.split("const EDGES", 1)[1].split("};", 1)[0]
     assert "我们推断的关联" in table
     assert "#legend u.dot" in html
+
+
+def _tiny_db(tmp_path):
+    """A source database to bind against, built here so the suite owns it."""
+    import sqlite3
+
+    path = tmp_path / "shop.db"
+    conn = sqlite3.connect(path)
+    conn.execute(
+        "create table Orders (OrderID integer primary key, CustomerID text, "
+        "OrderDate text, ShippedDate text, Freight numeric)"
+    )
+    conn.executemany(
+        "insert into Orders values (?,?,?,?,?)",
+        [(1, "ALFKI", "2026-01-01", "2026-01-03", 10.0),
+         (2, "ALFKI", "2026-01-02", None, 20.0),
+         (3, "BERGS", "2026-01-03", "2026-01-09", 30.0)],
+    )
+    conn.commit()
+    conn.close()
+    return path
+
+
+def _bound_spec(tmp_path, **edits):
+    doc = {
+        "ontology": "shop",
+        "raw": {"R-DB": {"label": "订单库", "dsn": "sqlite:///shop.db"}},
+        "types": {
+            "订单": {
+                "label": "订单", "id": "订单号",
+                "backing": {"from": "R-DB", "table": "Orders", "key": ["OrderID"]},
+                "props": {
+                    "订单号": {"type": "string", "owner": "source", "column": "OrderID"},
+                    "运费": {"type": "money", "owner": "source", "column": "Freight"},
+                },
+            }
+        },
+        "hooks": {},
+        "nodes": {"运费合计": {"label": "运费合计", "op": "select sum(运费) from 订单"}},
+    }
+    for where, value in edits.items():
+        cur = doc
+        parts = where.split("/")
+        for k in parts[:-1]:
+            cur = cur[k]
+        if value is None:
+            cur.pop(parts[-1], None)
+        else:
+            cur[parts[-1]] = value
+    path = tmp_path / "shop.yaml"
+    path.write_text(yaml.safe_dump(doc, allow_unicode=True), encoding="utf-8")
+    return path
+
+
+def test_a_type_can_be_a_view_over_a_table_rather_than_a_copy(tmp_path):
+    """Rows that live in a source system are read from it, not transcribed into
+    the spec. The pilot database this was built against holds 609,283 order
+    lines — a number that settles the question of whether copying is an option.
+    """
+    _tiny_db(tmp_path)
+    s = spec_mod.load(str(_bound_spec(tmp_path)))
+    assert [r["订单号"] for r in s.instances["订单"]] == [1, 2, 3]
+    assert compile_mod.compile_spec(s).values["运费合计"] == 60.0
+
+
+def test_one_table_can_carry_two_business_objects(tmp_path):
+    """The thing a mirror cannot do, and the reason binding is not just
+    pointing. An Orders table holds an order and a shipment, and nobody in the
+    business thinks those are the same: one is placed, the other is late.
+    """
+    _tiny_db(tmp_path)
+    path = _bound_spec(tmp_path, **{"types/发货": {
+        "label": "发货", "id": "订单号",
+        "backing": {"from": "R-DB", "table": "Orders", "key": ["OrderID"]},
+        "props": {
+            "订单号": {"type": "string", "owner": "source", "column": "OrderID"},
+            "发货日": {"type": "date", "owner": "source", "column": "ShippedDate",
+                       "nullable": True, "absent": "none"},
+        },
+    }})
+    s = spec_mod.load(str(path))
+    assert set(s.instances) == {"订单", "发货"}
+    assert set(s.instances["订单"][0]) == {"订单号", "运费"}
+    assert set(s.instances["发货"][0]) == {"订单号", "发货日"}
+
+
+def test_a_binding_is_compared_against_the_source_not_trusted(tmp_path):
+    """This is the entire difference between a binding and a copy: a copy cannot
+    be wrong about its source, only out of date, and nothing tells you which."""
+    _tiny_db(tmp_path)
+    bad = _bound_spec(tmp_path, **{"types/订单/props/运费/column": "FreightCost"})
+    with pytest.raises(spec_mod.SpecError, match="no column 'FreightCost'"):
+        spec_mod.load(str(bad))
+
+    wrong_table = _bound_spec(tmp_path, **{
+        "types/订单/backing": {"from": "R-DB", "table": "Nope", "key": ["OrderID"]}})
+    with pytest.raises(spec_mod.SpecError, match="no table 'Nope'"):
+        spec_mod.load(str(wrong_table))
+
+
+def test_a_key_that_does_not_identify_a_row_is_caught_in_the_data(tmp_path):
+    """Declared uniqueness is a claim about rows, so it is checked against rows.
+    Without it every row-level statement about the type is ambiguous."""
+    _tiny_db(tmp_path)
+    s = _bound_spec(tmp_path, **{
+        "types/订单/backing": {"from": "R-DB", "table": "Orders", "key": ["CustomerID"]},
+        "types/订单/props/客户": {"type": "string", "owner": "source", "column": "CustomerID"},
+    })
+    with pytest.raises(spec_mod.SpecError, match="is not unique"):
+        spec_mod.load(str(s))
+
+
+def test_a_backed_type_may_not_also_carry_rows_inline(tmp_path):
+    _tiny_db(tmp_path)
+    s = _bound_spec(tmp_path, **{"instances": {"订单": [{"订单号": 9, "运费": 1}]}})
+    with pytest.raises(spec_mod.SpecError, match="one of them is a copy"):
+        spec_mod.load(str(s))
+
+
+def test_a_column_can_account_for_its_own_absences(tmp_path):
+    """Rows read from someone else's table carry no gap reference of ours — we
+    do not own that table. The absence rule is right, so the declaration moves
+    to the column rather than the rule being dropped."""
+    _tiny_db(tmp_path)
+    shipped = {"type": "date", "owner": "source", "column": "ShippedDate",
+               "nullable": True, "absent": "gap"}
+    hook = {"H-未发货": {"label": "尚未发货", "blocked_on": "R-DB",
+                        "resolve_when": "出现发货日", "affects": ["运费合计"]}}
+
+    uncovered = _bound_spec(tmp_path, **{"hooks": hook, "types/订单/props/发货日": shipped})
+    c = compile_mod.compile_spec(spec_mod.load(str(uncovered)))
+    assert [k for k in c.checks if not k.ok], "an untracked absence must fail"
+
+    covered = _bound_spec(tmp_path, **{
+        "hooks": hook, "types/订单/props/发货日": {**shipped, "gap": "H-未发货"}})
+    c = compile_mod.compile_spec(spec_mod.load(str(covered)))
+    assert [k for k in c.checks if not k.ok] == []
+
+    # The declaration has to mean what it says.
+    nil = _bound_spec(tmp_path, **{
+        "hooks": hook,
+        "types/订单/props/发货日": {**shipped, "absent": "zero", "gap": "H-未发货"}})
+    with pytest.raises(spec_mod.SpecError, match="not for a determined nil"):
+        spec_mod.load(str(nil))
+
+
+def test_more_rows_than_can_be_held_fails_loud(tmp_path):
+    """Discovering a limit as a hang teaches nothing. The message names the
+    limit, why it exists, and both ways past it."""
+    import sqlite3
+
+    db = _tiny_db(tmp_path)
+    conn = sqlite3.connect(db)
+    conn.executemany(
+        "insert into Orders values (?,?,?,?,?)",
+        [(i, "X", "2026-01-01", None, 1.0) for i in range(100, 100 + bind_mod.MAX_ROWS + 5)],
+    )
+    conn.commit()
+    conn.close()
+    with pytest.raises(bind_mod.BindingError, match="push the aggregate into"):
+        spec_mod.load(str(_bound_spec(tmp_path)))

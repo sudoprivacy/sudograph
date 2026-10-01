@@ -1,0 +1,113 @@
+# Northwind, read through a binding rather than copied.
+#
+# The point of this example is the thing a mirror cannot do. `Orders` carries two
+# business objects — an order and its shipment — and nobody in the business
+# thinks they are the same thing: an order is placed and confirmed, a shipment
+# is late or on time. So the table is bound twice, with different columns and
+# different identities, and neither object is a table.
+#
+# Nothing here restates what the database already answers. Column types, indexes
+# and foreign keys are read back and compared (see compiler/bind.py), never
+# written down — a fact held in two places is a fact that can disagree. What is
+# written is what the database cannot say: which table carries this object, which
+# columns name one of its rows, and what the business calls any of it.
+#
+# This build of Northwind holds 16,282 orders and 609,283 order lines. That is
+# the other half of the argument: those rows cannot go in a spec file, so the
+# question of binding-versus-copying is not a matter of taste.
+ontology: Northwind 分销
+
+raw:
+  R-NORTHWIND:
+    label: Northwind 业务库（只读）
+    dsn: "sqlite:///../../northwind-SQLite3/dist/northwind.db"
+    connector: "sqlite3 dist/northwind.db"
+
+types:
+  人:
+    label: 相关人
+    description: 本体自己维护的人员清单——原库里没有仓储岗位。
+    id: 工号
+    props:
+      工号: { type: string, owner: ontology }
+
+  客户:
+    label: 客户
+    description: 下单的公司。地理分布跨 21 个国家，所以"归属哪个销售辖区"在原库里答不了。
+    id: 客户号
+    backing: { from: R-NORTHWIND, table: Customers, key: [CustomerID] }
+    props:
+      客户号:   { type: string, owner: source, column: CustomerID }
+      公司名:   { type: string, owner: source, column: CompanyName }
+      联系人:   { type: string, owner: source, column: ContactName, nullable: true, absent: none }
+      国家:     { type: string, owner: source, column: Country }
+      城市:     { type: string, owner: source, column: City }
+
+  承运商:
+    label: 承运商
+    id: 承运商号
+    backing: { from: R-NORTHWIND, table: Shippers, key: [ShipperID] }
+    props:
+      承运商号: { type: string, owner: source, column: ShipperID }
+      公司名:   { type: string, owner: source, column: CompanyName }
+
+  # ── 同一张表，两个对象 ──────────────────────────────────────────────
+  # Orders 混了两件事。拆开之后，"订单额" 和 "有没有迟发" 各自挂在该挂的对象上，
+  # 而不是两个都挤在一行上。这是 binding 能做而 mirror 做不到的事。
+
+  销售订单:
+    label: 销售订单
+    description: 订单头：谁、什么时候下的、要求何时到。
+    id: 订单号
+    backing: { from: R-NORTHWIND, table: Orders, key: [OrderID] }
+    props:
+      订单号:   { type: string, owner: source, column: OrderID }
+      客户:     { type: ref, to: 客户, owner: source, column: CustomerID, nullable: true, absent: gap, gap: H-无客户归属 }
+      下单日:   { type: date,   owner: source, column: OrderDate }
+      要求到货日: { type: date, owner: source, column: RequiredDate, nullable: true, absent: none }
+
+  发货:
+    label: 发货
+    description: 同一张 Orders 表的另一半：承运商、发货日、运费、收货地。
+    id: 订单号
+    backing: { from: R-NORTHWIND, table: Orders, key: [OrderID] }
+    props:
+      订单号:   { type: string, owner: source, column: OrderID }
+      承运商:   { type: ref, to: 承运商, owner: source, column: ShipVia, nullable: true, absent: gap, gap: H-未发货 }
+      # 16,282 行里有 21 行没有发货日。我们没法在别人的表上逐行标注，
+      # 所以由这一列说明：它的缺失全部挂在同一个缺口上。
+      发货日:   { type: date,   owner: source, column: ShippedDate, nullable: true, absent: gap, gap: H-未发货 }
+      运费:     { type: money,  owner: source, column: Freight }
+      收货国家: { type: string, owner: source, column: ShipCountry }
+
+hooks:
+  H-无客户归属:
+    label: 订单未关联到客户
+    blocked_on: R-NORTHWIND
+    resolve_when: "订单补上客户号，或确认它确实不属于任何客户"
+    owner: 人/仓储主管
+    affects: [订单数]
+
+  H-未发货:
+    label: 下单后尚未发货
+    blocked_on: R-NORTHWIND
+    resolve_when: "该订单出现发货日，或被确认取消"
+    owner: 人/仓储主管
+    affects: [已发运费合计]
+
+nodes:
+  订单数:
+    label: 订单数
+    op: "select count(*) from 销售订单"
+
+  已发运费合计:
+    label: 已发货订单的运费合计
+    op: "select sum(运费) from 发货 where 发货日 is not null"
+
+  未发货运费合计:
+    label: 尚未发货订单的运费合计
+    op: "select sum(运费) from 发货 where 发货日 is null"
+
+instances:
+  人:
+    - { 工号: 仓储主管 }
