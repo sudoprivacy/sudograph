@@ -43,6 +43,19 @@ types:
       国家:     { type: string, owner: source, column: Country }
       城市:     { type: string, owner: source, column: City }
 
+  # 609,283 行 —— 取不进内存，也不需要。它的聚合由库来答，所以它在图上是一个
+  # 有行数的类型，只是行本身不在这儿。
+  订单明细:
+    label: 订单明细
+    id: 明细号
+    backing: { from: R-NORTHWIND, table: "Order Details", key: [OrderID, ProductID] }
+    props:
+      明细号:   { type: string, owner: source, column: OrderID }
+      产品号:   { type: string, owner: source, column: ProductID }
+      成交价:   { type: money,  owner: source, column: UnitPrice }
+      数量:     { type: number, owner: source, column: Quantity }
+      折扣:     { type: number, owner: source, column: Discount }
+
   承运商:
     label: 承运商
     id: 承运商号
@@ -103,6 +116,14 @@ nodes:
   已发运费合计:
     label: 已发货订单的运费合计
     op: "select sum(运费) from 发货 where 发货日 is not null"
+
+  明细行数:
+    label: 订单明细行数
+    op: "select count(*) from 订单明细"
+
+  打折行数:
+    label: 有折扣的明细行数
+    op: "select count(*) from 订单明细 where 折扣 > 0"
 
   未发货运费合计:
     label: 尚未发货订单的运费合计

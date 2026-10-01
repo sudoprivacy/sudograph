@@ -139,6 +139,15 @@ def verify(s: Spec, base: str = ".") -> list[str]:
     return out
 
 
+def count(s: Spec, tname: str, base: str = ".") -> int:
+    """How many rows this type has, without fetching any of them."""
+    b = s.backing_of(tname)
+    raw = s.raw[b["from"]]
+    where = f" where {b['where']}" if b.get("where") else ""
+    with connect(raw["dsn"], base) as conn:
+        return conn.execute(f'select count(*) from "{b["table"]}"{where}').fetchone()[0]
+
+
 def load(s: Spec, tname: str, base: str = ".") -> list[dict]:
     """The rows of one backed type, under the ontology's own property names."""
     b = s.backing_of(tname)
@@ -150,23 +159,152 @@ def load(s: Spec, tname: str, base: str = ".") -> list[dict]:
     select = ", ".join(f'"{c}" as "{p}"' for p, c in cols.items())
     where = f" where {b['where']}" if b.get("where") else ""
     with connect(raw["dsn"], base) as conn:
-        n = conn.execute(f'select count(*) from "{b["table"]}"{where}').fetchone()[0]
-        if n > MAX_ROWS:
-            raise BindingError(
-                f"type {tname} backs {n} rows of {b['table']}, over the {MAX_ROWS} "
-                f"this can hold in memory. Aggregates are evaluated in Python today, "
-                f"so narrow the type with backing.where — or push the aggregate into "
-                f"the query, which removes this limit rather than raising it"
-            )
         rows = conn.execute(f'select {select} from "{b["table"]}"{where}').fetchall()
     return [dict(r) for r in rows]
 
 
 def bind_all(s: Spec, base: str = ".") -> Spec:
-    """A spec whose backed types carry their rows, loaded from the source."""
+    """A spec whose backed types carry their rows — except the ones too large.
+
+    A type bigger than memory is not an error and must not become one: the
+    aggregate over it is answerable by the database, and that is what most of a
+    graph asks for. So it is left unloaded with its row count, and only the
+    things that genuinely need rows — showing them, computing per row — have to
+    say they cannot.
+    """
     from dataclasses import replace
 
-    backed = {t: load(s, t, base) for t in s.types if s.backing_of(t)}
-    if not backed:
+    rows: dict[str, list[dict]] = {}
+    unloaded: dict[str, int] = {}
+    for t in s.types:
+        if not s.backing_of(t):
+            continue
+        n = count(s, t, base)
+        if n > MAX_ROWS:
+            unloaded[t] = n
+        else:
+            rows[t] = load(s, t, base)
+    if not rows and not unloaded:
         return s
-    return replace(s, instances={**s.instances, **backed})
+    return replace(
+        s, instances={**s.instances, **rows}, unloaded=unloaded, source_base=base
+    )
+
+
+def answerer(s: Spec):
+    """A way to hand an aggregate to the database, for the evaluator to try first."""
+    from . import expr
+
+    if not any(s.backing_of(t) for t in s.types):
+        return None
+
+    def answer(node: Any) -> Any:
+        try:
+            return aggregate(s, node, s.source_base)
+        except NotPushable:
+            # Only legitimate when the rows are here to do it the other way.
+            if node.type_name in s.unloaded:
+                raise BindingError(
+                    f"{node.type_name} holds {s.unloaded[node.type_name]} rows, too many "
+                    f"to work through here, and this aggregate cannot be handed to the "
+                    f"database. Narrow the type with backing.where, or express it so the "
+                    f"query can answer it"
+                ) from None
+            return expr.DECLINED
+
+    return answer
+
+#: Operators that mean the same thing in our expressions and in SQL. Translated
+#: rather than passed through: the subset is small enough to enumerate, and
+#: enumerating it is what keeps a spec from reaching the database with anything
+#: the compiler has not understood first.
+_SQL_OPS = {
+    "=": "=", "<>": "<>", "!=": "<>", "<": "<", ">": ">", "<=": "<=", ">=": ">=",
+    "+": "+", "-": "-", "*": "*", "/": "/",
+    "and": "AND", "or": "OR",
+}
+
+
+class NotPushable(Exception):
+    """This expression cannot be answered by the database alone."""
+
+
+def _sql(node: Any, col: Any, params: list) -> str:
+    """One expression, translated. Raises when any part of it has no translation.
+
+    Never interpolated: every literal becomes a bound parameter, so a value in a
+    spec cannot become syntax in a query. The spec is written by an agent, and
+    the one thing that must not be possible is for what it writes to be executed
+    as something other than a value.
+    """
+    from . import expr
+
+    if isinstance(node, expr.Lit):
+        params.append(node.value)
+        return "?"
+    if isinstance(node, expr.Ref):
+        return f'"{col(node.name)}"'
+    if isinstance(node, expr.Not):
+        return f"(NOT {_sql(node.operand, col, params)})"
+    if isinstance(node, expr.Neg):
+        return f"(-{_sql(node.operand, col, params)})"
+    if isinstance(node, expr.IsNull):
+        tail = "IS NOT NULL" if node.negated else "IS NULL"
+        return f"({_sql(node.operand, col, params)} {tail})"
+    if isinstance(node, expr.Bin):
+        op = _SQL_OPS.get(node.op)
+        if not op:
+            raise NotPushable(f"no translation for {node.op!r}")
+        return f"({_sql(node.left, col, params)} {op} {_sql(node.right, col, params)})"
+    raise NotPushable(f"no translation for {type(node).__name__}")
+
+
+def aggregate(s: Spec, node: Any, base: str = ".") -> Any:
+    """Answer one aggregate from the database, or raise NotPushable.
+
+    This is what lets a type be larger than memory. The expression language
+    already says exactly one aggregate over exactly one type with an optional
+    filter — which is a SELECT — so the translation is a rename of columns and
+    nothing more. Anything the subset does not cover raises rather than being
+    approximated.
+    """
+    tname = node.type_name
+    b = s.backing_of(tname)
+    if not b:
+        raise NotPushable(f"{tname} is not backed by a table")
+
+    props = (s.types[tname].get("props") or {})
+
+    def col(name: str) -> str:
+        p = props.get(name)
+        if p is None:
+            raise NotPushable(f"{name!r} is not a property of {tname}")
+        if "op" in p:
+            # Computed here, so the database has never heard of it.
+            raise NotPushable(f"{tname}.{name} is computed, not stored")
+        return s.column_of(tname, name)
+
+    params: list = []
+    where = b.get("where")
+    clauses = [f"({where})"] if where else []
+    if node.where is not None:
+        clauses.append(_sql(node.where, col, params))
+    tail = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+
+    if node.func == "count":
+        head = "count(*)" if node.prop in (None, "*") else f'count("{col(node.prop)}")'
+    elif node.func == "sum":
+        head = f'sum("{col(node.prop)}")'
+    else:
+        raise NotPushable(f"no translation for {node.func}()")
+
+    raw = s.raw[b["from"]]
+    with connect(raw["dsn"], base) as conn:
+        row = conn.execute(
+            f'select {head} from "{b["table"]}"{tail}', params
+        ).fetchone()
+    value = row[0]
+    # `sum` over no rows is NULL in SQL and 0 in the row-by-row evaluator; the
+    # two must not disagree about an empty set or a figure would change meaning
+    # with the size of its input.
+    return 0 if value is None and node.func == "sum" else value

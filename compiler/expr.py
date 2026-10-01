@@ -101,6 +101,12 @@ _SUBTRACTED = {
 }
 
 
+#: What an aggregate answerer returns when it cannot answer this one, kept
+#: distinct from None because None is a legitimate answer.
+_DECLINED = object()
+DECLINED = _DECLINED
+
+
 class ExprError(ValueError):
     """The expression is not valid.
 
@@ -353,8 +359,19 @@ _CMP: dict[str, Callable[[Any, Any], Any]] = {
 }
 
 
-def evaluate(node: Any, scope: dict[str, Any], instances: dict[str, list[dict]]) -> Any:
-    """`scope` holds the names visible here: node values, or one instance's props."""
+def evaluate(
+    node: Any,
+    scope: dict[str, Any],
+    instances: dict[str, list[dict]],
+    agg: Any = None,
+) -> Any:
+    """`scope` holds the names visible here: node values, or one instance's props.
+
+    `agg` is an optional way to answer a whole aggregate without rows — the
+    database doing it, when the type is a view over a table. It is tried first
+    and may decline, which is how a type larger than memory stays usable while
+    one that is not keeps the row-by-row path.
+    """
     if isinstance(node, Lit):
         return node.value
     if isinstance(node, Ref):
@@ -362,19 +379,23 @@ def evaluate(node: Any, scope: dict[str, Any], instances: dict[str, list[dict]])
             return scope[node.name]
         raise ExprError(f"unknown name {node.name!r}: neither a property nor a computed node")
     if isinstance(node, Not):
-        return not evaluate(node.operand, scope, instances)
+        return not evaluate(node.operand, scope, instances, agg)
     if isinstance(node, Neg):
-        return -evaluate(node.operand, scope, instances)
+        return -evaluate(node.operand, scope, instances, agg)
     if isinstance(node, IsNull):
-        return (evaluate(node.operand, scope, instances) is not None) == node.negated
+        return (evaluate(node.operand, scope, instances, agg) is not None) == node.negated
     if isinstance(node, Select):
+        if agg is not None:
+            answered = agg(node)
+            if answered is not _DECLINED:
+                return answered
         rows = instances.get(node.type_name)
         if rows is None:
             raise ExprError(f"select refers to unknown type {node.type_name!r}")
         kept = [
             r
             for r in rows
-            if node.where is None or evaluate(node.where, {**scope, **r}, instances)
+            if node.where is None or evaluate(node.where, {**scope, **r}, instances, agg)
         ]
         if node.func == "count" and node.prop is None:
             return len(kept)
@@ -387,15 +408,15 @@ def evaluate(node: Any, scope: dict[str, Any], instances: dict[str, list[dict]])
         return len(values) if node.func == "count" else sum(values)
     if isinstance(node, Bin):
         if node.op == "and":
-            return bool(evaluate(node.left, scope, instances)) and bool(
-                evaluate(node.right, scope, instances)
+            return bool(evaluate(node.left, scope, instances, agg)) and bool(
+                evaluate(node.right, scope, instances, agg)
             )
         if node.op == "or":
-            return bool(evaluate(node.left, scope, instances)) or bool(
-                evaluate(node.right, scope, instances)
+            return bool(evaluate(node.left, scope, instances, agg)) or bool(
+                evaluate(node.right, scope, instances, agg)
             )
-        a = evaluate(node.left, scope, instances)
-        b = evaluate(node.right, scope, instances)
+        a = evaluate(node.left, scope, instances, agg)
+        b = evaluate(node.right, scope, instances, agg)
         if node.op in _CMP:
             return _CMP[node.op](a, b)
         if node.op == "+":

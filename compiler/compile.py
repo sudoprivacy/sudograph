@@ -292,6 +292,13 @@ def compile_spec(
     if unknown:
         raise ValueError(f"not declared dimensions: {unknown}; the spec declares {s.dimensions}")
 
+    # A backed type may be larger than memory, in which case its aggregates are
+    # answered by the database rather than by walking rows that were never
+    # fetched. The evaluator tries this first and falls back wherever it can.
+    from . import bind as bind_mod
+
+    agg = bind_mod.answerer(s)
+
     c = Compiled(ontology=s.name, at=at, basis=basis)
     if at:
         s = _restrict(s, at)
@@ -310,7 +317,9 @@ def compile_spec(
             if not src:
                 continue
             try:
-                c.values[name] = expr.evaluate(expr.parse(src), dict(c.values), s.instances)
+                c.values[name] = expr.evaluate(
+                    expr.parse(src), dict(c.values), s.instances, agg
+                )
             except expr.ExprError as e:
                 c.checks.append(Check(f"node/{name}", False, str(e)))
             continue
@@ -327,7 +336,7 @@ def compile_spec(
                 scope["this"] = row.get(idp)
             try:
                 row[pname] = _money_scale(
-                    expr.evaluate(expr.parse(src), scope, s.instances),
+                    expr.evaluate(expr.parse(src), scope, s.instances, agg),
                     s.types[tname]["props"][pname],
                 )
             except expr.ExprError as e:
@@ -364,7 +373,7 @@ def compile_spec(
             # must never read as evidence.
             continue
         try:
-            ok = bool(expr.evaluate(expr.parse(src), dict(c.values), s.instances))
+            ok = bool(expr.evaluate(expr.parse(src), dict(c.values), s.instances, agg))
             detail = "" if ok else f"{src} is false"
         except expr.ExprError as e:
             ok, detail = False, str(e)
@@ -546,6 +555,8 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
     folded_types = {
         tname: len(rows) > fold_over for tname, rows in s.instances.items()
     }
+    # A type that was never fetched is folded by a stronger reason than size.
+    folded_types.update({t: True for t in s.unloaded})
     instance_ids: set[str] = set()
     for tname, rows in s.instances.items():
         if folded_types[tname]:
@@ -730,7 +741,10 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
     # Instances are grouped, not listed: a business graph has more rows than a
     # canvas has room. Folding is a view decision, which is why it is here.
     groups: list[dict] = []
-    for tname, rows in s.instances.items():
+    # A type too large to fetch is still a type: it belongs on the canvas with
+    # its size, because "this object exists and there are 609,283 of them" is
+    # most of what a reader wants from it. What it cannot do is open.
+    for tname, rows in {**{t: [] for t in s.unloaded}, **s.instances}.items():
         t = s.types[tname]
         props = t.get("props") or {}
         idp = t["id"]
@@ -746,8 +760,12 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 "kind": "type",
                 "layer": 0,
                 "label": t.get("label", tname),
-                "count": len(members),
-                "folded": folded,
+                "count": s.unloaded.get(tname, len(members)),
+                # Not "folded away to keep the canvas readable" but "never
+                # fetched", and the two are different promises to the reader:
+                # one opens on a click, the other cannot.
+                "folded": folded or tname in s.unloaded,
+                "unfetched": s.unloaded.get(tname),
             }
         )
         # Instances are nodes only when the group is not folded, which is the
@@ -805,8 +823,12 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 "type": tname,
                 "completeness": grades,
                 "label": t.get("label", tname),
-                "count": len(members),
-                "folded": folded,
+                "count": s.unloaded.get(tname, len(members)),
+                # Not "folded away to keep the canvas readable" but "never
+                # fetched", and the two are different promises to the reader:
+                # one opens on a click, the other cannot.
+                "folded": folded or tname in s.unloaded,
+                "unfetched": s.unloaded.get(tname),
                 "members": [] if folded else members,
                 "buckets": buckets,
                 "top": top,

@@ -92,6 +92,14 @@ class Spec:
     #: difference" stops being obvious and an undeclared bridge is a deliverable
     #: nobody agreed to produce.
     bridges: dict[str, dict] = field(default_factory=dict)
+    #: Where the spec was read from. A backing's dsn is written relative to the
+    #: spec, because a spec and the database it reads travel together — not
+    #: relative to whichever directory the compiler happened to be run in.
+    source_base: str = "."
+    #: Backed types too large to hold, kept as a row count. Their aggregates are
+    #: answered by the database; anything that needs the rows themselves refuses
+    #: rather than quietly working on none of them.
+    unloaded: dict[str, int] = field(default_factory=dict)
 
     def owner_of(self, type_name: str, prop: str) -> str | None:
         t = self.types.get(type_name)

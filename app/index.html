@@ -300,8 +300,14 @@ let scene = null;
 // a scoring fault on its side, since fixed. Kept for the reading, not for the
 // anchor.
 function linesOf(n, open) {
+  // An arrow promises that clicking opens something. A type whose rows were
+  // never fetched — too many to hold — has nothing to open, so it shows its
+  // size without the invitation. Promising and then doing nothing is the fault
+  // this already cost us once, on a count that was mistaken for a row count.
   const mark = n.kind === 'type' && n.count
-    ? `  ${open ? '▾' : '▸'}${n.count}`
+    ? (n.unfetched
+        ? `  · ${n.count.toLocaleString('en-US')} 行（未取回）`
+        : `  ${open ? '▾' : '▸'}${n.count}`)
     : (n.kind === 'hook' && n.waiting_on) ? `  · ${n.waiting_on} 项` : null;
   // A plug exists to expose a difference against an independent measure, so the
   // difference goes on the face of it. Showing only the total left the check
@@ -532,7 +538,7 @@ async function draw() {
     }
     g.addEventListener('click', ev => {
       ev.stopPropagation();
-      if (n.kind === 'type' && n.count && !open) {
+      if (n.kind === 'type' && n.count && !n.unfetched && !open) {
         state.expanded.add(n.id);
         draw().then(() => select(n));
         return;

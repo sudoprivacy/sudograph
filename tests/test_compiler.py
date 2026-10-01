@@ -2237,18 +2237,77 @@ def test_a_column_can_account_for_its_own_absences(tmp_path):
         spec_mod.load(str(nil))
 
 
-def test_more_rows_than_can_be_held_fails_loud(tmp_path):
-    """Discovering a limit as a hang teaches nothing. The message names the
-    limit, why it exists, and both ways past it."""
+def _fat_db(tmp_path, extra):
     import sqlite3
 
     db = _tiny_db(tmp_path)
     conn = sqlite3.connect(db)
     conn.executemany(
         "insert into Orders values (?,?,?,?,?)",
-        [(i, "X", "2026-01-01", None, 1.0) for i in range(100, 100 + bind_mod.MAX_ROWS + 5)],
+        [(i, "X", "2026-01-01", None, 1.0) for i in range(100, 100 + extra)],
     )
     conn.commit()
     conn.close()
-    with pytest.raises(bind_mod.BindingError, match="push the aggregate into"):
-        spec_mod.load(str(_bound_spec(tmp_path)))
+    return db
+
+
+def test_a_type_larger_than_memory_is_answered_by_the_database(tmp_path):
+    """A table bigger than this process is the normal case, not an error. The
+    expression language already says one aggregate over one type with a filter,
+    which is a SELECT — so the translation is a rename of columns, and the type
+    never has to be fetched to be summed.
+    """
+    _fat_db(tmp_path, bind_mod.MAX_ROWS + 5)
+    s = spec_mod.load(str(_bound_spec(tmp_path)))
+    assert s.unloaded == {"订单": bind_mod.MAX_ROWS + 8}
+    assert not s.instances.get("订单"), "it must not have been fetched"
+
+    # 10 + 20 + 30 from the original rows, plus 1.0 each for the rest.
+    c = compile_mod.compile_spec(s)
+    assert c.values["运费合计"] == 60.0 + (bind_mod.MAX_ROWS + 5)
+
+
+def test_pushdown_and_walking_the_rows_agree(tmp_path):
+    """Two ways to the same number is two chances to disagree, so they are
+    checked against each other on a table small enough to do both."""
+    _tiny_db(tmp_path)
+    s = spec_mod.load(str(_bound_spec(tmp_path)))
+    for src in ("select sum(运费) from 订单",
+                "select count(*) from 订单",
+                "select sum(运费) from 订单 where 运费 > 15"):
+        ast = expr.parse(src)
+        in_sql = bind_mod.aggregate(s, ast, s.source_base)
+        in_rows = expr.evaluate(ast, {}, s.instances)
+        assert in_sql == in_rows, src
+
+
+def test_a_literal_reaches_the_database_as_a_value_never_as_syntax(tmp_path):
+    """The spec is written by an agent. The one thing that must not be possible
+    is for what it writes to arrive as something other than a value."""
+    _tiny_db(tmp_path)
+    s = spec_mod.load(str(_bound_spec(tmp_path)))
+    params: list = []
+    sql = bind_mod._sql(
+        expr.parse("运费 > 1 and 运费 < 99"), lambda n: "Freight", params
+    )
+    assert "?" in sql and "1" not in sql and params == [1, 99]
+
+
+def test_an_unanswerable_aggregate_over_an_unfetched_type_refuses(tmp_path):
+    """Falling back to rows is right when the rows are here. When they are not,
+    silence would mean summing none of them."""
+    _fat_db(tmp_path, bind_mod.MAX_ROWS + 5)
+    s = spec_mod.load(str(_bound_spec(tmp_path)))
+    with pytest.raises(bind_mod.BindingError, match="too many"):
+        bind_mod.answerer(s)(expr.parse("select sum(没这列) from 订单"))
+
+
+def test_a_type_too_large_to_fetch_is_on_the_canvas_but_does_not_open():
+    """"There are 609,283 of these" is most of what a reader wants from a type
+    that size, so it belongs on the graph. What it must not do is offer an arrow
+    — an arrow promises that clicking opens something, and this already cost us
+    once when a computed count wore the same marker as a row count.
+    """
+    html = _html()
+    assert "n.unfetched" in html.split("function linesOf", 1)[1].split("function measure", 1)[0]
+    assert "!n.unfetched && !open" in html, "an unfetched type must not expand"
