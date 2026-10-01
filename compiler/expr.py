@@ -431,6 +431,38 @@ def aggregated_types(node: Any) -> set[str]:
     return set()
 
 
+#: Numbers that carry no judgement wherever they appear: the additive and
+#: multiplicative identities. Everything else written into an expression is a
+#: figure somebody chose, which is why they are reported rather than ignored.
+IDENTITY_LITERALS = (0, 1, -1)
+
+
+def numeric_literals(node: Any) -> list[Any]:
+    """Every number written into the expression, identities excluded.
+
+    A number inside a formula is a decision wearing a disguise: `/ 1.06` is a
+    tax rate somebody can disagree with, hidden where nothing can point at it,
+    comment on it, or vary it by reading. Finding them is what lets the compiler
+    say so instead of a reviewer having to notice.
+    """
+    if isinstance(node, Lit):
+        v = node.value
+        ok = isinstance(v, (int, float)) and not isinstance(v, bool)
+        return [v] if ok and v not in IDENTITY_LITERALS else []
+    if isinstance(node, (Not, Neg)):
+        return numeric_literals(node.operand)
+    if isinstance(node, IsNull):
+        return numeric_literals(node.operand)
+    if isinstance(node, Bin):
+        return numeric_literals(node.left) + numeric_literals(node.right)
+    if isinstance(node, Select):
+        # A literal in a filter is a value being matched, not a figure the
+        # result is scaled by: `where 认定 = '资本化'` and `where 数量 > 0`
+        # name rows, they do not decide an amount.
+        return []
+    return []
+
+
 def referenced_names(node: Any) -> set[str]:
     """Bare identifiers the expression reads, to order derived nodes by dependency.
 

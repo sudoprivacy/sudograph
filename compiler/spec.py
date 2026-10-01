@@ -38,6 +38,9 @@ TOP_LEVEL = {
 }
 
 #: Node keys that may be written per reading, as `<key>@<basis>`.
+#: Keys a node may carry beyond its expressions.
+NODE_EXTRA_KEYS = ("conversion",)
+
 PER_BASIS = ("op", "because", "entry")
 
 
@@ -227,6 +230,38 @@ def bridge_vocab(b: dict | None) -> dict[str, str]:
     return {k: (b.get(k) or d) for k, d in BRIDGE_VOCAB.items()}
 
 
+#: A figure written into a formula is a decision nobody can reach: it cannot be
+#: pointed at, commented on, cited, or varied by reading. Every one of those is
+#: something this model exists to make possible, so a bare number is refused
+#: where it hides and named where it belongs.
+#:
+#: The exemption is declared, never guessed. `/ 100` really is mechanical and
+#: `* 0.15` really is a policy, and nothing about the two numbers tells them
+#: apart — only a person knows, so a person says, once, on the constant.
+def _hidden_judgement(owner: str, holder: dict, bases: list) -> list[str]:
+    out: list[str] = []
+    for key, src in holder.items():
+        if key != "op" and not key.startswith("op@"):
+            continue
+        if not isinstance(src, str):
+            continue
+        try:
+            ast = expr.parse(src)
+        except expr.ExprError:
+            continue
+        if isinstance(ast, expr.Lit):
+            continue          # a bare constant is the named case, handled above
+        for lit in expr.numeric_literals(ast):
+            out.append(
+                f"{owner}: {key} hides the number {lit} inside a formula. A figure "
+                f"written into an expression cannot be pointed at, commented on, or "
+                f"varied by reading — give it a name of its own with its evidence, "
+                f"then refer to it. If it is a unit conversion, name it anyway and "
+                f"mark it conversion: <what it converts>"
+            )
+    return out
+
+
 def _is_literal(n: dict) -> bool:
     """True when every expression this node carries is a bare constant."""
     srcs = [v for k, v in n.items() if k == "op" or k.startswith("op@")]
@@ -290,6 +325,7 @@ def _computed_prop_problems(s: Spec, tname: str, pname: str, p: dict) -> list[st
                 f"{where}: op names {name!r}, which is neither a property of "
                 f"{tname} nor a computed node"
             )
+    out += _hidden_judgement(where, p, s.bases)
     if "this" in expr.referenced_names(ast) and not (s.types.get(tname) or {}).get("id"):
         out.append(f"{where}: op uses 'this' but {tname} declares no 'id' for it to mean")
     return out
@@ -689,14 +725,22 @@ def check(s: Spec) -> list[str]:
         # number hides, so the citation is not optional there and the divergence
         # rule below does not apply to it.
         literal = _is_literal(n)
-        if literal and not s.reason_for(nname, None) and not any(
+        if literal and not n.get("conversion") and not s.reason_for(nname, None) and not any(
             s.reason_for(nname, b) for b in (s.bases or [None])
         ):
             out.append(
                 f"node {nname} is a decided figure, not a computed one — cite the raw "
                 f"or hook it rests on with 'because'. A number with no inputs and no "
-                f"evidence is the thing this model exists to refuse"
+                f"evidence is the thing this model exists to refuse. If it is a unit "
+                f"conversion rather than a judgement, say so with "
+                f"conversion: <what it converts>"
             )
+        if n.get("conversion") and not literal:
+            out.append(
+                f"node {nname}: 'conversion' says a bare constant is mechanical, but "
+                f"this one computes something — drop it"
+            )
+        out += _hidden_judgement(nname, n, s.bases)
         if not diverges and not literal:
             for stray in [k for k in n if k.partition("@")[0] in ("because", "entry")]:
                 out.append(

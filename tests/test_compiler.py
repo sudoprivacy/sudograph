@@ -2023,3 +2023,48 @@ def test_doubt_is_the_gap_colour_reaching_a_figure():
     figures = {n["label"]: len(n.get("provisional_because") or [])
                for n in v["nodes"] if n["kind"] == "derived"}
     assert any(c > 0 for c in figures.values()) and any(c == 0 for c in figures.values())
+
+
+def test_a_number_inside_a_formula_is_a_judgement_in_hiding():
+    """`金额_含税 / 1.06` is a tax rate nobody can reach. It cannot be pointed at,
+    commented on, cited, or varied by reading — and every one of those is a thing
+    this model exists to make possible. That spelling is how the pilot was
+    written before anyone noticed, so the compiler says it now instead of a
+    reviewer having to.
+    """
+    bad = _cap(**{"types/委外合同/props/金额_不含税/op": "金额_含税 / 1.06"})
+    problems = spec_mod.check(bad)
+    assert any("hides the number 1.06" in p for p in problems), problems
+
+    # Named, with its evidence, the same arithmetic is fine — that is the fixture.
+    assert spec_mod.check(spec_mod.load(CAP_FIXTURE)) == []
+
+
+def test_identities_are_not_judgements_and_filters_are_not_scaling():
+    """`1 + rate` carries no decision, and a literal in a WHERE clause names rows
+    rather than scaling an amount. Refusing either would make the rule noise, and
+    a rule that cries wolf gets switched off."""
+    ok = _cap(**{"types/委外合同/props/金额_不含税/op":
+                 "金额_含税 / (1 + 进项税率) * 1 + 0"})
+    assert spec_mod.check(ok) == []
+    assert expr.numeric_literals(
+        expr.parse("select sum(金额_含税) from 委外合同 where 可资本化 = '是'")) == []
+
+
+def test_a_unit_conversion_says_so_rather_than_being_guessed():
+    """`/ 100` is mechanical and `* 0.15` is a policy, and nothing about the two
+    numbers tells them apart. Only a person knows, so a person says it once, on
+    the constant — rather than the compiler pattern-matching powers of ten and
+    being wrong about a threshold of 100."""
+    ok = _cap(**{"nodes/万元换算": {"label": "万元转元", "op": "10000",
+                                   "conversion": "万元 → 元"}})
+    assert spec_mod.check(ok) == []
+
+    # Without either, a bare constant is refused and told both ways out.
+    bad = _cap(**{"nodes/万元换算": {"label": "万元转元", "op": "10000"}})
+    problems = spec_mod.check(bad)
+    assert any("conversion: <what it converts>" in p for p in problems), problems
+
+    # And the escape may not be claimed by something that actually computes.
+    wrong = _cap(**{"nodes/委外cap/conversion": "x"})
+    assert any("but this one computes something" in p for p in spec_mod.check(wrong))
