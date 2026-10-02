@@ -2523,3 +2523,70 @@ def test_a_successful_compile_points_at_what_to_do_next(tmp_path, capsys):
     # prints is a line nobody reads.
     assert cli_mod.main([CAP_FIXTURE]) == 0
     assert "--measure" not in capsys.readouterr().out
+
+
+def _sliceable(tmp_path):
+    """A backed type partitioned by a dimension, with rows on both sides."""
+    import sqlite3
+
+    db = tmp_path / "s.db"
+    conn = sqlite3.connect(db)
+    conn.execute("create table T (id integer primary key, mkt text, amt numeric)")
+    conn.executemany(
+        "insert into T values (?,?,?)",
+        [(1, "USA", 10.0), (2, "USA", 20.0), (3, "JPN", 100.0), (4, "JPN", 200.0)],
+    )
+    conn.commit()
+    conn.close()
+    doc = {
+        "ontology": "slice",
+        "dimensions": ["mkt"],
+        "raw": {"R": {"label": "src", "dsn": "sqlite:///s.db"}},
+        "types": {"行": {
+            "label": "行", "id": "id", "dimensions": {"mkt": "mkt"},
+            "backing": {"from": "R", "table": "T", "key": ["id"]},
+            "props": {
+                "id": {"type": "string", "owner": "source", "column": "id"},
+                "mkt": {"type": "string", "owner": "source", "column": "mkt"},
+                "amt": {"type": "money", "owner": "source", "column": "amt"},
+            },
+        }},
+        "hooks": {},
+        "nodes": {"合计": {"label": "合计", "op": "select sum(amt) from 行"}},
+    }
+    path = tmp_path / "s.yaml"
+    path.write_text(yaml.safe_dump(doc, allow_unicode=True), encoding="utf-8")
+    return path
+
+
+def test_a_slice_reaches_the_query_not_only_the_rows(tmp_path):
+    """The figure and the rows under it have to be answering the same question.
+
+    The slice filtered the rows in memory and never reached the database, so a
+    pushed-down aggregate reported the whole book while the rows beside it were
+    one market's — 330 printed above two rows adding to 30, under a heading
+    naming the market. Which figures did that depended on whether their filter
+    happened to be translatable to SQL, so two numbers on one graph disagreed
+    for no reason a reader could see.
+
+    One number meaning two things is the single thing this project exists to
+    prevent, and it had got in through the back.
+    """
+    s = spec_mod.load(str(_sliceable(tmp_path)))
+    for at, total, rows in (({}, 330, 4), ({"mkt": "USA"}, 30, 2), ({"mkt": "JPN"}, 300, 2)):
+        c = compile_mod.compile_spec(s, at=at)
+        assert c.values["合计"] == total, at
+        drawn = [n for n in c.view["nodes"] if n["kind"] == "instance"]
+        assert len(drawn) == rows, at
+
+
+def test_restricting_keeps_everything_it_was_not_asked_to_change(tmp_path):
+    """A Spec rebuilt field by field drops whatever was added to Spec since the
+    constructor call was written — silently, with nothing to notice it by. It
+    had already lost where the spec was read from, which is how a sliced compile
+    came to look for the database in the wrong directory."""
+    s = spec_mod.load(str(_sliceable(tmp_path)))
+    narrowed = compile_mod._restrict(s, {"mkt": "USA"})
+    for field_name in ("source_base", "unloaded", "dimensions", "bridges"):
+        assert getattr(narrowed, field_name) == getattr(s, field_name), field_name
+    assert len(narrowed.instances["行"]) == 2

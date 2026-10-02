@@ -89,11 +89,11 @@ def _restrict(s: Spec, at: dict[str, str]) -> Spec:
         axes = [(s.axis_of(tname, d), want) for d, want in at.items()]
         axes = [(col, want) for col, want in axes if col is not None]
         kept[tname] = [r for r in rows if all(r.get(col) == want for col, want in axes)]
-    return Spec(
-        name=s.name, types=s.types, raw=s.raw, hooks=s.hooks,
-        instances=kept, nodes=s.nodes, ops=s.ops, checks=s.checks,
-        bases=s.bases, bridges=s.bridges, dimensions=s.dimensions,
-    )
+    # `replace`, never a field-by-field rebuild: a listed-out constructor drops
+    # whatever was added to Spec since it was written, silently and with no way
+    # to notice. It had already lost where the spec was read from, so a sliced
+    # compile looked for the database in the wrong directory.
+    return replace(s, instances=kept)
 
 
 def _corroborate(s: Spec, c: Compiled) -> Spec:
@@ -171,11 +171,7 @@ def _corroborate(s: Spec, c: Compiled) -> Spec:
             out_rows.append(new)
         resolved[tname] = out_rows
 
-    return Spec(
-        name=s.name, types=s.types, raw=s.raw, hooks=s.hooks,
-        instances=resolved, nodes=s.nodes, ops=s.ops, checks=s.checks,
-        bases=s.bases, bridges=s.bridges, dimensions=s.dimensions,
-    )
+    return replace(s, instances=resolved)
 
 
 #: How many offending rows a check carries with it. Enough to look at one and
@@ -345,16 +341,15 @@ def compile_spec(
     if unknown:
         raise ValueError(f"not declared dimensions: {unknown}; the spec declares {s.dimensions}")
 
-    # A backed type may be larger than memory, in which case its aggregates are
-    # answered by the database rather than by walking rows that were never
-    # fetched. The evaluator tries this first and falls back wherever it can.
     from . import bind as bind_mod
-
-    agg = bind_mod.answerer(s)
 
     c = Compiled(ontology=s.name, at=at, basis=basis)
     if at:
         s = _restrict(s, at)
+    # Built after the slice is known and carrying it, because the database must
+    # be asked the same question the rows are. Built before, every pushable
+    # figure answered for the whole book while the rows beside it were filtered.
+    agg = bind_mod.answerer(s, at)
     s = _corroborate(s, c)
 
     # Rows are copied before anything computes into them, so a compile never

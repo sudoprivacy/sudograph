@@ -191,8 +191,15 @@ def bind_all(s: Spec, base: str = ".") -> Spec:
     )
 
 
-def answerer(s: Spec):
-    """A way to hand an aggregate to the database, for the evaluator to try first."""
+def answerer(s: Spec, at: dict | None = None):
+    """A way to hand an aggregate to the database, for the evaluator to try first.
+
+    `at` travels with it because the slice must reach the query. Built without
+    it, every pushable figure silently reports the whole book while the rows
+    beside it are filtered — and which figures do that depends on whether their
+    filter happened to be translatable, so two numbers on one graph disagree
+    for no reason a reader can see.
+    """
     from . import expr
 
     if not any(s.backing_of(t) for t in s.types):
@@ -200,7 +207,7 @@ def answerer(s: Spec):
 
     def answer(node: Any) -> Any:
         try:
-            return aggregate(s, node, s.source_base)
+            return aggregate(s, node, s.source_base, at)
         except NotPushable:
             # Only legitimate when the rows are here to do it the other way.
             if node.type_name in s.unloaded:
@@ -259,7 +266,7 @@ def _sql(node: Any, col: Any, params: list) -> str:
     raise NotPushable(f"no translation for {type(node).__name__}")
 
 
-def aggregate(s: Spec, node: Any, base: str = ".") -> Any:
+def aggregate(s: Spec, node: Any, base: str = ".", at: dict | None = None) -> Any:
     """Answer one aggregate from the database, or raise NotPushable.
 
     This is what lets a type be larger than memory. The expression language
@@ -267,6 +274,13 @@ def aggregate(s: Spec, node: Any, base: str = ".") -> Any:
     filter — which is a SELECT — so the translation is a rename of columns and
     nothing more. Anything the subset does not cover raises rather than being
     approximated.
+
+    `at` is the slice in force, and it is not optional for correctness: the
+    rows in memory are filtered by it elsewhere, so a query that ignored it
+    would put a whole-book figure on a graph whose rows are one market's. The
+    headline would read 330 above two rows adding to 30, under a heading saying
+    which market — one number meaning two things, which is the single thing
+    this project is built to prevent.
     """
     tname = node.type_name
     b = s.backing_of(tname)
@@ -289,6 +303,15 @@ def aggregate(s: Spec, node: Any, base: str = ".") -> Any:
     clauses = [f"({where})"] if where else []
     if node.where is not None:
         clauses.append(_sql(node.where, col, params))
+    # The slice, in the same WHERE the rows would have been filtered by. A type
+    # that declares none of the dimensions is reference data and stays whole,
+    # exactly as _restrict leaves it.
+    for dim, value in (at or {}).items():
+        axis = s.axis_of(tname, dim)
+        if not axis:
+            continue
+        clauses.append(f'"{col(axis)}" = ?')
+        params.append(value)
     tail = (" WHERE " + " AND ".join(clauses)) if clauses else ""
 
     if node.func == "count":
