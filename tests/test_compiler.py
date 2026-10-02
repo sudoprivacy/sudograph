@@ -2514,7 +2514,6 @@ def test_a_successful_compile_points_at_what_to_do_next(tmp_path, capsys):
     so that is where the answer belongs — and the count is real rather than an
     advertisement: it is how many questions this spec can already be asked.
     """
-    _tiny_db(tmp_path)
     path = str(_nullable_filter_spec(tmp_path))
     assert cli_mod.main([path]) in (0, 3)
     out = capsys.readouterr().out
