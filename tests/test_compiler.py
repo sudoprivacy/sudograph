@@ -1749,6 +1749,10 @@ def test_a_count_reads_as_secondary_to_the_name_beside_it():
     assert "el('tspan'" in draw
     # The part that carries it is styled back, which is the whole point.
     assert "tspan.mark{fill:var(--dim)" in html.replace(" ", "")
+    # And a line's style follows what the line is, never where it sits: styling
+    # by index means adding a line restyles the one below it, which is how the
+    # table a type reads from arrived wearing the bold of a figure.
+    assert "cls:" in body and "i === 1 ? { class: 'num' }" not in html
 
 
 def test_the_deliverable_is_text_all_the_way_through():
@@ -2309,5 +2313,42 @@ def test_a_type_too_large_to_fetch_is_on_the_canvas_but_does_not_open():
     once when a computed count wore the same marker as a row count.
     """
     html = _html()
-    assert "n.unfetched" in html.split("function linesOf", 1)[1].split("function measure", 1)[0]
-    assert "!n.unfetched && !open" in html, "an unfetched type must not expand"
+    body = html.split("function linesOf", 1)[1].split("function measure", 1)[0]
+    assert "n.unfetched" in body and "n.folded" in body
+    # Two reasons the rows are not here, told apart: too many to draw, versus
+    # never fetched. Neither offers an arrow, because an arrow that opens an
+    # empty box is the same broken promise as one that does nothing.
+    assert "未取回" in body and "太多，未展开" in body
+    assert "!n.unfetched && !n.folded && !open" in html
+
+
+def test_a_backed_type_wears_the_table_it_reads():
+    """Two objects over one table is the claim that an object is not a table —
+    and it was provable in a test while being invisible on the canvas, which is
+    the same as not having it. Two boxes reading the same name is the proof a
+    reader can see without being told.
+    """
+    s = spec_mod.load(os.path.join(os.path.dirname(REAL_FIXTURE), "northwind.yaml"))         if os.path.exists(os.path.join(os.path.dirname(REAL_FIXTURE), "northwind.yaml"))         and _northwind_reachable() else None
+    if s is None:
+        pytest.skip("the Northwind source database is not on this machine")
+    v = compile_mod.compile_spec(s).view
+    over = {n["id"]: (n.get("backing") or {}).get("table")
+            for n in v["nodes"] if n["kind"] == "type"}
+    assert over["销售订单"] == over["发货"] == "Orders"
+
+    html = _html()
+    assert "n.backing ? n.backing.table : null" in html
+    assert "<h2>读自</h2>" in html
+
+
+def _northwind_reachable() -> bool:
+    import yaml as _yaml
+
+    path = os.path.join(os.path.dirname(REAL_FIXTURE), "northwind.yaml")
+    doc = _yaml.safe_load(open(path, encoding="utf-8"))
+    dsn = doc["raw"]["R-NORTHWIND"]["dsn"]
+    try:
+        bind_mod.connect(dsn, os.path.dirname(path)).close()
+        return True
+    except bind_mod.BindingError:
+        return False

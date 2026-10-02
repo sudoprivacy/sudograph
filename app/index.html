@@ -304,28 +304,43 @@ function linesOf(n, open) {
   // never fetched — too many to hold — has nothing to open, so it shows its
   // size without the invitation. Promising and then doing nothing is the fault
   // this already cost us once, on a count that was mistaken for a row count.
+  // An arrow is a promise that clicking opens something, so it is offered only
+  // when the rows are actually here to be opened. There are two ways for them
+  // not to be, and a reader deserves to know which: too many to put on a canvas
+  // (the compiler folded them, they exist) versus too many to fetch at all.
+  // Offering the arrow regardless opened an empty box, which is the same fault
+  // as a count that wore an arrow and did nothing when clicked.
+  const n0 = x => x.toLocaleString('en-US');
   const mark = n.kind === 'type' && n.count
-    ? (n.unfetched
-        ? `  · ${n.count.toLocaleString('en-US')} 行（未取回）`
-        : `  ${open ? '▾' : '▸'}${n.count}`)
+    ? (n.unfetched ? `  · ${n0(n.count)} 行（未取回）`
+       : n.folded  ? `  · ${n0(n.count)} 行（太多，未展开）`
+       : `  ${open ? '▾' : '▸'}${n.count}`)
     : (n.kind === 'hook' && n.waiting_on) ? `  · ${n.waiting_on} 项` : null;
   // A plug exists to expose a difference against an independent measure, so the
   // difference goes on the face of it. Showing only the total left the check
   // one click away, which is the same silent absorption the plug is there to
   // prevent.
   const residual = n.residual != null ? `差 ${fmt(n.residual)}` : null;
+  // A backed type wears the table it is a view over. Two boxes reading the same
+  // table is how "an object is not a table" becomes visible instead of being
+  // something you have to be told.
+  // Each line carries what it is, not what position it happens to sit in.
+  // Styling by index meant adding a line restyled the one below it — the table
+  // a type reads from arrived wearing the bold of a figure.
+  const over = n.backing ? n.backing.table : null;
   return [
-    mark ? [n.label, mark] : [n.label],
-    n.value != null ? [fmt(n.value)] : null,
-    residual ? [residual] : null,
+    { cls: '', parts: mark ? [n.label, mark] : [n.label] },
+    n.value != null ? { cls: 'num', parts: [fmt(n.value)] } : null,
+    residual ? { cls: 'sub', parts: [residual] } : null,
+    over ? { cls: 'sub', parts: [over] } : null,
   ].filter(x => x != null);
 }
 
 function measure(lines) {
   // CJK is about one em per character, Latin about half. ELK only needs the
   // extents, not perfection.
-  const widest = Math.max(...lines.map(parts =>
-    [...parts.join('')].reduce((w, c) => w + (c.charCodeAt(0) > 0x2e80 ? 12 : 6.6), 0)));
+  const widest = Math.max(...lines.map(l =>
+    [...l.parts.join('')].reduce((w, c) => w + (c.charCodeAt(0) > 0x2e80 ? 12 : 6.6), 0)));
   return { w: Math.min(Math.max(widest + 24, 72), 260), h: 16 + 14 * lines.length };
 }
 
@@ -501,15 +516,15 @@ async function draw() {
     }));
     const open = n.kind === 'type' && state.expanded.has(n.id);
     const lines = linesOf(n, open);
-    lines.forEach((parts, i) => {
+    lines.forEach((line, i) => {
       const t = el('text', {
         x: open ? 10 : p.width / 2,
         y: lines.length === 1 ? 19 : 18 + 16 * i,
         'text-anchor': open ? 'start' : 'middle',
-        ...(i === 1 ? { class: 'num' } : i > 1 ? { class: 'sub' } : {}),
+        ...(line.cls ? { class: line.cls } : {}),
       });
       // One tspan per part, so a volatile part never rewrites a stable one.
-      parts.forEach((part, j) => {
+      line.parts.forEach((part, j) => {
         const span = el('tspan', j ? { class: 'mark' } : {});
         span.textContent = part;
         t.appendChild(span);
@@ -538,7 +553,7 @@ async function draw() {
     }
     g.addEventListener('click', ev => {
       ev.stopPropagation();
-      if (n.kind === 'type' && n.count && !n.unfetched && !open) {
+      if (n.kind === 'type' && n.count && !n.unfetched && !n.folded && !open) {
         state.expanded.add(n.id);
         draw().then(() => select(n));
         return;
@@ -794,6 +809,15 @@ function showNode(n) {
   if (n.resolve_when) rows.push(`<h2>解除条件</h2><p>${n.resolve_when}</p>`);
   if (n.owner) rows.push(`<div class="kv"><span>负责人</span><span>${n.owner}</span></div>`);
   if (n.connector) rows.push(`<h2>取数</h2><div class="op">${n.connector}</div>`);
+  if (n.backing) {
+    rows.push(`<h2>读自</h2><div class="op">${n.backing.table}</div>`);
+    rows.push(`<div class="kv"><span>标识一行</span><span>${n.backing.key.join(', ')}</span></div>`);
+    if (n.backing.where)
+      rows.push(`<div class="kv"><span>只取</span><span>${n.backing.where}</span></div>`);
+    if (n.unfetched)
+      rows.push(`<p class="muted">${n.unfetched.toLocaleString('en-US')} 行，没有取进来；` +
+                `它的合计由库直接算。</p>`);
+  }
   if (n.provisional_because?.length)
     rows.push(`<h2>因这些缺口而暂定</h2><ul>${n.provisional_because.map(h => `<li>${h}</li>`).join('')}</ul>`);
   if (n.lineage?.inputs?.length)

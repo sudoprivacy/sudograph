@@ -766,6 +766,11 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 # one opens on a click, the other cannot.
                 "folded": folded or tname in s.unloaded,
                 "unfetched": s.unloaded.get(tname),
+                # What this object is a view over. Two types backed by the same
+                # table is the whole claim that an object is not a table — and
+                # it was provable in a test while being invisible on the canvas,
+                # which is the same as not having it.
+                "backing": s.backing_of(tname) or None,
             }
         )
         # Instances are nodes only when the group is not folded, which is the
@@ -829,6 +834,11 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 # one opens on a click, the other cannot.
                 "folded": folded or tname in s.unloaded,
                 "unfetched": s.unloaded.get(tname),
+                # What this object is a view over. Two types backed by the same
+                # table is the whole claim that an object is not a table — and
+                # it was provable in a test while being invisible on the canvas,
+                # which is the same as not having it.
+                "backing": s.backing_of(tname) or None,
                 "members": [] if folded else members,
                 "buckets": buckets,
                 "top": top,
