@@ -22,10 +22,12 @@ import yaml
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from compiler import app as app_mod
+from compiler import cli as cli_mod
 from compiler import bind as bind_mod
 from compiler import apply as apply_mod
 from compiler import compile as compile_mod
 from compiler import diff as diff_mod
+from compiler import measure as measure_mod
 from compiler import expr
 from compiler import spec as spec_mod
 
@@ -2394,3 +2396,113 @@ def test_the_evidence_for_a_check_reaches_the_reader():
     # A passing check that counts something is still shown: "everything passed"
     # and "21 orders have not shipped, and we know" are different things to say.
     assert "c.ok && c.affected" in html
+
+
+def _measurable(tmp_path):
+    _tiny_db(tmp_path)
+    path = _bound_spec(tmp_path, **{
+        "nodes": {
+            "运费合计": {"label": "运费合计", "op": "select sum(运费) from 订单"},
+            "大额运费": {"label": "大额运费", "op": "select sum(运费) from 订单 where 运费 > 15"},
+        },
+    })
+    return spec_mod.load(str(path))
+
+
+def test_the_questions_come_from_the_spec_not_from_a_list(tmp_path):
+    """A written question set drifts the moment the ontology moves: someone
+    edits a metric and the question still asks the old thing, passing for a
+    reason nobody notices. Generated ones follow by construction — add a metric
+    and it is measured, change its filter and the question changes with it.
+    """
+    s = _measurable(tmp_path)
+    run = measure_mod.correctness(s)
+    assert run.score() == (len(run.results), len(run.results)), run.as_dict()
+    ids = {r.id for r in run.results}
+    assert "partition/大额运费" in ids, "a filtered metric must be partition-checked"
+    assert "routes/运费合计" in ids, "and both routes compared where both exist"
+
+
+def _nullable_filter_spec(tmp_path):
+    """A metric that filters on a column some rows have no value for."""
+    _tiny_db(tmp_path)
+    return _bound_spec(tmp_path, **{
+        "types/订单/props/发货日": {"type": "date", "owner": "source",
+                                   "column": "ShippedDate", "nullable": True,
+                                   "absent": "none"},
+        "nodes": {"早发运费": {
+            "label": "早发运费",
+            "op": "select sum(运费) from 订单 where 发货日 < '2026-01-05'"}},
+    })
+
+
+def test_a_generated_question_catches_the_fault_it_exists_for(tmp_path):
+    """A green suite is worth what its reddest failure is worth, so the fault is
+    introduced rather than assumed — and it is a real one.
+
+    Filter on a column that some rows have no value for, and those rows fall out
+    of `where c` *and* out of `where not c`, because SQL says neither is true of
+    a null. The two halves no longer come to the whole and a total understates
+    by rows nobody can see. That is the exact failure this project exists
+    against, which is why it is what the question has to notice.
+
+    A consistent mistranslation — `>` becoming `>=` — correctly does not trip
+    it: filter and complement move together and still partition. The question
+    asks whether the halves are a whole, not whether an operator was spelled
+    right.
+    """
+    s = spec_mod.load(str(_nullable_filter_spec(tmp_path)))
+    run = measure_mod.correctness(s)
+    bad = [r for r in run.results if not r.ok]
+    assert [r.id for r in bad] == ["partition/早发运费"], run.as_dict()
+    # 10 is kept and 30 excluded; the 20 whose date is absent is in neither.
+    assert (bad[0].expected, bad[0].got) == (60, 40)
+    assert bad[0].trace, "and the failure must say where to look"
+
+
+def test_a_result_without_a_trace_is_refused_not_warned_about():
+    """A score you cannot retrace reports a number and hides the only part of a
+    failure that is any use: which edge to go and fix."""
+    with pytest.raises(ValueError, match="carries no trace"):
+        measure_mod.Result(id="x", asks="x", trace=[], expected=1, got=1)
+
+
+def test_measuring_cannot_change_what_is_measured(tmp_path):
+    """A harness that can edit the ontology to make its own numbers go up is not
+    measuring anything. Checked by fingerprint rather than by intention."""
+    s = _measurable(tmp_path)
+    before = measure_mod.fingerprint(s)
+    measure_mod.correctness(s)
+    assert measure_mod.fingerprint(s) == before
+
+    # And the guard itself has teeth: a run that does alter the spec is thrown
+    # away rather than reported.
+    real = measure_mod.fingerprint
+    try:
+        seen = {"n": 0}
+
+        def drifting(spec):
+            seen["n"] += 1
+            return real(spec) if seen["n"] == 1 else "something else"
+
+        measure_mod.fingerprint = drifting
+        with pytest.raises(measure_mod.Tampered, match="not measuring it"):
+            measure_mod.correctness(s)
+    finally:
+        measure_mod.fingerprint = real
+
+
+def test_a_score_never_gates(tmp_path, capsys):
+    """Measurement that can block a change stops being measurement and becomes a
+    thing people route around. The exit code says whether the run happened."""
+    spec_path = str(_nullable_filter_spec(tmp_path))
+    s = spec_mod.load(spec_path)
+
+    code = cli_mod.main([spec_path, "--measure"])
+    out = capsys.readouterr()
+    assert code == 0, "a failing score must not become a failing exit code"
+    assert "FAIL" in out.out, "and it must still be reported loudly"
+    assert "not a thing to block on" in out.err
+
+    # The report says so itself, so nothing downstream has to infer it.
+    assert measure_mod.correctness(s).as_dict()["gates"] is False

@@ -19,6 +19,7 @@ import sys
 from . import app as app_mod
 from . import compile as compile_mod
 from . import diff as diff_mod
+from . import measure as measure_mod
 from . import spec as spec_mod
 
 
@@ -110,6 +111,15 @@ def main(argv: list[str] | None = None) -> int:
         metavar="BEFORE:AFTER",
         help="compile under both readings and derive the entries between them",
     )
+    ap.add_argument(
+        "--measure",
+        action="store_true",
+        help=(
+            "ask the ontology questions generated from itself and report how it did. "
+            "The exit code says whether the run happened, never how well it went — a "
+            "score that can block a change stops being a measurement"
+        ),
+    )
     args = ap.parse_args(argv)
     try:
         at = _coords(args.at)
@@ -132,6 +142,33 @@ def main(argv: list[str] | None = None) -> int:
         with open(args.app, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(app_mod.render(b))
         print(f"{args.app}: {len(b['views'])} view(s), {len(b['diffs'])} bridge diff(s)")
+        return 0
+
+    if args.measure:
+        try:
+            run = measure_mod.correctness(s, basis=args.basis)
+        except measure_mod.Tampered as e:
+            print(str(e), file=sys.stderr)
+            return 2
+        if args.view:
+            print(json.dumps(run.as_dict(), ensure_ascii=False, indent=2))
+            return 0
+        passed, total = run.score()
+        for r in run.results:
+            print(f"  {'ok  ' if r.ok else 'FAIL'} {r.id}")
+            print(f"       {r.asks}")
+            for line in r.trace:
+                print(f"       · {line}")
+            if not r.ok:
+                print(f"       expected {r.expected}, got {r.got}")
+        print(f"\n{passed}/{total} — {s.name}")
+        if passed != total:
+            # Reported, never enforced. A number that falls is something to
+            # explain; a harness that blocks on it is something to route around.
+            print(
+                "a falling score is a thing to explain, not a thing to block on",
+                file=sys.stderr,
+            )
         return 0
 
     if args.diff:

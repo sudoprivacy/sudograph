@@ -417,6 +417,17 @@ def evaluate(
             )
         a = evaluate(node.left, scope, instances, agg)
         b = evaluate(node.right, scope, instances, agg)
+        # SQL semantics are kept, deliberately: a comparison involving a null is
+        # unknown, which keeps the row out of a filter, and arithmetic touching
+        # a null is null. Python would raise on both, so a figure computed here
+        # would have crashed where the same figure computed by the database
+        # quietly excluded the row — the two routes disagreeing about the one
+        # case this project cares most about. Found by the measurement harness
+        # the first time it ran against a column that was actually nullable.
+        if a is None or b is None:
+            if node.op in _CMP:
+                return False
+            return None
         if node.op in _CMP:
             return _CMP[node.op](a, b)
         if node.op == "+":
