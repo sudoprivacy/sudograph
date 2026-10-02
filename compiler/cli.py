@@ -213,6 +213,17 @@ def main(argv: list[str] | None = None) -> int:
     for check in c.checks:
         if not check.ok:
             print(f"  FAIL {check.name}: {check.detail}")
+    # Said here because here is where the reader — person or agent — is deciding
+    # what to do next. A capability named only in `--help` is one nobody reaches
+    # for, and "it compiled" is exactly the moment the next question is "and is
+    # it right?". The count is real: it is how many questions this spec can
+    # already be asked about itself.
+    askable = len(measure_mod.correctness(s, basis=args.basis).results)
+    if askable:
+        print(
+            f"\n{askable} question(s) can be generated from this spec and checked "
+            f"against the source — run it with --measure"
+        )
     return 0 if c.passed else 3
 
 

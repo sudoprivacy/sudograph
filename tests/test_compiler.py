@@ -2506,3 +2506,21 @@ def test_a_score_never_gates(tmp_path, capsys):
 
     # The report says so itself, so nothing downstream has to infer it.
     assert measure_mod.correctness(s).as_dict()["gates"] is False
+
+
+def test_a_successful_compile_points_at_what_to_do_next(tmp_path, capsys):
+    """A capability named only in `--help` is one nobody reaches for. "It
+    compiled" is precisely the moment the next question is "and is it right?",
+    so that is where the answer belongs — and the count is real rather than an
+    advertisement: it is how many questions this spec can already be asked.
+    """
+    _tiny_db(tmp_path)
+    path = str(_nullable_filter_spec(tmp_path))
+    assert cli_mod.main([path]) in (0, 3)
+    out = capsys.readouterr().out
+    assert "--measure" in out and "question(s) can be generated" in out
+
+    # And it stays quiet where there is nothing to generate: a line that always
+    # prints is a line nobody reads.
+    assert cli_mod.main([CAP_FIXTURE]) == 0
+    assert "--measure" not in capsys.readouterr().out
