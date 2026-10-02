@@ -25,9 +25,32 @@ from .spec import NODE_KINDS, Spec
 
 @dataclass
 class Check:
+    """One statement about the ontology, with the evidence for it reachable.
+
+    A check is per *column*, not per row. The row-by-row form printed the same
+    sentence 32,587 times for one real table, which is not more information —
+    it is one fact repeated until nobody reads any of it. But aggregating the
+    report must not aggregate the evidence: a reviewer who cannot get to the
+    rows cannot check anything, and "21 rows are missing" on its own is as
+    useless as the 32,587 lines were.
+
+    So three layers, cheapest first:
+
+      * the statement — one line, the thing a person reasons about
+      * `sample` — the first few offending rows, enough to look at one
+      * everything else — a query, never stored. For a type of 609,283 rows it
+        could not have been stored anyway, which is why this is the shape
+        rather than a compromise.
+    """
+
     name: str
     ok: bool
     detail: str = ""
+    #: How many rows this statement is about, when it is about rows at all.
+    affected: int = 0
+    #: Identifiers of the first few, so the claim can be looked at rather than
+    #: believed. Bounded on purpose — the rest is a query away.
+    sample: list = field(default_factory=list)
 
 
 @dataclass
@@ -153,6 +176,36 @@ def _corroborate(s: Spec, c: Compiled) -> Spec:
         instances=resolved, nodes=s.nodes, ops=s.ops, checks=s.checks,
         bases=s.bases, bridges=s.bridges, dimensions=s.dimensions,
     )
+
+
+#: How many offending rows a check carries with it. Enough to look at one and
+#: see the shape of the problem; not so many that the report becomes the data.
+SAMPLE = 5
+
+
+def _absent_in_source(s: Spec, tname: str, col: str, idp: str) -> tuple[int, list]:
+    """How many rows of an unfetched type lack this column, and a few of them.
+
+    The same statement as for a fetched type, obtained the only way available
+    when the rows are not here. That it is the same statement is the point: one
+    rule, one shape of answer, two ways of arriving at it.
+    """
+    from . import bind as bind_mod
+
+    b = s.backing_of(tname)
+    raw = s.raw[b["from"]]
+    column = s.column_of(tname, col)
+    ident = s.column_of(tname, idp)
+    where = f"({b['where']}) and " if b.get("where") else ""
+    with bind_mod.connect(raw["dsn"], s.source_base) as conn:
+        n = conn.execute(
+            f'select count(*) from "{b["table"]}" where {where}"{column}" is null'
+        ).fetchone()[0]
+        rows = conn.execute(
+            f'select "{ident}" from "{b["table"]}" where {where}"{column}" is null '
+            f"limit {SAMPLE}"
+        ).fetchall()
+    return n, [r[0] for r in rows]
 
 
 def _money_scale(value: Any, prop: dict) -> Any:
@@ -436,42 +489,61 @@ def compile_spec(
     # that passes every other check is exactly the failure this whole design
     # exists to prevent. So each one is reported, and it must be attached to a
     # hook that says how it gets filled.
-    for tname, rows in s.instances.items():
+    for tname in {**{t: None for t in s.unloaded}, **s.instances}:
+        rows = s.instances.get(tname) or []
         props = s.types[tname].get("props") or {}
         gap_cols = [p for p, d in props.items() if d.get("absent") == "gap"]
         gap_refs = [p for p, d in props.items() if d.get("type") == "ref" and d.get("to") == "hook"]
         idp = s.types[tname]["id"]
-        for row in rows:
-            for col in gap_cols:
-                if row.get(col) is not None:
-                    continue
-                # Either this row names the gap it is waiting on, or the column
-                # says that all of its absences are the same gap. The second is
-                # not a shortcut: rows that come from somewhere else cannot be
-                # annotated — we do not own that table — and "every unshipped
-                # order is waiting on the same thing" is usually the truth
-                # anyway, said once instead of sixteen thousand times.
-                covered = bool(props[col].get("gap")) or any(row.get(g) for g in gap_refs)
-                # The consequence of an untracked gap differs by what is missing,
-                # and a message that names the wrong consequence teaches the
-                # reader to skim the next one.
-                cost = (
-                    "nobody is chasing the counterpart, and an unmatched row reads "
-                    "exactly like a matched one on the graph"
-                    if props[col].get("type") == "ref"
-                    else "the total silently understates by an unknown amount"
+        total = s.unloaded.get(tname, len(rows))
+        for col in gap_cols:
+            # Either the column says that all of its absences are the same gap,
+            # or each row names the one it is waiting on. The first is not a
+            # shortcut: rows that come from somewhere else cannot be annotated,
+            # because we do not own that table.
+            declared = props[col].get("gap")
+            if tname in s.unloaded:
+                missing, offenders = _absent_in_source(s, tname, col, idp)
+            else:
+                blank = [r for r in rows if r.get(col) is None]
+                missing = len(blank)
+                offenders = [
+                    r.get(idp) for r in blank if not any(r.get(g) for g in gap_refs)
+                ]
+            uncovered = 0 if declared else len(offenders)
+            # The consequence of an untracked gap differs by what is missing,
+            # and a message that names the wrong consequence teaches the reader
+            # to skim the next one.
+            cost = (
+                "nobody is chasing the counterpart, and an unmatched row reads "
+                "exactly like a matched one on the graph"
+                if props[col].get("type") == "ref"
+                else "the total silently understates by an unknown amount"
+            )
+            if declared:
+                detail = (
+                    f"{missing} of {total} rows have no {col}; all of them are "
+                    f"accounted for by {declared}"
+                    if missing
+                    else ""
                 )
-                c.checks.append(
-                    Check(
-                        f"absent/{tname}/{row.get(idp)}/{col}",
-                        covered,
-                        ""
-                        if covered
-                        else f"{col} is absent and means 'not recorded yet', but neither "
-                        f"the column nor the row names a gap for it — "
-                        f"cites no hook — {cost}",
-                    )
+            elif uncovered:
+                detail = (
+                    f"{uncovered} of {total} rows have no {col}, and it means 'not "
+                    f"recorded yet' — neither the column nor those rows name a gap "
+                    f"for it, so {cost}"
                 )
+            else:
+                detail = ""
+            c.checks.append(
+                Check(
+                    f"absent/{tname}/{col}",
+                    uncovered == 0,
+                    detail,
+                    affected=missing,
+                    sample=offenders[:SAMPLE],
+                )
+            )
 
     # The plug's divergence is computed and reported every time, so it cannot
     # drift quietly between runs. Zero is fine; unregistered is not.
@@ -509,17 +581,24 @@ def compile_spec(
         idp = s.types[tname]["id"]
         for prop, target in links.items():
             known = s.ids_of(target)
-            for row in rows:
-                ref = row.get(prop)
-                if ref is None:
-                    continue
-                c.checks.append(
-                    Check(
-                        f"link/{tname}/{row.get(idp)}/{prop}",
-                        ref in known,
-                        "" if ref in known else f"points at {target}/{ref!r}, which does not exist",
-                    )
+            dangling = [
+                row.get(idp)
+                for row in rows
+                if row.get(prop) is not None and row.get(prop) not in known
+            ]
+            linked = sum(1 for row in rows if row.get(prop) is not None)
+            c.checks.append(
+                Check(
+                    f"link/{tname}/{prop}",
+                    not dangling,
+                    ""
+                    if not dangling
+                    else f"{len(dangling)} of {linked} rows point at a {target} that "
+                    f"does not exist",
+                    affected=len(dangling),
+                    sample=dangling[:SAMPLE],
                 )
+            )
 
     # A hook must name at least one node it affects, otherwise nothing on the
     # graph tells a reader that this number is provisional.
@@ -898,7 +977,18 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         "nodes": nodes,
         "edges": edges,
         "groups": groups,
-        "checks": [{"name": k.name, "ok": k.ok, "detail": k.detail} for k in c.checks],
+        # The evidence travels with the statement. A check whose rows stayed in
+        # the compiler is a check the reader can only believe.
+        "checks": [
+            {
+                "name": k.name,
+                "ok": k.ok,
+                "detail": k.detail,
+                "affected": k.affected,
+                "sample": k.sample,
+            }
+            for k in c.checks
+        ],
     }
 
 

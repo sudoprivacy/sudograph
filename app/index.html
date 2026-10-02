@@ -873,12 +873,30 @@ function showGroup(tname) {
   return out.join('');
 }
 
+// A check is one statement; the rows it is about ride along with it. Showing
+// only the sentence would leave a reviewer nothing to verify, and showing every
+// row would be the thirty thousand lines this replaced. The sample is the
+// middle layer: enough to open one and see the shape.
+const checkLine = c =>
+  `<div class="entry"><strong>${c.name}</strong>` +
+  (c.detail ? `<div class="muted">${c.detail}</div>` : '') +
+  (c.sample && c.sample.length
+    ? `<div class="muted">例如 ${c.sample.join('、')}${
+        c.affected > c.sample.length ? ` …共 ${c.affected.toLocaleString('en-US')} 行` : ''
+      }</div>`
+    : '') +
+  `</div>`;
+
 function showChecks(v) {
   const bad = v.checks.filter(c => !c.ok);
-  $('panel').innerHTML = bad.length
-    ? `<h2>未通过的检查</h2>` + bad.map(c =>
-        `<div class="entry"><strong>${c.name}</strong><div class="muted">${c.detail}</div></div>`).join('')
-    : `<h2>检查</h2><p class="muted">${v.checks.length} 条全部通过。点一个节点看它的来历。</p>`;
+  // A passing check that is about something — rows missing a value, accounted
+  // for — is still worth seeing. "Everything passed" and "21 orders have not
+  // shipped, and we know" are different things to tell a reader.
+  const noted = v.checks.filter(c => c.ok && c.affected);
+  $('panel').innerHTML = (bad.length
+    ? `<h2>未通过的检查</h2>` + bad.map(checkLine).join('')
+    : `<h2>检查</h2><p class="muted">${v.checks.length} 条全部通过。点一个节点看它的来历。</p>`)
+    + (noted.length ? `<h2>通过，但有数</h2>` + noted.map(checkLine).join('') : '');
 }
 
 // Every trade-specific noun below rides on the diff. The renderer knows that a

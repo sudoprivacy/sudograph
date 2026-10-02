@@ -819,9 +819,11 @@ def test_a_link_pointing_at_a_missing_object_fails_the_check():
     """An edge to nowhere teaches a reviewer only that the graph lied."""
     bad = _mutated_real(**{"instances/委外合同/0/供应商": "供应商99"})
     c = compile_mod.compile_spec(bad, basis=RESTATED)
-    failed = [k for k in c.checks if k.name.startswith("link/委外合同/W-001")]
+    failed = [k for k in c.checks if k.name == "link/委外合同/供应商"]
     assert failed and not failed[0].ok
     assert "does not exist" in failed[0].detail
+    # One statement, and the row it is about still reachable from it.
+    assert failed[0].affected == 1 and failed[0].sample == ["W-001"]
 
 
 def test_a_ref_must_say_what_it_points_at():
@@ -850,9 +852,10 @@ def test_an_unmatched_link_with_no_hook_is_reported():
     something says otherwise."""
     bad = _mutated_real(**{"instances/供应商/0/缺口": None})
     c = compile_mod.compile_spec(bad, basis=RESTATED)
-    failed = [k for k in c.checks if k.name == "absent/供应商/供应商01/对接人"]
+    failed = [k for k in c.checks if k.name == "absent/供应商/对接人"]
     assert failed and not failed[0].ok
     assert "nobody is chasing the counterpart" in failed[0].detail
+    assert "供应商01" in failed[0].sample
 
 
 def test_filtering_by_a_link_needs_no_join():
@@ -2352,3 +2355,42 @@ def _northwind_reachable() -> bool:
         return True
     except bind_mod.BindingError:
         return False
+
+
+def test_a_check_is_one_statement_with_its_evidence_attached():
+    """The row-by-row form printed one sentence 32,587 times for a real table.
+    That is not more information — it is one fact repeated until nobody reads
+    any of it, which is the same failure as saying nothing.
+
+    But the report aggregating must not make the evidence aggregate: a reviewer
+    who cannot reach the rows cannot check anything. So the statement is one
+    line, a few offending rows ride along, and the rest stays a query — which
+    for 609,283 rows was never going to be anything else.
+    """
+    c = compile_mod.compile_spec(spec_mod.load(REAL_FIXTURE), basis=BOOK)
+    # One per (type, column) wherever the statement is the same for every row.
+    # Corroboration is the exception and stays per row on purpose: two systems
+    # disagreeing about one figure is a *different* sentence each time — it is
+    # the finding itself, and collapsing it would hide the thing most worth
+    # seeing.
+    for k in c.checks:
+        if k.name.startswith("corroboration/"):
+            continue
+        assert len(k.name.split("/")) <= 3, k.name
+
+    bad = _mutated_real(**{"instances/供应商/0/缺口": None, "instances/供应商/1/缺口": None})
+    c = compile_mod.compile_spec(bad, basis=BOOK)
+    one = next(k for k in c.checks if k.name == "absent/供应商/对接人")
+    assert not one.ok
+    assert one.affected == 11, "the statement counts every absence"
+    assert 0 < len(one.sample) <= compile_mod.SAMPLE, "and carries a few to look at"
+
+
+def test_the_evidence_for_a_check_reaches_the_reader():
+    """Aggregating the report must not aggregate the evidence. A statement with
+    nothing to look at is a statement a reviewer can only believe."""
+    html = _html()
+    assert "c.sample" in html and "c.affected" in html
+    # A passing check that counts something is still shown: "everything passed"
+    # and "21 orders have not shipped, and we know" are different things to say.
+    assert "c.ok && c.affected" in html
