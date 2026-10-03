@@ -123,7 +123,6 @@ def _corroborate(s: Spec, c: Compiled) -> Spec:
             resolved[tname] = rows
             continue
         props = s.types[tname]["props"]
-        idp = s.types[tname]["id"]
         gap_refs = [
             p for p, d in props.items() if d.get("type") == "ref" and d.get("to") == "hook"
         ]
@@ -166,7 +165,7 @@ def _corroborate(s: Spec, c: Compiled) -> Spec:
                 else:
                     detail = ""
                 c.checks.append(
-                    Check(f"corroboration/{tname}/{row.get(idp)}/{prop}", not detail, detail)
+                    Check(f"corroboration/{tname}/{s.identify(tname, row)}/{prop}", not detail, detail)
                 )
             out_rows.append(new)
         resolved[tname] = out_rows
@@ -179,7 +178,7 @@ def _corroborate(s: Spec, c: Compiled) -> Spec:
 SAMPLE = 5
 
 
-def _absent_in_source(s: Spec, tname: str, col: str, idp: str) -> tuple[int, list]:
+def _absent_in_source(s: Spec, tname: str, col: str) -> tuple[int, list]:
     """How many rows of an unfetched type lack this column, and a few of them.
 
     The same statement as for a fetched type, obtained the only way available
@@ -191,7 +190,7 @@ def _absent_in_source(s: Spec, tname: str, col: str, idp: str) -> tuple[int, lis
     b = s.backing_of(tname)
     raw = s.raw[b["from"]]
     column = s.column_of(tname, col)
-    ident = s.column_of(tname, idp)
+    ident = s.column_of(tname, s.id_props(tname)[0])
     where = f"({b['where']}) and " if b.get("where") else ""
     with bind_mod.connect(raw["dsn"], s.source_base) as conn:
         n = conn.execute(
@@ -377,11 +376,10 @@ def compile_spec(
         # rows belong to it.
         _, tname, pname = vertex
         src = op_for(s.types[tname]["props"][pname], basis)
-        idp = s.types[tname].get("id")
         for row in work.get(tname, []):
             scope = {**c.values, **row}
-            if idp:
-                scope["this"] = row.get(idp)
+            if s.id_props(tname):
+                scope["this"] = s.identify(tname, row)
             try:
                 row[pname] = _money_scale(
                     expr.evaluate(expr.parse(src), scope, s.instances, agg),
@@ -390,7 +388,7 @@ def compile_spec(
             except expr.ExprError as e:
                 row[pname] = None
                 c.checks.append(
-                    Check(f"computed/{tname}/{row.get(idp)}/{pname}", False, str(e))
+                    Check(f"computed/{tname}/{s.identify(tname, row)}/{pname}", False, str(e))
                 )
             except TypeError:
                 # An input this row does not have. The result is missing rather
@@ -489,7 +487,6 @@ def compile_spec(
         props = s.types[tname].get("props") or {}
         gap_cols = [p for p, d in props.items() if d.get("absent") == "gap"]
         gap_refs = [p for p, d in props.items() if d.get("type") == "ref" and d.get("to") == "hook"]
-        idp = s.types[tname]["id"]
         total = s.unloaded.get(tname, len(rows))
         for col in gap_cols:
             # Either the column says that all of its absences are the same gap,
@@ -498,12 +495,12 @@ def compile_spec(
             # because we do not own that table.
             declared = props[col].get("gap")
             if tname in s.unloaded:
-                missing, offenders = _absent_in_source(s, tname, col, idp)
+                missing, offenders = _absent_in_source(s, tname, col)
             else:
                 blank = [r for r in rows if r.get(col) is None]
                 missing = len(blank)
                 offenders = [
-                    r.get(idp) for r in blank if not any(r.get(g) for g in gap_refs)
+                    s.identify(tname, r) for r in blank if not any(r.get(g) for g in gap_refs)
                 ]
             uncovered = 0 if declared else len(offenders)
             # The consequence of an untracked gap differs by what is missing,
@@ -573,11 +570,10 @@ def compile_spec(
         links = s.links_of(tname)
         if not links:
             continue
-        idp = s.types[tname]["id"]
         for prop, target in links.items():
             known = s.ids_of(target)
             dangling = [
-                row.get(idp)
+                s.identify(tname, row)
                 for row in rows
                 if row.get(prop) is not None and row.get(prop) not in known
             ]
@@ -635,8 +631,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
     for tname, rows in s.instances.items():
         if folded_types[tname]:
             continue
-        idp = s.types[tname]["id"]
-        instance_ids |= {f"{tname}/{r.get(idp)}" for r in rows}
+        instance_ids |= {f"{tname}/{s.identify(tname, r)}" for r in rows}
 
     # Derived once, read three ways: where a figure comes from, which hooks make
     # it provisional, and how complete it is. None of the three is authored.
@@ -747,7 +742,6 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         ]
         if not hook_refs:
             continue
-        idp = s.types[tname]["id"]
         if folded_types[tname]:
             # The rows are not on the canvas, so the edge lands on the type —
             # the same rule the ownership edges follow. Dropping it instead left
@@ -768,7 +762,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                     edges.append(
                         {
                             "from": ref,
-                            "to": f"{tname}/{row.get(idp)}",
+                            "to": f"{tname}/{s.identify(tname, row)}",
                             "rel": "cites",
                             "via": prop,
                         }
@@ -821,8 +815,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
     for tname, rows in {**{t: [] for t in s.unloaded}, **s.instances}.items():
         t = s.types[tname]
         props = t.get("props") or {}
-        idp = t["id"]
-        members = [{"id": r.get(idp), "props": r} for r in rows]
+        members = [{"id": s.identify(tname, r), "props": r} for r in rows]
         folded = folded_types[tname]
         grades = lin_mod.instance_completeness(s, rows, tname)
 
@@ -851,7 +844,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         # same condition that governs their edges. The two decisions are one.
         if not folded:
             for r in rows:
-                iid = r.get(idp)
+                iid = s.identify(tname, r)
                 nodes.append(
                     {
                         "id": f"{tname}/{iid}",
@@ -895,7 +888,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 key=lambda r: r[mc],
                 reverse=True,
             )
-            top[mc] = [{"id": r.get(idp), "value": r[mc]} for r in ranked[:top_n]]
+            top[mc] = [{"id": s.identify(tname, r), "value": r[mc]} for r in ranked[:top_n]]
 
         groups.append(
             {
@@ -916,7 +909,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 "members": [] if folded else members,
                 "buckets": buckets,
                 "top": top,
-                "id_prop": idp,
+                "id_prop": "·".join(s.id_props(tname)),
                 "owners": {p: s.owner_of(tname, p) for p in props},
                 # How a computed column got its value, so the panel can show the
                 # formula the way a derived node shows its expression. A figure
@@ -958,7 +951,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
             for r in linked:
                 edges.append(
                     {
-                        "from": f"{tname}/{r.get(idp)}",
+                        "from": f"{tname}/{s.identify(tname, r)}",
                         "to": f"{target}/{r[prop]}",
                         "rel": "link",
                         "via": prop,

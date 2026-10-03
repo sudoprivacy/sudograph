@@ -107,10 +107,12 @@ def apply_op(
     proposal = tier == "human" and actor != "human"
 
     rows = s.instances.get(target_type) or []
-    idp = s.types[target_type]["id"]
-    row = next((r for r in rows if r.get(idp) == target_id), None)
+    row = next((r for r in rows if s.identify(target_type, r) == target_id), None)
     if row is None:
-        raise Refused(f"no {target_type} with {idp} = {target_id!r}")
+        raise Refused(
+            f"no {target_type} identified by {target_id!r} "
+            f"({'/'.join(s.id_props(target_type))})"
+        )
 
     declared = set(op.get("writes") or [])
     changes: list[dict] = []
@@ -203,8 +205,7 @@ def approve(
 
     target_type, target_id = edit.target.split("/", 1)
     rows = s.instances.get(target_type) or []
-    idp = s.types[target_type]["id"]
-    row = next((r for r in rows if r.get(idp) == target_id), None)
+    row = next((r for r in rows if s.identify(target_type, r) == target_id), None)
     if row is None:
         raise Refused(f"{edit.target} no longer exists")
 

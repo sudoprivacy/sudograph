@@ -162,6 +162,26 @@ class Spec:
         """The table this type is a view over, if it is one."""
         return (self.types.get(type_name) or {}).get("backing") or {}
 
+    def id_props(self, type_name: str) -> list[str]:
+        """The properties that name one row of this type.
+
+        A type that is a view over a table already said what identifies a row,
+        in `backing.key`, so repeating it as `id` is the same fact written
+        twice — and a fact written twice can disagree with itself. It did: a
+        fact table's key is nearly always two columns, `id` took one, and rows
+        quietly collapsed onto each other on the canvas.
+        """
+        t = self.types.get(type_name) or {}
+        if t.get("id"):
+            return [t["id"]]
+        back = {self.column_of(type_name, p): p for p in (t.get("props") or {})}
+        return [back[c] for c in ((t.get("backing") or {}).get("key") or []) if c in back]
+
+    def identify(self, type_name: str, row: dict) -> str:
+        """What this row is called. One property, or the key's values joined."""
+        parts = [row.get(p) for p in self.id_props(type_name)]
+        return parts[0] if len(parts) == 1 else "·".join(str(x) for x in parts)
+
     def column_of(self, type_name: str, prop: str) -> str:
         """The upstream column behind a property; its own name when unmapped.
 
@@ -524,9 +544,16 @@ def check(s: Spec) -> list[str]:
             if col not in (t.get("props") or {}):
                 out.append(f"type {tname}: dimension {dim!r} names property {col!r}, "
                            f"which is not among its props")
-        for req in ("label", "id", "props"):
+        for req in ("label", "props"):
             if req not in t:
                 out.append(f"type {tname} is missing '{req}'")
+        if not s.id_props(tname):
+            out.append(
+                f"type {tname} is missing 'id' — say which property names one row. "
+                f"A type that is a view over a table may leave it out and take its "
+                f"backing's key instead, which is usually the honest answer for a "
+                f"table whose rows need two columns to tell apart"
+            )
         props = t.get("props") or {}
         if t.get("id") and t["id"] not in props:
             out.append(f"type {tname}: id property {t['id']!r} is not among its props")

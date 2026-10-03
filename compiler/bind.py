@@ -77,6 +77,21 @@ _COMPATIBLE = {
 }
 
 
+def _not_unique(conn, table: str, columns: list[str], backing: dict) -> list[int]:
+    """How many values of these columns name more than one row; empty if none.
+
+    A list rather than a count so callers read as "for each problem", and a
+    claim about rows is settled by looking at rows.
+    """
+    quoted = ", ".join(f'"{c}" ' for c in columns).replace(" ,", ",")
+    where = f" where {backing['where']}" if backing.get("where") else ""
+    n = conn.execute(
+        f"select count(*) from (select {quoted} from \"{table}\"{where} "
+        f"group by {quoted} having count(*) > 1)"
+    ).fetchone()[0]
+    return [n] if n else []
+
+
 def verify(s: Spec, base: str = ".") -> list[str]:
     """Compare every binding against the schema it claims. Empty means it holds."""
     out: list[str] = []
@@ -117,18 +132,25 @@ def verify(s: Spec, base: str = ".") -> list[str]:
                         f"about what this column holds"
                     )
 
-            # A key that does not identify a row makes every row-level statement
-            # about this type ambiguous, so it is checked against the data rather
-            # than assumed from the declaration.
+            # `id` is what every row-level statement is addressed to — the node
+            # on the canvas, the target of a link, the thing a comment anchors
+            # to. A non-unique one does not fail: rows quietly collapse onto one
+            # another and the graph draws four rows as two, which is worse than
+            # an error because it looks like an answer. Checked against the data
+            # for the same reason the key is: it is a claim about rows.
+            idp = t.get("id")
+            if idp and idp in (t.get("props") or {}):
+                for bad in _not_unique(conn, table, [s.column_of(tname, idp)], b):
+                    out.append(
+                        f"type {tname}: id {idp!r} names more than one row — "
+                        f"{bad} value(s) are shared. The key declares "
+                        f"{b.get('key')}, so no single property identifies a row "
+                        f"here; narrow the type with backing.where, or bind one "
+                        f"whose rows an id can name"
+                    )
             key = b.get("key") or []
             if key and all(k in cols for k in key):
-                quoted = ", ".join(f'"{k}"' for k in key)
-                where = f" where {b['where']}" if b.get("where") else ""
-                dupes = conn.execute(
-                    f'select count(*) from (select {quoted} from "{table}"{where} '
-                    f"group by {quoted} having count(*) > 1)"
-                ).fetchone()[0]
-                if dupes:
+                for dupes in _not_unique(conn, table, key, b):
                     out.append(
                         f"type {tname}: key {key} is not unique in {table} — "
                         f"{dupes} value(s) name more than one row"

@@ -2590,3 +2590,50 @@ def test_restricting_keeps_everything_it_was_not_asked_to_change(tmp_path):
     for field_name in ("source_base", "unloaded", "dimensions", "bridges"):
         assert getattr(narrowed, field_name) == getattr(s, field_name), field_name
     assert len(narrowed.instances["行"]) == 2
+
+
+def test_an_id_that_names_more_than_one_row_is_refused(tmp_path):
+    """`id` is what every row-level statement is addressed to: the node on the
+    canvas, the target of a link, the thing a comment anchors to. A non-unique
+    one does not fail — rows quietly collapse onto each other and four rows are
+    drawn as two, which is worse than an error because it looks like an answer.
+
+    Inline rows were always checked. Rows read from a table were not, so the
+    one place it mattered most — a fact table, whose key is nearly always two
+    columns — was the one place nothing looked.
+    """
+    import sqlite3
+
+    db = tmp_path / "s.db"
+    conn = sqlite3.connect(db)
+    conn.execute("create table L (ord integer, prod integer, qty integer)")
+    conn.executemany("insert into L values (?,?,?)",
+                     [(1, 10, 5), (1, 11, 6), (1, 12, 7), (2, 10, 8)])
+    conn.commit()
+    conn.close()
+
+    def spec_with(**extra):
+        t = {"label": "明细",
+             "backing": {"from": "R", "table": "L", "key": ["ord", "prod"]},
+             "props": {"单号": {"type": "string", "owner": "source", "column": "ord"},
+                       "产品": {"type": "string", "owner": "source", "column": "prod"},
+                       "数量": {"type": "number", "owner": "source", "column": "qty"}}}
+        t.update(extra)
+        doc = {"ontology": "dup", "raw": {"R": {"label": "src", "dsn": "sqlite:///s.db"}},
+               "types": {"明细": t}, "hooks": {},
+               "nodes": {"件数": {"label": "件数", "op": "select sum(数量) from 明细"}}}
+        path = tmp_path / "s.yaml"
+        path.write_text(yaml.safe_dump(doc, allow_unicode=True), encoding="utf-8")
+        return str(path)
+
+    with pytest.raises(spec_mod.SpecError, match="names more than one row"):
+        spec_mod.load(spec_with(id="单号"))
+
+    # Leaving it out takes the backing's key, which is what actually names a
+    # row — and is one fact stated once rather than twice.
+    s = spec_mod.load(spec_with())
+    assert s.id_props("明细") == ["单号", "产品"]
+    v = compile_mod.compile_spec(s, fold_over=999).view
+    drawn = [n["id"] for n in v["nodes"] if n["kind"] == "instance"]
+    assert len(drawn) == len(set(drawn)) == 4
+    assert "明细/1·10" in drawn

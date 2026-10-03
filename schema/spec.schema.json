@@ -162,7 +162,6 @@
       "type": "object",
       "required": [
         "label",
-        "id",
         "props"
       ],
       "additionalProperties": false,
@@ -175,7 +174,7 @@
         },
         "id": {
           "type": "string",
-          "description": "Name of the identifying property. Immutable."
+          "description": "The property that names one row. A type that is a view over a table may leave it out and take its backing's key instead — which is the honest answer for a table whose rows need two columns to tell apart, and avoids saying the same thing twice."
         },
         "props": {
           "type": "object",
@@ -221,7 +220,19 @@
           },
           "description": "This type is a view over a table rather than a carrier of rows. Two types may bind the same table: one table often holds more than one business object."
         }
-      }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "id"
+          ]
+        },
+        {
+          "required": [
+            "backing"
+          ]
+        }
+      ]
     },
     "prop": {
       "type": "object",

@@ -47,10 +47,11 @@ types:
   # 有行数的类型，只是行本身不在这儿。
   订单明细:
     label: 订单明细
-    id: 明细号
+    # 没有 id：一行明细要订单号加产品号两列才认得出来，backing.key 已经说了，
+    # 不再说第二遍。写成单列的 id 会让 609,283 行压到 16,282 个订单号上。
     backing: { from: R-NORTHWIND, table: "Order Details", key: [OrderID, ProductID] }
     props:
-      明细号:   { type: string, owner: source, column: OrderID }
+      订单号:   { type: string, owner: source, column: OrderID }
       产品号:   { type: string, owner: source, column: ProductID }
       成交价:   { type: money,  owner: source, column: UnitPrice }
       数量:     { type: number, owner: source, column: Quantity }

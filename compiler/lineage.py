@@ -113,7 +113,6 @@ def completeness(
 def instance_completeness(s: Spec, rows: list[dict], tname: str) -> dict[str, str]:
     """The same three grades per instance, from its own gap references."""
     props = s.types[tname].get("props") or {}
-    idp = s.types[tname]["id"]
     gap_refs = [p for p, d in props.items() if d.get("type") == "ref" and d.get("to") == "hook"]
     money = [p for p, d in props.items() if d.get("type") in ("money", "number")]
 
@@ -121,9 +120,9 @@ def instance_completeness(s: Spec, rows: list[dict], tname: str) -> dict[str, st
     for r in rows:
         cited = [r.get(g) for g in gap_refs if r.get(g)]
         if not cited:
-            out[r.get(idp)] = FULL
+            out[s.identify(tname, r)] = FULL
         elif any(r.get(m) is None for m in money):
-            out[r.get(idp)] = MISSING
+            out[s.identify(tname, r)] = MISSING
         else:
-            out[r.get(idp)] = PARTIAL
+            out[s.identify(tname, r)] = PARTIAL
     return out
