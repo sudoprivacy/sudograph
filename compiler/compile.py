@@ -18,6 +18,7 @@ from dataclasses import dataclass, field, replace
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
+from . import bind as bind_mod
 from . import expr
 from . import lineage as lin_mod
 from .spec import NODE_KINDS, Spec
@@ -165,7 +166,11 @@ def _corroborate(s: Spec, c: Compiled) -> Spec:
                 else:
                     detail = ""
                 c.checks.append(
-                    Check(f"corroboration/{tname}/{s.identify(tname, row)}/{prop}", not detail, detail)
+                    Check(
+                        f"corroboration/{tname}/{s.identify(tname, row)}/{prop}",
+                        not detail,
+                        detail,
+                    )
                 )
             out_rows.append(new)
         resolved[tname] = out_rows
@@ -185,8 +190,6 @@ def _absent_in_source(s: Spec, tname: str, col: str) -> tuple[int, list]:
     when the rows are not here. That it is the same statement is the point: one
     rule, one shape of answer, two ways of arriving at it.
     """
-    from . import bind as bind_mod
-
     b = s.backing_of(tname)
     raw = s.raw[b["from"]]
     column = s.column_of(tname, col)
@@ -339,8 +342,6 @@ def compile_spec(
     unknown = sorted(set(at) - set(s.dimensions))
     if unknown:
         raise ValueError(f"not declared dimensions: {unknown}; the spec declares {s.dimensions}")
-
-    from . import bind as bind_mod
 
     c = Compiled(ontology=s.name, at=at, basis=basis)
     if at:

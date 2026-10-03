@@ -53,16 +53,16 @@ def main() -> int:
 
         try:
             s = spec_mod.load(path)
-        except bind_mod.BindingError as e:
+        except bind_mod.SourceUnavailable as e:
             # An example that reads a real database cannot run where that
             # database is not. Said out loud and counted separately: a skip
             # that reads as a pass is how a suite stops meaning anything.
             skipped.append(f"{name}: {e}")
             continue
+        except bind_mod.BindingError as e:
+            failures.append(f"{name}: {e}")
+            continue
         except spec_mod.SpecError as e:
-            if "no database at" in str(e):
-                skipped.append(f"{name}: the source database is not on this machine")
-                continue
             failures.append(f"{name}: {e}")
             continue
 

@@ -244,7 +244,7 @@ nodes:
 ```bash
 python -m compiler.cli examples/weiwai-real.yaml --basis 重述
 python -m compiler.cli examples/weiwai-real.yaml --diff 账面:重述
-python -m compiler.cli examples/weiwai-real.yaml --diff 账面:重述 --period 26H1
+python -m compiler.cli examples/weiwai-real.yaml --diff 账面:重述 --at 期间=26H1
 ```
 
 The entries are **computed from the difference**, never transcribed. Change
@@ -390,13 +390,31 @@ wherever an agent runs.
 ```bash
 python -m compiler.cli examples/weiwai-capitalisation.yaml        # values + checks
 python -m compiler.cli examples/weiwai-capitalisation.yaml --view # view model JSON
+python -m compiler.cli examples/northwind.yaml                    # a spec over a live database
+python -m compiler.cli examples/northwind.yaml --measure          # ask it questions it generates itself
 python -m pytest                                                  # tests
-python -m tools.check_examples                                    # what CI runs
+python -m tools.verify                                            # everything CI runs
 ```
+
+`tools.verify` holds the list of gates, and CI runs that same module rather than
+listing them again. Two lists of the same steps drift, and they drift by the
+local one getting shorter: this build was red for five commits on a lint gate
+while every local run — the test suite alone — came back green.
+
+One of those gates runs every `python -m` line on this page. That is the only
+reason to trust it: the front page is what a model reads before writing its
+first spec, so a command here that no longer works is the tool being broken for
+its main reader, in the one place no import-level test looks.
 
 Exit codes are a branching protocol, so a calling agent can tell the cases apart
 without parsing prose: `0` green · `2` the spec (or the invocation) is wrong ·
-`3` the spec is valid but a check failed · `1` a bug in the tool.
+`3` the spec is valid but a check failed · `4` the spec is fine and the data it
+reads is not reachable from here · `1` a bug in the tool.
+
+`4` is apart from `2` because it is the one failure that is nobody's mistake: a
+spec bound to a customer's warehouse is correct on a laptop that cannot see the
+warehouse. Folded into "your spec is wrong" it sends the reader to edit a file
+that is right.
 
 ## References
 

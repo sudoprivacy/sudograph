@@ -14,12 +14,12 @@ customer's own vocabulary, because translating business terms loses them.
 from __future__ import annotations
 
 import os
-
 from dataclasses import dataclass, field
 from typing import Any
 
 import yaml
 
+from . import bind as bind_mod
 from . import expr
 
 OWNERS = ("source", "ontology")
@@ -270,8 +270,6 @@ def load(path: str) -> Spec:
     # merely stated: a copy cannot be wrong about its source, only out of date,
     # and nothing can tell you which.
     if any(s.backing_of(t) for t in s.types):
-        from . import bind as bind_mod
-
         base = os.path.dirname(os.path.abspath(path))
         broken = bind_mod.verify(s, base)
         if broken:

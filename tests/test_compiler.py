@@ -14,6 +14,7 @@ from __future__ import annotations
 import copy
 import os
 import re
+import sqlite3
 import sys
 
 import pytest
@@ -22,14 +23,15 @@ import yaml
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from compiler import app as app_mod
-from compiler import cli as cli_mod
-from compiler import bind as bind_mod
 from compiler import apply as apply_mod
+from compiler import bind as bind_mod
+from compiler import cli as cli_mod
 from compiler import compile as compile_mod
 from compiler import diff as diff_mod
-from compiler import measure as measure_mod
 from compiler import expr
+from compiler import measure as measure_mod
 from compiler import spec as spec_mod
+from tools import check_examples, check_readme, verify
 
 REAL_FIXTURE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -1766,7 +1768,8 @@ def test_the_deliverable_is_text_all_the_way_through():
     while every test stayed green. Cheap to assert, invisible otherwise.
     """
     for path in (app_mod.TEMPLATE, *app_mod.VENDOR):
-        raw = open(path, "rb").read()
+        with open(path, "rb") as fh:
+            raw = fh.read()
         stray = sorted({b for b in raw if b < 9 or 13 < b < 32})
         assert stray == [], f"{path} carries control bytes {stray}"
 
@@ -1780,8 +1783,6 @@ def test_every_example_still_compiles_the_way_ci_checks_it():
     Same entry point, not a reimplementation — a copy of this check is a third
     statement of the rules and would drift too.
     """
-    import tools.check_examples as check_examples
-
     assert check_examples.main() == 0
 
 
@@ -2104,8 +2105,6 @@ def test_a_link_we_inferred_does_not_look_like_one_the_source_maintains():
 
 def _tiny_db(tmp_path):
     """A source database to bind against, built here so the suite owns it."""
-    import sqlite3
-
     path = tmp_path / "shop.db"
     conn = sqlite3.connect(path)
     conn.execute(
@@ -2247,8 +2246,6 @@ def test_a_column_can_account_for_its_own_absences(tmp_path):
 
 
 def _fat_db(tmp_path, extra):
-    import sqlite3
-
     db = _tiny_db(tmp_path)
     conn = sqlite3.connect(db)
     conn.executemany(
@@ -2294,7 +2291,7 @@ def test_a_literal_reaches_the_database_as_a_value_never_as_syntax(tmp_path):
     """The spec is written by an agent. The one thing that must not be possible
     is for what it writes to arrive as something other than a value."""
     _tiny_db(tmp_path)
-    s = spec_mod.load(str(_bound_spec(tmp_path)))
+    spec_mod.load(str(_bound_spec(tmp_path)))
     params: list = []
     sql = bind_mod._sql(
         expr.parse("运费 > 1 and 运费 < 99"), lambda n: "Freight", params
@@ -2333,7 +2330,7 @@ def test_a_backed_type_wears_the_table_it_reads():
     the same as not having it. Two boxes reading the same name is the proof a
     reader can see without being told.
     """
-    s = spec_mod.load(os.path.join(os.path.dirname(REAL_FIXTURE), "northwind.yaml"))         if os.path.exists(os.path.join(os.path.dirname(REAL_FIXTURE), "northwind.yaml"))         and _northwind_reachable() else None
+    s = _northwind_spec()
     if s is None:
         pytest.skip("the Northwind source database is not on this machine")
     v = compile_mod.compile_spec(s).view
@@ -2346,17 +2343,19 @@ def test_a_backed_type_wears_the_table_it_reads():
     assert "<h2>读自</h2>" in html
 
 
-def _northwind_reachable() -> bool:
-    import yaml as _yaml
+def _northwind_spec():
+    """The Northwind spec, or None where its database is not reachable.
 
+    The skip is the point: this example reads a 23 MB database that is not in
+    git, so the one machine that must not pretend otherwise is CI.
+    """
     path = os.path.join(os.path.dirname(REAL_FIXTURE), "northwind.yaml")
-    doc = _yaml.safe_load(open(path, encoding="utf-8"))
-    dsn = doc["raw"]["R-NORTHWIND"]["dsn"]
+    if not os.path.exists(path):
+        return None
     try:
-        bind_mod.connect(dsn, os.path.dirname(path)).close()
-        return True
-    except bind_mod.BindingError:
-        return False
+        return spec_mod.load(path)
+    except bind_mod.SourceUnavailable:
+        return None
 
 
 def test_a_check_is_one_statement_with_its_evidence_attached():
@@ -2527,8 +2526,6 @@ def test_a_successful_compile_points_at_what_to_do_next(tmp_path, capsys):
 
 def _sliceable(tmp_path):
     """A backed type partitioned by a dimension, with rows on both sides."""
-    import sqlite3
-
     db = tmp_path / "s.db"
     conn = sqlite3.connect(db)
     conn.execute("create table T (id integer primary key, mkt text, amt numeric)")
@@ -2602,8 +2599,6 @@ def test_an_id_that_names_more_than_one_row_is_refused(tmp_path):
     one place it mattered most — a fact table, whose key is nearly always two
     columns — was the one place nothing looked.
     """
-    import sqlite3
-
     db = tmp_path / "s.db"
     conn = sqlite3.connect(db)
     conn.execute("create table L (ord integer, prod integer, qty integer)")
@@ -2637,3 +2632,133 @@ def test_an_id_that_names_more_than_one_row_is_refused(tmp_path):
     drawn = [n["id"] for n in v["nodes"] if n["kind"] == "instance"]
     assert len(drawn) == len(set(drawn)) == 4
     assert "明细/1·10" in drawn
+
+
+def test_the_readme_check_fails_on_a_command_that_no_longer_works(tmp_path):
+    """The README is the only thing a model reads before writing its first spec,
+    so a dead command on it is the tool being broken for its main reader — in the
+    one place no import-level test looks. It drifted exactly that way: `--period`
+    had become `--at` and nothing anywhere went red.
+
+    A checker nobody has watched fail might only ever print "ok", which is the
+    failure mode that looks most like success. So this watches it fail, watches
+    it pass, and watches it refuse a page it found nothing on.
+    """
+    def run(line):
+        page = tmp_path / "R.md"
+        page.write_text("```bash\n" + line + "\n```\n", encoding="utf-8")
+        return check_readme.main([str(page)])
+
+    # A spec with no source database, so this says the same thing on a laptop
+    # and on a runner that has none.
+    ok = "python -m compiler.cli examples/weiwai-capitalisation.yaml"
+    assert run(ok) == 0
+    assert run(ok + " --period 26H1") == 1
+    # The page may show a failing command on purpose, but has to say so.
+    assert run("python -m compiler.cli nope.yaml  # fails: no such spec") == 0
+    assert run(ok + "  # fails: nope") == 1
+
+    # A page it extracted nothing from is a broken extraction, not a clean run.
+    blank = tmp_path / "B.md"
+    blank.write_text("nothing to run here\n", encoding="utf-8")
+    assert check_readme.main([str(blank)]) == 1
+
+
+def test_the_readme_check_skips_what_it_cannot_reach_and_says_so(tmp_path, capsys):
+    """A command over a database this machine does not have is not a broken
+    command. It is skipped, counted apart and named — never folded into the pass
+    count, because a skip that reads as a pass is how a suite stops meaning
+    anything, and CI is exactly the machine with no 23 MB download.
+    """
+    doc = {
+        "ontology": "away",
+        "raw": {"R": {"label": "src", "dsn": "sqlite:///nowhere.db"}},
+        "types": {
+            "T": {
+                "label": "T",
+                "backing": {"from": "R", "table": "X", "key": ["a"]},
+                "props": {"甲": {"type": "string", "owner": "source", "column": "a"}},
+            }
+        },
+        "hooks": {},
+    }
+    spec = tmp_path / "away.yaml"
+    spec.write_text(yaml.safe_dump(doc, allow_unicode=True), encoding="utf-8")
+    page = tmp_path / "R.md"
+    # Forward slashes, because the README is copied into a shell: a Windows
+    # absolute path loses its backslashes to shlex, and the command the check
+    # ran would stop being the command the page shows.
+    cmd = "python -m compiler.cli " + spec.as_posix()
+    page.write_text("```bash\n" + cmd + "\n```\n", encoding="utf-8")
+
+    assert check_readme.main([str(page)]) == 0
+    out = capsys.readouterr().out
+    assert "SKIP" in out
+    assert "0 command(s) run, 1 skipped" in out
+
+
+def test_ci_runs_the_same_gates_a_developer_runs():
+    """The build was red on main for five commits — a lint gate, failing from the
+    first commit that introduced it — and every one of those commits was pushed
+    after a local run that reported everything green. The local run was the test
+    suite. The gate was not in it.
+
+    A verification scope narrower than CI's is not a weaker check, it is a
+    misleading one: it exits zero and says nothing about whether the build is
+    green. So the gates are listed once, in tools/verify.py, and the workflow
+    runs that module. This is what keeps the workflow from growing its own copy
+    of the list, because the copy that drifts is always the shorter one.
+    """
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        ".github", "workflows", "ci.yml")
+    with open(path, encoding="utf-8") as fh:
+        ci = fh.read()
+
+    runs = re.findall(r"^\s*- run: (.+)$", ci, re.M)
+    gates = [r for r in runs if not r.startswith("pip install")]
+    assert gates == ["python -m tools.verify"], (
+        f"ci.yml runs its own list of gates: {gates}. Add it to tools.verify "
+        f"instead, so a local run covers it too"
+    )
+
+    # And the module has to actually hold them, or the single entry point is an
+    # empty one — the same green-for-nothing this exists to prevent.
+    named = " ".join(" ".join(argv) for argv, _ in verify.STEPS)
+    for gate in ("ruff", "pytest", "tools.check_examples", "tools.check_readme"):
+        assert gate in named, f"tools.verify no longer runs {gate}"
+
+
+def test_an_absent_source_is_not_an_invalid_spec(tmp_path, capsys):
+    """The one binding failure that is nobody's mistake gets its own type and its
+    own exit code. A spec bound to a customer's warehouse is correct on a laptop
+    that cannot see the warehouse; told "your spec is invalid", the reader goes
+    and edits a file that is right.
+
+    A type and not a phrase, because two separate tools have to agree about this
+    condition. They used to agree by matching the substring "no database at",
+    which made the wording load-bearing: reword the message and both of their
+    skips silently become failures.
+    """
+    doc = {
+        "ontology": "gone",
+        "raw": {"R": {"label": "src", "dsn": "sqlite:///nowhere.db"}},
+        "types": {
+            "T": {
+                "label": "T",
+                "backing": {"from": "R", "table": "X", "key": ["a"]},
+                "props": {"甲": {"type": "string", "owner": "source", "column": "a"}},
+            }
+        },
+        "hooks": {},
+    }
+    path = tmp_path / "s.yaml"
+    path.write_text(yaml.safe_dump(doc, allow_unicode=True), encoding="utf-8")
+
+    with pytest.raises(bind_mod.SourceUnavailable):
+        spec_mod.load(str(path))
+    # Still a BindingError, so a caller that does not care about the distinction
+    # keeps working.
+    assert issubclass(bind_mod.SourceUnavailable, bind_mod.BindingError)
+
+    assert cli_mod.main([str(path)]) == 4
+    assert "the spec is fine" in capsys.readouterr().err

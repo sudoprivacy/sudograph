@@ -12,4 +12,12 @@ ignore = [
   "PLR2004",  # magic values: the fixtures assert real ledger figures on purpose
   "PLR0911",  # return count: cli main() IS the exit-code protocol, one per case
   "PLR0913",  # argument count: the compile/apply APIs are keyword-only and explicit
+  # Ambiguous-unicode: the business vocabulary this compiles IS Chinese, so
+  # every CJK comma in a label, a message or an assertion is flagged. Fixing
+  # them would mean writing the customer's words wrong; leaving them unflagged
+  # costs nothing, because the confusable pairs it warns about are between
+  # scripts a spec never mixes inside one identifier.
+  "RUF001",   # in a string
+  "RUF002",   # in a docstring
+  "RUF003",   # in a comment
 ]

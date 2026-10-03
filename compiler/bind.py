@@ -22,9 +22,18 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from typing import Any
+from dataclasses import replace
+from typing import TYPE_CHECKING, Any
 
-from .spec import Spec
+from . import expr
+
+if TYPE_CHECKING:
+    # Only ever an annotation here, and `spec` imports this module to bind at
+    # load time. Importing it for real would make that a cycle and force every
+    # function in this file to import lazily — which is how the lazy imports got
+    # here in the first place. Kept behind TYPE_CHECKING so the dependency runs
+    # one way: spec reaches for bind, bind never reaches back.
+    from .spec import Spec
 
 #: Rows loaded into memory for one type before this refuses. Aggregates are
 #: evaluated in Python today, so a table of half a million rows would not be
@@ -36,6 +45,22 @@ MAX_ROWS = 50_000
 
 class BindingError(Exception):
     """The spec says something about the source that the source does not say."""
+
+
+class SourceUnavailable(BindingError):
+    """The spec is fine; the data it reads is not reachable from this machine.
+
+    Kept apart from every other binding failure because it is the one that is
+    nobody's mistake. A spec bound to a customer's warehouse is correct on a
+    laptop that cannot see the warehouse, and a CI runner that has no copy of a
+    23 MB database is not evidence of a bug. Callers that need to skip rather
+    than fail — CI, the README check — branch on this type.
+
+    It is a type and not a phrase for a plain reason: both of those callers used
+    to match the substring "no database at", so the message could not be
+    reworded without silently turning their skips into failures. A condition two
+    tools have to agree about is an object, not prose.
+    """
 
 
 def _path_of(dsn: str, base: str) -> str:
@@ -55,7 +80,7 @@ def connect(dsn: str, base: str = ".") -> sqlite3.Connection:
     """Open the source read-only, so a mistake cannot become a write."""
     path = _path_of(dsn, base)
     if not os.path.exists(path):
-        raise BindingError(f"no database at {path}")
+        raise SourceUnavailable(f"no database at {path}")
     uri = "file:" + path.replace("\\", "/") + "?mode=ro"
     conn = sqlite3.connect(uri, uri=True)
     conn.row_factory = sqlite3.Row
@@ -106,6 +131,11 @@ def verify(s: Spec, base: str = ".") -> list[str]:
             try:
                 if dsn not in conns:
                     conns[dsn] = connect(dsn, base)
+            except SourceUnavailable:
+                # Not a broken claim, so not collected as one: the spec may be
+                # entirely right and simply be somewhere the data is not. Let it
+                # out, so the caller decides between skipping and stopping.
+                raise
             except BindingError as e:
                 out.append(f"type {tname}: {e}")
                 continue
@@ -176,7 +206,7 @@ def load(s: Spec, tname: str, base: str = ".") -> list[dict]:
     if not b:
         return list(s.instances.get(tname) or [])
     raw = s.raw[b["from"]]
-    props = list((s.types[tname].get("props") or {}))
+    props = list(s.types[tname].get("props") or {})
     cols = {pn: s.column_of(tname, pn) for pn in props}
     select = ", ".join(f'"{c}" as "{p}"' for p, c in cols.items())
     where = f" where {b['where']}" if b.get("where") else ""
@@ -194,7 +224,6 @@ def bind_all(s: Spec, base: str = ".") -> Spec:
     things that genuinely need rows — showing them, computing per row — have to
     say they cannot.
     """
-    from dataclasses import replace
 
     rows: dict[str, list[dict]] = {}
     unloaded: dict[str, int] = {}
@@ -222,7 +251,6 @@ def answerer(s: Spec, at: dict | None = None):
     filter happened to be translatable, so two numbers on one graph disagree
     for no reason a reader can see.
     """
-    from . import expr
 
     if not any(s.backing_of(t) for t in s.types):
         return None
@@ -266,7 +294,6 @@ def _sql(node: Any, col: Any, params: list) -> str:
     the one thing that must not be possible is for what it writes to be executed
     as something other than a value.
     """
-    from . import expr
 
     if isinstance(node, expr.Lit):
         params.append(node.value)

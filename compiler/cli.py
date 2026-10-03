@@ -7,7 +7,14 @@ without parsing prose.
   0  spec loaded and every check passed
   2  the spec is invalid (fix the spec)
   3  the spec is valid but a check failed (fix the ontology or the materials)
+  4  the spec is fine but the data it reads is not reachable from here
+     (bring the source, or run where it is — nothing is wrong with the spec)
   1  anything else (a bug here)
+
+4 is separate from 2 because it is the one failure that is nobody's mistake: a
+spec bound to a customer's warehouse is correct on a laptop that cannot see the
+warehouse. Folded into 2 it reads as "your spec is broken", which sends the
+reader to edit a file that is right.
 """
 
 from __future__ import annotations
@@ -17,6 +24,7 @@ import json
 import sys
 
 from . import app as app_mod
+from . import bind as bind_mod
 from . import compile as compile_mod
 from . import diff as diff_mod
 from . import measure as measure_mod
@@ -129,6 +137,9 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         s = spec_mod.load(args.spec)
+    except bind_mod.SourceUnavailable as e:
+        print(f"{e} — the spec is fine, the data is not here", file=sys.stderr)
+        return 4
     except spec_mod.SpecError as e:
         print(str(e), file=sys.stderr)
         return 2
