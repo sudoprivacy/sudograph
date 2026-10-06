@@ -1,5 +1,22 @@
 // Canvas handles the graph; bounded DOM labels preserve selectable text and comments.
 let cy = null;
+const canvasLayouts = new Map();
+let canvasLayoutKey = null, resetCanvasLayout = false, labelFrame = null;
+function clearCanvasLayout() { resetCanvasLayout=true; }
+function updateCanvasSelection() {
+  if(!cy)return;
+  const selected=cy.getElementById(state.selected || '');
+  $('focusBtn').disabled=!selected.length;
+  cy.elements().removeClass('quiet active');
+  if(selected.length) {
+    cy.elements().addClass('quiet');
+    selected.closedNeighborhood().union(selected.descendants()).union(selected.ancestors())
+      .removeClass('quiet').addClass('active');
+  }
+  cy.edges().toggleClass('named',state.edgeLabels);
+  for(const label of $('cy').querySelectorAll('.canvas-label'))
+    label.style.opacity=cy.getElementById(label.dataset.nodeId).hasClass('quiet')?'.25':'1';
+}
 function canvasRect(id) {
   const n = cy?.getElementById(id);
   if (!n?.length) return null;
@@ -7,7 +24,15 @@ function canvasRect(id) {
   return {x: host.x + r.x1, y: host.y + r.y1, width:r.w, height:r.h};
 }
 async function drawCanvas(v, shown, edges, mine) {
+  if(cy && canvasLayoutKey && !resetCanvasLayout)canvasLayouts.set(canvasLayoutKey,{
+    positions:Object.fromEntries(cy.nodes().map(n=>[n.id(),{...n.position()}])),
+    zoom:cy.zoom(),pan:{...cy.pan()}});
+  const key=JSON.stringify([state.basis,coordKey(),state.projection,state.direction,
+    state.sources,state.focus,[...shown.keys()].sort()]);
+  if(resetCanvasLayout){canvasLayouts.delete(key);resetCanvasLayout=false;}
+  const saved=canvasLayouts.get(key);
   const nodes = [...shown.values()];
+  const direction=state.direction==='auto'?(state.projection==='data'?'RIGHT':'DOWN'):state.direction;
   const box = n => ({id:n.id, width:measure(linesOf(n,false)).w,
     height:measure(linesOf(n,false)).h + 12,
     layoutOptions:{'elk.layered.layering.layerConstraint':(KINDS[n.kind]||{}).layer || 'NONE'}});
@@ -16,18 +41,21 @@ async function drawCanvas(v, shown, edges, mine) {
     if(members.length) {
       result.children=members.map(box);
       result.layoutOptions={...result.layoutOptions,'elk.algorithm':'layered',
-        'elk.direction':'DOWN','elk.padding':'[top=60,left=40,bottom=40,right=40]',
+        'elk.direction':direction,'elk.padding':'[top=60,left=40,bottom=40,right=40]',
         'elk.spacing.nodeNode':'25','elk.layered.spacing.nodeNodeBetweenLayers':'40'};
     }
     return result;
   });
   const laid = await elk.layout({id:'root', layoutOptions:{'elk.algorithm':'layered',
-    'elk.direction':'DOWN', 'elk.spacing.nodeNode':'35',
-    'elk.hierarchyHandling':'INCLUDE_CHILDREN','elk.layered.spacing.nodeNodeBetweenLayers':'85'},
+    'elk.direction':direction, 'elk.spacing.nodeNode':'55','elk.spacing.componentComponent':'75',
+    'elk.layered.thoroughness':'20',
+    'elk.hierarchyHandling':'INCLUDE_CHILDREN','elk.layered.spacing.nodeNodeBetweenLayers':'115'},
     children,
     edges:edges.map((e,i)=>({id:'e'+i,sources:[e.from],targets:[e.to]}))});
   if (mine !== drawSeq) return;
+  if(labelFrame!==null){cancelAnimationFrame(labelFrame);labelFrame=null;}
   cy?.destroy();
+  canvasLayoutKey=key;
   $('cy').replaceChildren();
   const host = document.createElement('div');
   host.style.cssText = 'position:absolute;inset:0'; $('cy').appendChild(host);
@@ -39,21 +67,24 @@ async function drawCanvas(v, shown, edges, mine) {
     elements:[...nodes.map(n=> {const p=positions.get(n.id);return {data:{id:n.id,
       label:linesOf(n,false).map(l=>l.parts.join('')).join('\n'), color:fillOf(n),
       w:p.width,h:p.height,...(n.kind==='instance'?{parent:n.type}:{})},
-      position:{x:p.x+p.width/2,y:p.y+p.height/2}};}),
+      position:saved?.positions[n.id] || {x:p.x+p.width/2,y:p.y+p.height/2}};}),
       ...edges.map((e,i)=>({data:{id:'edge-'+i,source:e.from,target:e.to,
-        label:e.via || '',meta:e,loop:e.from===e.to,color:css(edgeStyle(e.rel).colour),
+        label:e.via || '',meta:e,loop:e.from===e.to,color:css(inferred(e)?EDGES.guessed.colour:edgeStyle(e.rel).colour),
         dash:inferred(e)?'dotted':edgeStyle(e.rel).dash?'dashed':'solid'}}))],
     style:[{selector:'node',style:{shape:'roundrectangle','background-color':'data(color)',
       width:'data(w)',height:'data(h)','border-width':1,'border-color':'#778399',
       label:nodes.length>500?'data(label)':'','text-wrap':'wrap',color:'#dfe4ec',
       'font-size':11,'text-valign':'center'}},
       {selector:':parent',style:{padding:40,'background-opacity':.2,'border-style':'dashed'}},
-      {selector:'edge[?loop]',style:{'control-point-step-size':140,
-        'loop-direction':'-45deg','loop-sweep':'90deg'}},
       {selector:'edge',style:{width:1.7,'line-color':'data(color)','line-style':'data(dash)',
        'target-arrow-color':'data(color)','target-arrow-shape':'triangle',
-       'curve-style':'bezier',label:'data(label)','font-size':10,color:'#b6c3d8',
+       'curve-style':'bezier',label:'','font-size':11,color:'#b6c3d8',
        'text-background-color':'#11141a','text-background-opacity':.9,'text-background-padding':3}},
+      {selector:'edge[?loop]',style:{'control-point-step-size':140,
+        'loop-direction':'-45deg','loop-sweep':'90deg'}},
+      {selector:'.quiet',style:{opacity:.18}},
+      {selector:'edge.active,edge:selected,edge.named',style:{label:'data(label)'}},
+      {selector:'edge.active,edge:selected',style:{width:2.5,'line-color':'#a4b9d5','target-arrow-color':'#a4b9d5'}},
       {selector:':selected',style:{'border-width':3,'border-color':'#fff'}}],
     layout:{name:'preset'},boxSelectionEnabled:false});
   if(state.bridgeMode) {
@@ -81,23 +112,32 @@ async function drawCanvas(v, shown, edges, mine) {
       const z=cy.zoom();
       label.style.left=p.x+'px';
       label.style.top=(n.isParent()?n.renderedBoundingBox().y1+5*z:p.y)+'px';
-      label.style.width=n.width()+'px';
+      label.style.width=Math.max(20,n.width()-20)+'px';
       label.style.transform=`translate(-50%,${n.isParent()?'0':'-50%'}) scale(${z})`;
-      label.style.transformOrigin='50% 0';
+      label.style.transformOrigin=n.isParent()?'50% 0':'50% 50%';
     }
     anchors.report();
   }
-  cy.on('pan zoom resize',labels);
+  const scheduleLabels=()=>{
+    if(labelFrame===null)labelFrame=requestAnimationFrame(()=>{labelFrame=null;labels();});
+  };
+  cy.on('pan zoom resize position bounds',scheduleLabels);
   cy.on('tap','node',e=>select(shown.get(e.target.id())));
-  cy.on('tap','edge',e=>showRelation(e.target.data('meta')));
-  cy.fit(undefined,40);
-  if(cy.zoom()<.65) {cy.zoom(.65); cy.center();}
+  cy.on('tap','edge',e=>{state.panel='relation';state.relation=e.target.data('meta');showRelation(state.relation);});
+  cy.on('tap',e=>{if(e.target===cy){state.selected=null;updateCanvasSelection();}});
+  if(saved) {cy.zoom(saved.zoom);cy.pan(saved.pan);} else refit();
+  updateCanvasSelection();
   labels();
   const bad=v.checks.filter(c=>!c.ok);
   $('status').textContent=`Cytoscape ${cytoscape.version} · ${shown.size} ${t('节点')} · `+
     `${edges.length} ${t('边')} · ${v.checks.length-bad.length}/${v.checks.length} ${t('检查通过')}`;
   if(state.bridgeMode) showBridge(bridge());
   else if(state.panel==='measure') showMeasurements(v);
+  else if(state.panel==='coverage') showCoverage();
+  else if(state.panel==='challenge') showChallenge();
+  else if(state.panel==='records') showRecords(...state.recordArgs);
+  else if(state.panel==='node' && shown.has(state.selected))showNode(shown.get(state.selected));
+  else if(state.panel==='relation' && state.relation)showRelation(state.relation);
   else showChecks(v);
 }
 

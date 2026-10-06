@@ -19,7 +19,7 @@
   body{margin:0;background:var(--bg);color:var(--ink);
        font:13px/1.55 -apple-system,"Segoe UI",system-ui,sans-serif;
        display:flex;flex-direction:column;height:100vh;overflow:hidden}
-  header{display:flex;flex-wrap:wrap;gap:14px;align-items:center;
+  header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;
          padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
   header h1{font-size:14px;margin:0 8px 0 0;font-weight:600;letter-spacing:.2px}
   label{font-size:11px;color:var(--dim);display:flex;gap:6px;align-items:center}
@@ -53,9 +53,8 @@
   ul{margin:5px 0;padding-left:17px}
   li{margin:2px 0}
   .fail{color:var(--bad)}
-  /* The graph is SVG rather than canvas so that every label is real, selectable
-     text. A canvas is one opaque element: nothing to select, nothing to point
-     at, and therefore nothing an anchored comment can attach to. */
+  /* Canvas nodes have selectable DOM labels and application identity anchors.
+     These SVG rules also support the fallback renderer. */
   #cy{cursor:grab;user-select:text;touch-action:none}
   #cy text{fill:#dfe4ec;font-size:11px;pointer-events:auto;cursor:text}
   #cy text.num{font-variant-numeric:tabular-nums;fill:#eef3fb;font-weight:600}
@@ -98,6 +97,11 @@
   #legend em{color:var(--dim);font-style:normal;margin-left:5px}
   #legend u.dash{border-top-style:dashed}
   #legend u.dot{border-top-style:dotted;border-top-width:2px}
+  .graph-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    padding:8px 16px;border-bottom:1px solid var(--line)}
+  .graph-tools .hint{margin-left:auto;font-size:11px;color:var(--dim)}
+  #language{margin-left:auto}
+  button:disabled{opacity:.4;cursor:default}
   @media (max-width:800px){ main{flex-direction:column} aside{width:auto;height:44%;
     border-left:none;border-top:1px solid var(--line)} }
 </style>
@@ -109,8 +113,6 @@
   <span id="dims" style="display:flex;gap:14px;flex-wrap:wrap"></span>
   <label><span data-ui="桥">桥</span> <select id="bridge"></select></label>
   <button id="bridgeBtn" data-ui="桥视图">桥视图</button>
-  <button id="instBtn" data-ui="全部展开">全部展开</button>
-  <button id="fit" data-ui="复位">复位</button>
   <label><span data-ui="查看">查看</span> <select id="projection">
     <option value="data" data-ui="数据关系">数据关系</option>
     <option value="all" data-ui="指标与规则">指标与规则</option>
@@ -119,8 +121,24 @@
   <button id="measureBtn" data-ui="评测题">评测题</button>
   <button id="coverageBtn" data-ui="源库覆盖">源库覆盖</button>
   <button id="challengeBtn" data-ui="盲测题">盲测题</button>
+  <select id="language" aria-label="Language"><option value="zh">中文</option><option value="en">English</option></select>
   <span id="legend"></span>
 </header>
+<div class="graph-tools">
+  <button id="fit" data-ui="适应画布">适应画布</button>
+  <button id="relayout" data-ui="重新排布">重新排布</button>
+  <label><span data-ui="排布">排布</span><select id="direction">
+    <option value="auto" data-ui="自动">自动</option>
+    <option value="RIGHT" data-ui="从左到右">从左到右</option>
+    <option value="DOWN" data-ui="从上到下">从上到下</option>
+  </select></label>
+  <button id="focusBtn" data-ui="只看相邻关系" disabled>只看相邻关系</button>
+  <button id="overviewBtn" data-ui="返回全图" hidden>返回全图</button>
+  <button id="instBtn" data-ui="全部展开">全部展开</button>
+  <label><input id="sources" type="checkbox"><span data-ui="显示取数来源">显示取数来源</span></label>
+  <label><input id="edgeLabels" type="checkbox"><span data-ui="全部关系名称">全部关系名称</span></label>
+  <span class="hint" data-ui="拖动节点边缘调整位置；选中文字可评论。">拖动节点边缘调整位置；选中文字可评论。</span>
+</div>
 <main>
   <div id="cy"></div>
   <aside id="panel"><p class="muted" data-ui="点一个节点看它的来历。">点一个节点看它的来历。</p></aside>
@@ -129,7 +147,7 @@
 
 <script>
 const BUNDLE = __BUNDLE__;
-const uiLanguage = BUNDLE.ui.language === 'auto' ? (navigator.language.startsWith('zh')?'zh':'en') : BUNDLE.ui.language;
+let uiLanguage = BUNDLE.ui.language === 'auto' ? (navigator.language.startsWith('zh')?'zh':'en') : BUNDLE.ui.language;
 const t = (key, vars = {}) => {
   const text = BUNDLE.ui.catalogs[uiLanguage][key];
   if (text == null) throw new Error(`Missing UI message: ${key}`);
@@ -137,6 +155,7 @@ const t = (key, vars = {}) => {
 };
 document.documentElement.lang = uiLanguage;
 document.querySelectorAll('[data-ui]').forEach(el => el.textContent = t(el.dataset.ui));
+document.getElementById('language').value = uiLanguage;
 const esc = value => String(value ?? '').replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -149,7 +168,8 @@ const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '�
    away from a static diagram in the first place. Visibility is a view decision,
    so it belongs here; the figures still come only from the compiler. */
 const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
-                expanded: new Set(), panel: 'checks',
+                expanded: new Set(), panel: 'checks', selected:null, focus:null,
+                sources:false, edgeLabels:false, direction:'auto',
                 projection: Object.values(BUNDLE.views)[0].groups.some(g => g.backing) ? 'data' : 'all' };
 $('projection').value = state.projection;
 $('projection').onchange = e => { state.projection = e.target.value; draw(); };
@@ -158,6 +178,20 @@ $('coverageBtn').onclick = showCoverage;
 $('challengeBtn').hidden = !BUNDLE.challenge?.questions?.length;
 $('challengeBtn').onclick = showChallenge;
 $('measureBtn').onclick = () => { state.panel = 'measure'; showMeasurements(view()); };
+$('sources').onchange = e => { state.sources=e.target.checked; draw(); };
+$('edgeLabels').onchange = e => { state.edgeLabels=e.target.checked; updateCanvasSelection(); };
+$('direction').onchange = e => { state.direction=e.target.value; draw(); };
+$('relayout').onclick = () => { clearCanvasLayout(); draw(); };
+$('focusBtn').onclick = () => { state.focus=state.selected; draw(); };
+$('overviewBtn').onclick = () => { state.focus=null; draw(); };
+$('language').onchange = async e => {
+  uiLanguage=e.target.value;
+  document.documentElement.lang=uiLanguage;
+  document.querySelectorAll('[data-ui]').forEach(el=>el.textContent=t(el.dataset.ui));
+  document.querySelectorAll('#dims option[value=""]').forEach(el=>el.textContent=t('全部'));
+  renderLegend();
+  await draw();
+};
 
 /* ── controls ──────────────────────────────────────────────────────── */
 $('title').textContent = BUNDLE.ontology;
@@ -227,17 +261,17 @@ function defaultBridgeName() {
    the infra; nothing downstream writes them, which is exactly why they cannot
    borrow a word from whatever the first ontology happened to be about. */
 const KINDS = {
-  raw:      { var:'--raw',   name:t('取数点'),   does:t('数从哪儿来'),   layer:'FIRST' },
-  hook:     { var:'--hook',  name:t('缺口'),     does:t('还差什么')                    },
-  derived:  { var:'--derived', name:t('算出来的值')                                 },
-  type:     { var:'--type',  name:t('对象类型'), does:t('点开看每一行')                },
+  raw:      { var:'--raw',   get name(){return t('取数点')}, get does(){return t('数从哪儿来')}, layer:'FIRST' },
+  hook:     { var:'--hook',  get name(){return t('缺口')}, get does(){return t('还差什么')} },
+  derived:  { var:'--derived', get name(){return t('算出来的值')} },
+  type:     { var:'--type',  get name(){return t('对象类型')}, get does(){return t('点开看每一行')} },
   instance: { var:'--inst'                                                       },
 };
-const GRADE = { partial:['#6b5325',t('部分')], missing:['#6e3a2e',t('缺失')] };
+const GRADE = { get partial(){return ['#6b5325',t('部分')]}, get missing(){return ['#6e3a2e',t('缺失')]} };
 const EDGES = {
-  flow:    { dash:'', colour:'--edge', name:t('流向')      },
-  guessed: { dash:'dot', colour:'--carried', name:t('我们推断的关联') },
-  affects: { dash:'dash', colour:'--hook', name:t('使它暂定') },
+  flow:    { dash:'', colour:'--edge', get name(){return t('流向')} },
+  guessed: { dash:'dot', colour:'--carried', get name(){return t('我们推断的关联')} },
+  affects: { dash:'dash', colour:'--hook', get name(){return t('使它暂定')} },
 };
 const edgeStyle = rel =>
   EDGES[(rel === 'affects' || rel === 'cites') ? 'affects' : 'flow'];
@@ -271,7 +305,7 @@ const fillOf = n => {
   return `rgb(${ch(0)},${ch(1)},${ch(2)})`;
 };
 
-$('legend').innerHTML =
+function renderLegend() { $('legend').innerHTML =
   `<span><i style="background:${
     (() => { const a = hex(css('--derived')), b = hex(css('--hook'));
       const ch = i => Math.round(a[i] + (b[i] - a[i]) * PROVISIONAL_MIX);
@@ -286,19 +320,10 @@ $('legend').innerHTML =
   `<span>${t('边框')}：` + Object.values(GRADE)
     .map(([c, label]) => `<i style="background:transparent;border-color:${c}"></i>${label}`)
     .join('') + `</span>`;
+}
+renderLegend();
 
-/* Rendered as SVG, not canvas, and the reason is commenting rather than taste.
-   A canvas is one opaque element: no text to select and no element to point at,
-   so an anchored comment has nothing to attach to and a drag-select can only
-   grab the whole picture. Every node here is a real <g> carrying real <text>
-   and a data-node-id — selectable today, and addressable later if anchors ever
-   key on identity instead of quoted text.
-
-   Layout is still ELK. That was never cytoscape's contribution: cytoscape-elk
-   is an 11 KB adapter that calls elkjs, so dropping cytoscape keeps the layout
-   and loses 365 KB. Canvas would win on thousands of nodes; this graph is a few
-   hundred SVG elements, two orders short of where that matters, and the
-   instance rows that could grow are folded by the compiler anyway. */
+/* ELK places nodes; Cytoscape handles graph interaction. SVG is a fallback. */
 const SVGNS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs = {}) => {
   const e = document.createElementNS(SVGNS, tag);
@@ -381,6 +406,8 @@ async function draw() {
   const mine = ++drawSeq;
   const v = view();
   if (!v) { $('status').textContent = 'no view for this combination'; return; }
+  $('sources').checked=state.sources || state.projection!=='data';
+  $('sources').disabled=state.projection!=='data';
 
   const d = state.bridgeMode ? bridge() : null;
   const entries = new Set((d?.entries || []).map(e => e.node));
@@ -388,6 +415,7 @@ async function draw() {
 
   const shown = new Map();
   for (const n of v.nodes) {
+    if(state.projection==='data' && n.kind==='raw' && !state.sources)continue;
     if (state.projection === 'data' && !['raw', 'type', 'instance'].includes(n.kind)) continue;
     if(state.projection==='data' && n.kind==='type' && !n.backing)continue;
     if(state.projection==='data' && n.kind==='instance' && !v.groups.find(g=>g.type===n.type)?.backing)continue;
@@ -414,19 +442,33 @@ async function draw() {
     const n = byId.get(id);
     return n && n.kind === 'instance' && !state.expanded.has(n.type) ? n.type : id;
   };
-  const edges = [];
+  let edges = [];
   const seenEdge = new Set();
+  const summaries=new Set(v.edges.filter(e=>e.rel==='links')
+    .map(e=>JSON.stringify([e.from,e.to,e.via])));
   for (const e of v.edges) {
     if (e.rel === 'member') continue;
     const from = at(e.from), to = at(e.to);
-    // A row pointing at a row of its own type collapses to the box pointing at
-    // itself, which is not a relation anyone can read.
     if (!shown.has(from) || !shown.has(to)) continue;
+    // Collapsed records must not duplicate an existing type-level relationship.
+    // Keep the summary (including self references) and its cardinality evidence.
+    if(e.rel==='link' && (from!==e.from || to!==e.to) &&
+      summaries.has(JSON.stringify([from,to,e.via])))continue;
     const key = JSON.stringify([from, to, e.rel, e.via]);
     if (seenEdge.has(key)) continue;
     seenEdge.add(key);
     edges.push(from === e.from && to === e.to ? e : { ...e, from, to, folded: true });
   }
+
+  if(state.focus && shown.has(state.focus)) {
+    const near=new Set([state.focus]);
+    for(const e of edges)if(e.from===state.focus||e.to===state.focus){near.add(e.from);near.add(e.to);}
+    for(const id of [...near]){const n=shown.get(id);if(n?.type)near.add(n.type);}
+    for(const [id,n] of shown)if(n.kind==='instance'&&near.has(n.type))near.add(id);
+    for(const id of shown.keys())if(!near.has(id))shown.delete(id);
+    edges=edges.filter(e=>shown.has(e.from)&&shown.has(e.to));
+  } else state.focus=null;
+  $('overviewBtn').hidden=!state.focus;
 
   if (typeof cytoscape === 'function') return drawCanvas(v, shown, edges, mine);
 
@@ -698,6 +740,7 @@ const anchors = (() => {
   // this id is a row inside a folded type, or lives under another reading.
     api.on('reveal', ids => {
       let changed = false;
+      if(state.focus){state.focus=null;changed=true;}
       if (state.projection === 'data') {
         state.projection = 'all'; $('projection').value = 'all'; changed = true;
       }
@@ -713,7 +756,7 @@ const anchors = (() => {
 })();
 
 function select(n) {
-  if(cy) {cy.elements().unselect();cy.getElementById(n.id).select();showNode(n);anchors.report();return;}
+  if(cy) {state.selected=n.id;state.panel='node';cy.elements().unselect();cy.getElementById(n.id).select();updateCanvasSelection();showNode(n);anchors.report();return;}
   for (const g of scene.querySelectorAll('g.node')) g.classList.remove('hit');
   const mark = id => scene
     .querySelector('g.node[data-node-id="' + CSS.escape(id) + '"]')?.classList.add('hit');
@@ -1020,11 +1063,9 @@ $('instBtn').onclick = () => {
   state.expanded = new Set(anyClosed ? all : []);
   draw();
 };
-/* Fit, then refuse to shrink past legibility. A graph scaled until the labels
-   are grey mush answers nothing; better to start readable and let the reader
-   pan, which is the whole reason this is a live canvas and not a picture. */
+/* Fit the entire visible graph. Focus and zoom provide a readable local view. */
 function refit() {
-  if(cy){cy.resize();cy.fit(undefined,40);if(cy.zoom()<.65){cy.zoom(.65);cy.center();}anchors.report();return;}
+  if(cy){cy.resize();cy.fit(undefined,45);if(cy.zoom()>1.3){cy.zoom(1.3);cy.center();}anchors.report();return;}
   // Measured from the nodes that were actually placed, not from the root's
   // reported size: with nested children ELK does not fill that in reliably, and
   // fitting to a phantom 1x1 box threw the whole graph off the left edge.

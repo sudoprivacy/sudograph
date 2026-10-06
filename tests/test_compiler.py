@@ -1668,7 +1668,7 @@ def test_the_legend_is_infra_and_says_so_plainly():
     """
     html = _html()
     table = html.split("const KINDS", 1)[1].split("};", 1)[0]
-    assert "does:" in table and "${k.does" in html
+    assert "get does()" in table and "${k.does" in html
     # The table is the only place these words exist: no per-ontology override.
     assert "KINDS[" not in html.split("const KINDS", 1)[0]
     for word in ("数从哪儿来", "还差什么", "点开看每一行"):

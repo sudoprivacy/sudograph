@@ -102,6 +102,20 @@
     "覆盖不完整": "Coverage incomplete",
     "盲测题": "Blind questions",
     "题目来自原库；标准答案仅在裁判端。尚未完成隔离 LLM 答题，暂无得分。": "Questions come from the source database; answers stay with the judge. No isolated LLM run or score yet.",
-    "同一来源主键的两个业务投影；各自筛选可能不同。": "Two business projections share the same source key; their filters may differ."
+    "同一来源主键的两个业务投影；各自筛选可能不同。": "Two business projections share the same source key; their filters may differ.",
+    "适应画布": "Fit graph",
+    "重新排布": "Rearrange",
+    "排布": "Layout",
+    "自动": "Automatic",
+    "从左到右": "Left to right",
+    "从上到下": "Top to bottom",
+    "只看相邻关系": "Focus neighbors",
+    "返回全图": "Full graph",
+    "显示取数来源": "Show sources",
+    "全部关系名称": "All edge labels",
+    "拖动节点边缘调整位置；选中文字可评论。": "Drag node borders to arrange; select text to comment.",
+    "随机抽测": "Random sample",
+    "本次仅隔离会话上下文，未做操作系统沙箱隔离；三题不代表整体准确率。": "This trial used a fresh conversation, without an OS sandbox. Three questions do not establish overall accuracy.",
+    "全部题目": "All questions"
   }
 }

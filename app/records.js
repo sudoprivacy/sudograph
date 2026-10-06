@@ -3,6 +3,7 @@ const decode = async value => JSON.parse(await new Response(
     .pipeThrough(new DecompressionStream('gzip'))).text());
 let browseSeq = 0;
 async function showRecords(tname, offset=0, filter=null) {
+  state.panel='records';state.recordArgs=[tname,offset,filter];
   const mine=++browseSeq, r=BUNDLE.records?.[tname];
   if(!r) { $('panel').textContent=t('此导出未包含记录页；请在受控服务中打开，或由有权限的发布者导出记录。'); return; }
   const g=view().groups.find(g=>g.type===tname), size=100;
@@ -60,6 +61,7 @@ function attachBrowse(n) {
   }
 }
 function showCoverage() {
+  state.panel='coverage';
   $('panel').innerHTML=(BUNDLE.coverage||[]).map(r=>`<h2>${esc(r.source)}</h2>`+
     `<p>${t(r.complete?'覆盖清单无遗漏（含明确排除）':'覆盖不完整')}</p>`+
     r.objects.map(o=>`<details><summary>${esc(o.name)} · ${o.kind} · ${fmt(o.count)}</summary>`+
@@ -70,7 +72,15 @@ function showCoverage() {
       r.missing.map(m=>`<p class="fail">${esc(m)}</p>`).join('')).join('');
 }
 function showChallenge() {
-  $('panel').innerHTML=`<h2>${t('盲测题')}</h2><p>${t('题目来自原库；标准答案仅在裁判端。尚未完成隔离 LLM 答题，暂无得分。')}</p>`+
+  state.panel='challenge';
+  const trial=BUNDLE.trial;
+  $('panel').innerHTML=`<h2>${t('盲测题')}</h2>`+
+    (trial?`<p>${esc(trial.date)} · ${t('随机抽测')} · ${trial.passed}/${trial.total}</p>`+
+      `<p class="muted">${t('本次仅隔离会话上下文，未做操作系统沙箱隔离；三题不代表整体准确率。')}</p>`+
+      trial.results.map(r=>{const q=trial.questions.find(q=>q.id===r.id);return `<details><summary>${r.ok?'✓':'✗'} ${esc(q.source_object)} · ${esc(q.kind)}</summary>`+
+        `<p>${esc(q.question)}</p><p>${t('实际')} ${esc(fmt(r.got))} · ${t('预期')} ${esc(fmt(r.expected))}</p></details>`;}).join('')+
+      `<h2>${t('全部题目')}</h2>`:
+      `<p>${t('题目来自原库；标准答案仅在裁判端。尚未完成隔离 LLM 答题，暂无得分。')}</p>`)+
     BUNDLE.challenge.questions.map(q=>`<details><summary>${esc(q.source_object)} · ${esc(q.kind)}</summary>`+
       `<p>${esc(q.question)}</p><small>${esc(q.id)}</small></details>`).join('');
 }

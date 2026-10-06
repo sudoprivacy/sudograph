@@ -28,6 +28,25 @@ selection. The ShareOne application-anchor protocol supplies canvas node bounds.
 Source rows are paged separately: a large database does not imply placing all its
 rows on one canvas. No million-node rendering performance claim has been made.
 
+The data projection starts with source connectors folded out of the canvas and
+edge labels shown around a selected node. Source provenance remains in each
+type's details; `Show sources` restores its nodes and edges. `Focus neighbors`
+shows one hop around a selected object; `Full graph` restores the overview.
+Neither control changes the compiled model or access permissions. ELK offers
+left-to-right and top-to-bottom layouts; `Rearrange` discards manual placement
+for the current view. Dragging node borders moves their text and attached edges.
+Placements survive projection/focus/language switches during the current page
+session; they are not saved to the server or across a reload.
+
+The template includes a Chinese/English selector. Controls, legend and panels
+switch together without changing graph identities or coordinates. Business
+names and authored evidence retain the source language. Missing template
+translations fail rendering rather than silently falling back to one language.
+
+`Data projection` and `Metrics and rules` are display choices, not workflow
+stages. Node colours describe kinds and unresolved upstream gaps; they do not
+encode stage, permission or a claim that a business definition is correct.
+
 ## Server-side visibility
 
 `compiler.gateway.Gateway` takes **operator-registered** views and a mandatory
@@ -110,3 +129,11 @@ accordingly. It never substitutes for this isolated answerer experiment.
 Pass `--questions answerer-dir/questions.json` together with `--app` to display
 the public questions in the graph. The export refuses oracle-shaped input or
 extra question fields such as answers and SQL.
+
+The [2026-10-07 preliminary trial](trials/northwind-2026-10-07.json) sampled three
+questions once from the 162-question pool and scored 3/3. A fresh answerer used
+only a public graph snapshot and one relayed Gateway query. Access limits in
+that run were instructions, not an OS sandbox or reduced tool capabilities;
+this is not evidence that adversarial raw-data access is impossible. Two answers
+were zero and the sample tests source structure, not business definitions. The
+recorded seed, questions, query and answers make that limitation reviewable.

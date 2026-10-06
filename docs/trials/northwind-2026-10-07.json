@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-07",
+  "seed": 14388727111486195451,
+  "pool": 162,
+  "questions": [
+    {
+      "id": "d2716cdcf802ed79",
+      "source_object": "Order Details",
+      "kind": "min:OrderID",
+      "question": "What is the minimum OrderID in Order Details?"
+    },
+    {
+      "id": "e15315a47e6e531c",
+      "source_object": "Territories",
+      "kind": "missing-target:0",
+      "question": "How many Territories records have a populated RegionID without a matching Regions record?"
+    },
+    {
+      "id": "bf27463f9dd59dcd",
+      "source_object": "CustomerDemographics",
+      "kind": "null:CustomerDesc",
+      "question": "How many CustomerDemographics records have no CustomerDesc?"
+    }
+  ],
+  "passed": 3,
+  "total": 3,
+  "results": [
+    {
+      "id": "d2716cdcf802ed79",
+      "expected": 10248,
+      "got": 10248,
+      "answered": true,
+      "ok": true
+    },
+    {
+      "id": "e15315a47e6e531c",
+      "expected": 0,
+      "got": 0,
+      "answered": true,
+      "ok": true
+    },
+    {
+      "id": "bf27463f9dd59dcd",
+      "expected": 0,
+      "got": 0,
+      "answered": true,
+      "ok": true
+    }
+  ],
+  "isolation": "Fresh subagent context. Only the public graph snapshot and a relayed Gateway query were used. Filesystem access was constrained by task instructions, not by an OS sandbox or a reduced tool capability set.",
+  "limitation": "Three source-structure questions only. Two answers are zero; this does not validate business semantics, adversarial isolation or general accuracy.",
+  "answers": {
+    "d2716cdcf802ed79": 10248,
+    "e15315a47e6e531c": 0,
+    "bf27463f9dd59dcd": 0
+  },
+  "queries": [
+    {
+      "request": {
+        "operation": "query",
+        "params": {
+          "expression": "SELECT min(订单号) FROM 订单明细"
+        }
+      },
+      "response": {
+        "value": 10248
+      }
+    }
+  ]
+}
