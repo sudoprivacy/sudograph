@@ -80,6 +80,17 @@ def test_full_coverage_cannot_hide_filtered_rows(shop):
         load(change)
 
 
+def test_complete_source_with_no_bindings_is_refused(shop):
+    load, _, _ = shop
+    def omit_all(d):
+        d['raw']['R']['coverage'] = 'complete'
+        d['types'], d['nodes'], d['checks'] = {}, {}, {}
+    with pytest.raises(spec.SpecError, match='no object binding'):
+        load(omit_all)
+    with pytest.raises(spec.SpecError, match='coverage must be'):
+        load(lambda d: d['raw']['R'].update(coverage='compelete'))
+
+
 def test_shared_source_projections_get_an_automatic_relationship(shop):
     load, _, _ = shop
 

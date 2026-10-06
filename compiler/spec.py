@@ -256,7 +256,11 @@ def load(path: str) -> Spec:
         bases=doc.get("bases") or [],
         bridges=doc.get("bridges") or {},
         dimensions=doc.get("dimensions") or [],
+        source_base=os.path.dirname(os.path.abspath(path)),
     )
+    for name, raw in s.raw.items():
+        if isinstance(raw, dict) and raw.get('coverage', 'partial') not in ('partial', 'complete'):
+            raise SpecError(f'{name}.coverage must be partial or complete')
     problems = check(s)
     if problems:
         raise SpecError("spec is invalid:\n  - " + "\n  - ".join(problems))
@@ -278,11 +282,11 @@ def load(path: str) -> Spec:
                 + "\n  - ".join(broken)
             )
         s = bind_mod.bind_all(s, base)
-        try:
-            if any(r.get('coverage') == 'complete' for r in s.raw.values()):
-                enforce(s)
-        except ValueError as e:
-            raise SpecError(str(e)) from e
+    try:
+        if any(r.get('coverage') == 'complete' for r in s.raw.values()):
+            enforce(s)
+    except ValueError as e:
+        raise SpecError(str(e)) from e
     return s
 
 
