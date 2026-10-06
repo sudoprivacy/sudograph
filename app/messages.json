@@ -83,6 +83,25 @@
     "带缺口": "Provisional",
     "颜色偏橙 = 上游还有缺口": "Orange tint = unresolved upstream gaps",
     "边框": "Border",
-    "全部检查": "All checks"
+    "全部检查": "All checks",
+    "源库覆盖": "Source coverage",
+    "来源表": "Source table",
+    "关系": "Relationship",
+    "每条来源记录最多关联一条目标记录；多个来源记录可以指向同一目标。": "Each source record refers to at most one target; many source records may share a target.",
+    "已填关联": "References populated",
+    "未填关联": "References absent",
+    "目标缺失": "Targets missing",
+    "此导出未包含记录页；请在受控服务中打开，或由有权限的发布者导出记录。": "This export has no record pages. Use the controlled service or request an authorised record export.",
+    "类型 → 分页记录 → 属性与关系": "Type → Record pages → Properties and relationships",
+    "上一页": "Previous",
+    "下一页": "Next",
+    "跳页": "Go to page",
+    "查看关联": "Follow relationship",
+    "查看全部记录": "Browse all records",
+    "覆盖清单无遗漏（含明确排除）": "Coverage accounted for (including explicit exclusions)",
+    "覆盖不完整": "Coverage incomplete",
+    "盲测题": "Blind questions",
+    "题目来自原库；标准答案仅在裁判端。尚未完成隔离 LLM 答题，暂无得分。": "Questions come from the source database; answers stay with the judge. No isolated LLM run or score yet.",
+    "同一来源主键的两个业务投影；各自筛选可能不同。": "Two business projections share the same source key; their filters may differ."
   }
 }

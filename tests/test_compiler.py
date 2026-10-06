@@ -1291,19 +1291,12 @@ def _html() -> str:
     return app_mod.render(app_mod.bundle(spec_mod.load(REAL_FIXTURE)))
 
 
-def test_the_graph_is_svg_because_a_canvas_cannot_be_commented_on():
-    """A canvas is one opaque element: nothing to select and nothing to point
-    at, so an anchored comment has nowhere to attach and a drag-select grabs the
-    whole picture. Every node must be a real element carrying real text."""
+def test_canvas_keeps_selectable_dom_labels_and_application_anchors():
+    """The host now supports identity anchors. Keep text selection alongside canvas."""
     html = _html()
-    assert "createElementNS" in html and "http://www.w3.org/2000/svg" in html
-    assert "<canvas" not in html
-    assert "data-node-id" in html or "dataset.nodeId" in html
-    # Prose may name cytoscape — the comments explain why it is not here, and
-    # that reasoning is the point of keeping them. What must not come back is a
-    # call into it.
-    for call in ("cytoscape(", "cytoscape.use", "cy.add", "cy.layout", "cy.fit"):
-        assert call not in html, call
+    assert 'cytoscape({' in html
+    assert 'dataset.nodeId' in html and 'user-select:text' in html
+    assert "api.on('hittest'" in html and 'canvasRect(id)' in html
 
 
 def test_the_layout_engine_is_elk_and_only_elk():
@@ -1311,7 +1304,8 @@ def test_the_layout_engine_is_elk_and_only_elk():
     that calls elkjs. Dropping cytoscape kept the layout and lost 365 KB."""
     assert "new ELK()" in _html()
     assert [
-        os.path.join(app_mod._ROOT, "app", "vendor", "elk.bundled.js")
+        os.path.join(app_mod._ROOT, "app", "vendor", "elk.bundled.js"),
+        os.path.join(app_mod._ROOT, "app", "vendor", "cytoscape.min.js"),
     ] == app_mod.VENDOR
 
 
@@ -1655,7 +1649,7 @@ def test_a_node_is_measured_from_the_same_lines_it_draws():
     assert [c for c in calls if c.startswith("function measure")], calls
     others = [c for c in calls if not c.startswith("function measure")]
     assert others and all("measure(linesOf(" in c for c in others), others
-    assert html.count("linesOf(") == 3, "measured once, drawn once, defined once"
+    assert "measure(linesOf(n,true)).h+14" in html, "container header must fit all its lines"
 
 
 def test_a_plug_wears_its_difference():
@@ -1691,8 +1685,9 @@ def test_an_edge_to_a_hidden_row_lands_on_the_box_holding_it():
     body = html.split("async function draw()", 1)[1].split("const box =", 1)[0]
     # The row's type stands in for it, rather than the edge being discarded.
     assert "n.kind === 'instance' && !state.expanded.has(n.type) ? n.type : id" in body
-    # Deduped, and a box may not point at itself.
-    assert "seenEdge" in body and "from === to" in body
+    # Deduped by relation as well; self refs (e.g. employee reports-to) survive.
+    assert "seenEdge" in body and "e.rel, e.via" in body
+    assert "from === to ||" not in body
 
 
 def test_the_block_a_thing_is_declared_in_says_what_it_is():
@@ -2320,7 +2315,8 @@ def test_a_type_too_large_to_fetch_is_on_the_canvas_but_does_not_open():
     # Two reasons the rows are not here, told apart: too many to draw, versus
     # never fetched. Neither offers an arrow, because an arrow that opens an
     # empty box is the same broken promise as one that does nothing.
-    assert "未取回" in body and "太多，未展开" in body
+    assert "t('行')" in body
+    assert "showRecords(n.id)" in html and "DecompressionStream('gzip')" in html
     assert "!n.unfetched && !n.folded && !open" in html
 
 
@@ -2339,7 +2335,7 @@ def test_a_backed_type_wears_the_table_it_reads():
     assert over["销售订单"] == over["发货"] == "Orders"
 
     html = _html()
-    assert "n.backing ? n.backing.table : null" in html
+    assert "t('来源表') + ': ' + n.backing.table" in html
     assert "<h2>${t('读自')}</h2>" in html
 
 

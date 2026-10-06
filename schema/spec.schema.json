@@ -219,6 +219,10 @@
             }
           },
           "description": "This type is a view over a table rather than a carrier of rows. Two types may bind the same table: one table often holds more than one business object."
+        },
+        "display": {
+          "type": "string",
+          "description": "Property whose value labels a record; identity remains the checked key."
         }
       },
       "anyOf": [
@@ -477,6 +481,19 @@
         "dsn": {
           "type": "string",
           "description": "A database the types read through, e.g. sqlite:///<path relative to this spec>. A raw is either a command that fetches (connector) or a database that backs tables (dsn)."
+        },
+        "coverage": {
+          "enum": [
+            "partial",
+            "complete"
+          ]
+        },
+        "exclude": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       },
       "anyOf": [

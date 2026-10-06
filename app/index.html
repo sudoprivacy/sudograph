@@ -28,7 +28,7 @@
   button{cursor:pointer}
   button.on{border-color:var(--entry);color:#fff}
   main{flex:1;display:flex;min-height:0}
-  #cy{flex:1;min-width:0}
+  #cy{flex:1;min-width:0;position:relative;overflow:hidden}
   /* The panel sits on the left because the carrier puts comments on the right:
      two columns of text on the same edge means the one you are reading and the
      one you are writing overlap, and a reader loses whichever is underneath. */
@@ -117,6 +117,8 @@
   </select></label>
   <button id="checksBtn" data-ui="检查">检查</button>
   <button id="measureBtn" data-ui="评测题">评测题</button>
+  <button id="coverageBtn" data-ui="源库覆盖">源库覆盖</button>
+  <button id="challengeBtn" data-ui="盲测题">盲测题</button>
   <span id="legend"></span>
 </header>
 <main>
@@ -127,12 +129,13 @@
 
 <script>
 const BUNDLE = __BUNDLE__;
+const uiLanguage = BUNDLE.ui.language === 'auto' ? (navigator.language.startsWith('zh')?'zh':'en') : BUNDLE.ui.language;
 const t = (key, vars = {}) => {
-  const text = BUNDLE.ui.messages[key];
+  const text = BUNDLE.ui.catalogs[uiLanguage][key];
   if (text == null) throw new Error(`Missing UI message: ${key}`);
   return text.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
 };
-document.documentElement.lang = BUNDLE.ui.language;
+document.documentElement.lang = uiLanguage;
 document.querySelectorAll('[data-ui]').forEach(el => el.textContent = t(el.dataset.ui));
 const esc = value => String(value ?? '').replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -151,6 +154,9 @@ const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
 $('projection').value = state.projection;
 $('projection').onchange = e => { state.projection = e.target.value; draw(); };
 $('checksBtn').onclick = () => { state.panel = 'checks'; showChecks(view()); };
+$('coverageBtn').onclick = showCoverage;
+$('challengeBtn').hidden = !BUNDLE.challenge?.questions?.length;
+$('challengeBtn').onclick = showChallenge;
 $('measureBtn').onclick = () => { state.panel = 'measure'; showMeasurements(view()); };
 
 /* ── controls ──────────────────────────────────────────────────────── */
@@ -332,8 +338,8 @@ function linesOf(n, open) {
   // as a count that wore an arrow and did nothing when clicked.
   const n0 = x => x.toLocaleString('en-US');
   const mark = n.kind === 'type' && n.count
-    ? (n.unfetched ? `  · ${n0(n.count)} ${t('行（未取回）')}`
-       : n.folded  ? `  · ${n0(n.count)} ${t('行（太多，未展开）')}`
+    ? (n.unfetched ? `  · ${n0(n.count)} ${t('行')}`
+       : n.folded  ? `  · ${n0(n.count)} ${t('行')}`
        : `  ${open ? '▾' : '▸'}${n.count}`)
     : (n.kind === 'hook' && n.waiting_on) ? `  · ${n.waiting_on} ${t('项')}` : null;
   // A plug exists to expose a difference against an independent measure, so the
@@ -347,7 +353,7 @@ function linesOf(n, open) {
   // Each line carries what it is, not what position it happens to sit in.
   // Styling by index meant adding a line restyled the one below it — the table
   // a type reads from arrived wearing the bold of a figure.
-  const over = n.backing ? n.backing.table : null;
+  const over = n.backing ? t('来源表') + ': ' + n.backing.table : null;
   return [
     { cls: '', parts: mark ? [n.label, mark] : [n.label] },
     n.value != null ? { cls: 'num', parts: [fmt(n.value)] } : null,
@@ -368,6 +374,8 @@ function measure(lines) {
    engine, so two clicks in quick succession used to run concurrently and
    whichever finished last replaced the canvas — which looked exactly like the
    second click doing nothing. */
+/*__CANVAS__*/
+/*__RECORDS__*/
 let drawSeq = 0;
 async function draw() {
   const mine = ++drawSeq;
@@ -381,6 +389,8 @@ async function draw() {
   const shown = new Map();
   for (const n of v.nodes) {
     if (state.projection === 'data' && !['raw', 'type', 'instance'].includes(n.kind)) continue;
+    if(state.projection==='data' && n.kind==='type' && !n.backing)continue;
+    if(state.projection==='data' && n.kind==='instance' && !v.groups.find(g=>g.type===n.type)?.backing)continue;
     if (n.kind === 'instance' && !state.expanded.has(n.type)) continue;
     shown.set(n.id, n);
   }
@@ -411,12 +421,14 @@ async function draw() {
     const from = at(e.from), to = at(e.to);
     // A row pointing at a row of its own type collapses to the box pointing at
     // itself, which is not a relation anyone can read.
-    if (from === to || !shown.has(from) || !shown.has(to)) continue;
-    const key = JSON.stringify([from, to, e.rel]);
+    if (!shown.has(from) || !shown.has(to)) continue;
+    const key = JSON.stringify([from, to, e.rel, e.via]);
     if (seenEdge.has(key)) continue;
     seenEdge.add(key);
     edges.push(from === e.from && to === e.to ? e : { ...e, from, to, folded: true });
   }
+
+  if (typeof cytoscape === 'function') return drawCanvas(v, shown, edges, mine);
 
   // Instances are laid out *inside* their type rather than beside it. Expanding
   // a type used to scatter its rows across the picture with nothing to say where
@@ -446,7 +458,7 @@ async function draw() {
       // canvas on its previous frame, which read as the click doing nothing.
       c.layoutOptions = {
         ...(c.layoutOptions || {}),
-        'elk.padding': '[top=34,left=14,bottom=14,right=14]',
+        'elk.padding': `[top=${measure(linesOf(n,true)).h+14},left=14,bottom=14,right=14]`,
         'elk.algorithm': 'layered',
         'elk.direction': 'DOWN',
         'elk.spacing.nodeNode': '14',
@@ -639,6 +651,7 @@ const anchors = (() => {
     return n ? n.label : id;
   };
   const rectOf = id => {
+    if(cy)return canvasRect(id);
     const g = scene && scene.querySelector('g.node[data-node-id="' + CSS.escape(id) + '"]');
     if (!g) return null;
     const r = g.getBoundingClientRect();
@@ -670,13 +683,14 @@ const anchors = (() => {
     api.on('resync', ids => { for (const id of ids || []) tracked.add(id); report(); });
     api.on('hittest', rect => {
       const out = [];
-      for (const g of (scene ? scene.querySelectorAll('g.node') : [])) {
-        const r = g.getBoundingClientRect();
+      for (const id of known()) {
+        const box=rectOf(id); if(!box)continue;
+        const r={...box,right:box.x+box.width,bottom:box.y+box.height};
         if (r.right < rect.x || r.x > rect.x + rect.width) continue;
         if (r.bottom < rect.y || r.y > rect.y + rect.height) continue;
       // Labels, not ids: the host writes the comment's name from these, and it
       // has no way to know what the business calls anything.
-        out.push({ id: g.dataset.nodeId, label: labelOf(g.dataset.nodeId) });
+        out.push({ id, label: labelOf(id) });
       }
       return out;
     });
@@ -699,6 +713,7 @@ const anchors = (() => {
 })();
 
 function select(n) {
+  if(cy) {cy.elements().unselect();cy.getElementById(n.id).select();showNode(n);anchors.report();return;}
   for (const g of scene.querySelectorAll('g.node')) g.classList.remove('hit');
   const mark = id => scene
     .querySelector('g.node[data-node-id="' + CSS.escape(id) + '"]')?.classList.add('hit');
@@ -751,6 +766,7 @@ function applyTransform() {
   }
 
   host.addEventListener('pointerdown', e => {
+    if(cy)return;
     live.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (live.size === 2) {
       const ps = [...live.values()];
@@ -760,7 +776,7 @@ function applyTransform() {
     }
     // A drag that starts on a label is a text selection, and selecting text is
     // how a comment gets anchored — so it is left alone.
-    if (e.target.tagName === 'text') return;
+    if (cy || e.target.closest('text,.canvas-label')) return;
     // Capture is deliberately NOT taken here. It is taken once the pointer has
     // actually moved, because taking it on press redirects the whole rest of
     // the gesture to this element.
@@ -770,6 +786,7 @@ function applyTransform() {
 
   host.addEventListener('pointermove', e => {
     if (!live.has(e.pointerId)) return;
+    if(cy)return;
     live.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch && live.size === 2) {
       const ps = [...live.values()], c = mid(ps);
@@ -816,6 +833,7 @@ function applyTransform() {
   host.addEventListener('pointerleave', release);
 
   host.addEventListener('wheel', e => {
+    if(cy)return;
     e.preventDefault();
     zoomAt(pz.k * Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
   }, { passive: false });
@@ -872,6 +890,7 @@ function showNode(n) {
   }
   if (n.kind === 'type') rows.push(showGroup(n.id));
   $('panel').innerHTML = rows.join('');
+  attachBrowse(n);
 }
 
 /* Folding produces buckets and a top-N precisely so a folded group still answers
@@ -1005,6 +1024,7 @@ $('instBtn').onclick = () => {
    are grey mush answers nothing; better to start readable and let the reader
    pan, which is the whole reason this is a live canvas and not a picture. */
 function refit() {
+  if(cy){cy.resize();cy.fit(undefined,40);if(cy.zoom()<.65){cy.zoom(.65);cy.center();}anchors.report();return;}
   // Measured from the nodes that were actually placed, not from the root's
   // reported size: with nested children ELK does not fill that in reliably, and
   // fitting to a phantom 1x1 box threw the whole graph off the left edge.

@@ -844,7 +844,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                         "id": f"{tname}/{iid}",
                         "kind": "instance",
                         "layer": 0,
-                        "label": str(iid),
+                        "label": str(r.get(t.get('display')) or iid),
                         "type": tname,
                         "props": r,
                         "completeness": grades.get(iid),
@@ -903,6 +903,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 "buckets": buckets,
                 "top": top,
                 "id_prop": "·".join(s.id_props(tname)),
+                "display": t.get('display'),
                 "owners": {p: s.owner_of(tname, p) for p in props},
                 "columns": {p: s.column_of(tname, p) for p, d in props.items() if 'op' not in d}
                            if s.backing_of(tname) else {},
@@ -931,6 +932,10 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                     "to": target,
                     "rel": "links",
                     "via": prop,
+                    "source_column": s.column_of(tname, prop),
+                    "target_key": s.id_props(target),
+                    "cardinality": "many-to-one",
+                    "dangling": evidence['affected'] if evidence else 0,
                     # Where the link comes from. A foreign key the source system
                     # maintains and a relationship this ontology worked out are
                     # not the same claim, and until now they were the same
@@ -954,6 +959,19 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                         "via": prop,
                     }
                 )
+
+    # Splitting a source row into two business objects must not erase its identity.
+    # The shared source/key is proof of correspondence, even without an upstream FK
+    # pointing the table at itself. Filters may select different subsets.
+    backed = [tn for tn in s.types if s.backing_of(tn)]
+    for i, left in enumerate(backed):
+        a = s.backing_of(left)
+        for right in backed[i + 1:]:
+            b = s.backing_of(right)
+            if all(a.get(k) == b.get(k) for k in ('from', 'table', 'key')):
+                edges.append({'from': left, 'to': right, 'rel': 'same_source_key',
+                              'via': ' / '.join(a['key']), 'table': a['table'],
+                              'key': a['key'], 'filters': [a.get('where'), b.get('where')]})
 
     return {
         "ontology": s.name,

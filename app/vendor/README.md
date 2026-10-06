@@ -9,10 +9,9 @@ makes no network request at load. A test holds that.
 
 | File | Version | Licence | Source |
 |---|---|---|---|
-| `cytoscape.min.js` | 3.30.2 | MIT | cdnjs |
+| `cytoscape.min.js` | 3.30.2 | MIT (`cytoscape.LICENSE`) | unpkg (`cytoscape`) |
 | `elk.bundled.js` | 0.9.3 | EPL-2.0 | unpkg (`elkjs`) |
-| `cytoscape-elk.js` | 2.2.0 | MIT | unpkg (`cytoscape-elk`) |
 
-Layout is ELK's `layered`: this is a DAG read top-down, and cytoscape's built-in
-layouts scatter it. `elk.bundled.js` is 1.6 MB, which is most of a generated
-app's size and is the price of it opening anywhere.
+ELK computes positions; Cytoscape renders the active graph using those positions.
+DOM labels preserve text selection and application anchors locate canvas nodes.
+Rows are paged separately instead of adding the entire database to the canvas.

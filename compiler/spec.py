@@ -21,6 +21,8 @@ import yaml
 
 from . import bind as bind_mod
 from . import expr
+from .catalog import enforce
+from .dependencies import validate_names
 
 OWNERS = ("source", "ontology")
 #: The kinds a node can be. Not a field anyone writes: the block a thing is
@@ -276,6 +278,11 @@ def load(path: str) -> Spec:
                 + "\n  - ".join(broken)
             )
         s = bind_mod.bind_all(s, base)
+        try:
+            if any(r.get('coverage') == 'complete' for r in s.raw.values()):
+                enforce(s)
+        except ValueError as e:
+            raise SpecError(str(e)) from e
     return s
 
 
@@ -381,6 +388,13 @@ def _backing_problems(s: Spec, tname: str, t: dict) -> list[str]:
         out.append(f"type {tname}: backing needs 'table'")
     key = b.get("key")
     props = t.get("props") or {}
+    if b.get('where'):
+        try:
+            predicate = expr.parse(b['where'])
+            if expr.aggregated_types(predicate):
+                out.append(f"type {tname}: backing.where cannot contain a subquery")
+        except expr.ExprError as e:
+            out.append(f"type {tname}: backing.where must use the checked SQL language: {e}")
     if not isinstance(key, list) or not key:
         out.append(
             f"type {tname}: backing needs 'key' — the columns that identify one row. "
@@ -424,6 +438,10 @@ def _computed_prop_problems(s: Spec, tname: str, pname: str, p: dict) -> list[st
         return [f"{where}: op must be an expression"]
     try:
         ast = expr.parse(p["op"])
+        validate_names(s, ast, tname, allow_this=True)
+        for key, source in p.items():
+            if key.startswith('op@'):
+                validate_names(s, expr.parse(source), tname, allow_this=True)
     except expr.ExprError as e:
         return [f"{where}: op does not parse: {e}"]
 
@@ -553,6 +571,8 @@ def check(s: Spec) -> list[str]:
                 f"table whose rows need two columns to tell apart"
             )
         props = t.get("props") or {}
+        if t.get('display') and t['display'] not in props:
+            out.append(f"type {tname}: display must name a declared property")
         if t.get("id") and t["id"] not in props:
             out.append(f"type {tname}: id property {t['id']!r} is not among its props")
         out += _backing_problems(s, tname, t)
@@ -857,7 +877,7 @@ def check(s: Spec) -> list[str]:
             key = f"op@{b}"
             if key in n:
                 try:
-                    expr.parse(n[key])
+                    validate_names(s, expr.parse(n[key]))
                 except expr.ExprError as e:
                     out.append(f"node {nname}: {key} does not parse: {e}")
             elif diverges and not n.get("op"):
@@ -932,7 +952,7 @@ def check(s: Spec) -> list[str]:
             out.append(f"node {nname} needs an 'op' — everything under 'nodes' is computed")
         elif n.get("op"):
             try:
-                expr.parse(n["op"])
+                validate_names(s, expr.parse(n["op"]))
             except expr.ExprError as e:
                 out.append(f"node {nname}: op does not parse: {e}")
 
@@ -961,7 +981,7 @@ def check(s: Spec) -> list[str]:
                     if dim not in s.dimensions:
                         out.append(f"check {cname}: {dim!r} is not a declared dimension")
         try:
-            expr.parse(src)
+            validate_names(s, expr.parse(src))
         except expr.ExprError as e:
             out.append(f"check {cname} does not parse: {e}")
 

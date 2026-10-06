@@ -1,196 +1,640 @@
-# Northwind, read through a binding rather than copied.
-#
-# The point of this example is the thing a mirror cannot do. `Orders` carries two
-# business objects — an order and its shipment — and nobody in the business
-# thinks they are the same thing: an order is placed and confirmed, a shipment
-# is late or on time. So the table is bound twice, with different columns and
-# different identities, and neither object is a table.
-#
-# The binding is checked against the live columns, keys and reference values.
-# The agent still proposes which objects and relationships the business means;
-# the database cannot establish that semantic interpretation.
-#
-# This build of Northwind holds 16,282 orders and 609,283 order lines. That is
-# the other half of the argument: those rows cannot go in a spec file, so the
-# question of binding-versus-copying is not a matter of taste.
 ontology: Northwind 分销
-
 raw:
   R-NORTHWIND:
     label: Northwind 业务库（只读）
-    dsn: "sqlite:///../../northwind-SQLite3/dist/northwind.db"
-    connector: "sqlite3 dist/northwind.db"
-
+    dsn: sqlite:///../../northwind-SQLite3/dist/northwind.db
+    connector: sqlite3 dist/northwind.db
+    coverage: complete
+    exclude:
+      Alphabetical list of products: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Categories.Picture: 二进制图片：本轮核对结构和业务数据，不导出图片内容。
+      Category Sales for 1997: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Current Product List: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Customer and Suppliers by City: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Employees.Photo: 二进制图片：本轮核对结构和业务数据，不导出图片内容。
+      Invoices: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Order Details Extended: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Order Subtotals: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Orders Qry: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Product Sales for 1997: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      ProductDetails_V: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Products Above Average Price: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Products by Category: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Quarterly Orders: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Sales Totals by Amount: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Sales by Category: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Summary of Sales by Quarter: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
+      Summary of Sales by Year: 源库派生视图：已扫描并列入清单；事实从其底层表投影，暂未把该视图的旧口径另建业务指标。
 types:
   人:
-    label: 相关人
-    description: 本体自己维护的人员清单——原库里没有仓储岗位。
+    label: 缺口负责人（示例角色）
+    description: 示例工作流角色（人工指定的缺口负责人），不是 Northwind 员工数据；原始人员在“员工”类型。
     id: 工号
     props:
-      工号: { type: string, owner: ontology }
-
+      工号:
+        type: string
+        owner: ontology
   客户:
     label: 客户
     description: 下单的公司。地理分布跨 21 个国家，所以"归属哪个销售辖区"在原库里答不了。
     id: 客户号
-    backing: { from: R-NORTHWIND, table: Customers, key: [CustomerID] }
+    backing:
+      from: R-NORTHWIND
+      table: Customers
+      key:
+      - CustomerID
     props:
-      客户号:   { type: string, owner: source, column: CustomerID }
-      公司名:   { type: string, owner: source, column: CompanyName }
-      联系人:   { type: string, owner: source, column: ContactName, nullable: true, absent: none }
-      国家:     { type: string, owner: source, column: Country, nullable: true, absent: gap, gap: H-客户地址缺失 }
-      城市:     { type: string, owner: source, column: City, nullable: true, absent: gap, gap: H-客户地址缺失 }
-
-  # 609,283 行 —— 取不进内存，也不需要。它的聚合由库来答，所以它在图上是一个
-  # 有行数的类型，只是行本身不在这儿。
+      客户号:
+        type: string
+        owner: source
+        column: CustomerID
+      公司名:
+        type: string
+        owner: source
+        column: CompanyName
+      联系人:
+        type: string
+        owner: source
+        column: ContactName
+        nullable: true
+        absent: none
+      国家:
+        type: string
+        owner: source
+        column: Country
+        nullable: true
+        absent: gap
+        gap: H-客户地址缺失
+      城市:
+        type: string
+        owner: source
+        column: City
+        nullable: true
+        absent: gap
+        gap: H-客户地址缺失
+      ContactTitle:
+        type: string
+        owner: source
+        column: ContactTitle
+      Address:
+        type: string
+        owner: source
+        column: Address
+        nullable: true
+        absent: none
+      Region:
+        type: string
+        owner: source
+        column: Region
+        nullable: true
+        absent: none
+      PostalCode:
+        type: string
+        owner: source
+        column: PostalCode
+        nullable: true
+        absent: none
+      Phone:
+        type: string
+        owner: source
+        column: Phone
+        nullable: true
+        absent: none
+      Fax:
+        type: string
+        owner: source
+        column: Fax
+        nullable: true
+        absent: none
+    display: 公司名
   订单明细:
     label: 订单明细
-    # 没有 id：一行明细要订单号加产品号两列才认得出来，backing.key 已经说了，
-    # 不再说第二遍。写成单列的 id 会让 609,283 行压到 16,282 个订单号上。
-    backing: { from: R-NORTHWIND, table: "Order Details", key: [OrderID, ProductID] }
+    backing:
+      from: R-NORTHWIND
+      table: Order Details
+      key:
+      - OrderID
+      - ProductID
     props:
-      订单号:   { type: ref, to: 销售订单, owner: source, column: OrderID }
-      产品号:   { type: ref, to: 产品, owner: source, column: ProductID }
-      成交价:   { type: money,  owner: source, column: UnitPrice }
-      数量:     { type: number, owner: source, column: Quantity }
-      折扣:     { type: number, owner: source, column: Discount }
+      订单号:
+        type: ref
+        to: 销售订单
+        owner: source
+        column: OrderID
+      产品号:
+        type: ref
+        to: 产品
+        owner: source
+        column: ProductID
+      成交价:
+        type: money
+        owner: source
+        column: UnitPrice
+      数量:
+        type: number
+        owner: source
+        column: Quantity
+      折扣:
+        type: number
+        owner: source
+        column: Discount
       净额:
         type: money
         scale: 2
-        op: "成交价 * 数量 * (1 - 折扣)"
-
+        op: 成交价 * 数量 * (1 - 折扣)
   产品:
     label: 产品
     id: 产品号
-    backing: { from: R-NORTHWIND, table: Products, key: [ProductID] }
+    backing:
+      from: R-NORTHWIND
+      table: Products
+      key:
+      - ProductID
     props:
-      产品号: { type: string, owner: source, column: ProductID }
-      名称: { type: string, owner: source, column: ProductName }
-      品类: { type: ref, to: 品类, owner: source, column: CategoryID }
-      标价: { type: money, owner: source, column: UnitPrice }
-
+      产品号:
+        type: string
+        owner: source
+        column: ProductID
+      名称:
+        type: string
+        owner: source
+        column: ProductName
+      品类:
+        type: ref
+        to: 品类
+        owner: source
+        column: CategoryID
+      标价:
+        type: money
+        owner: source
+        column: UnitPrice
+      SupplierID:
+        type: ref
+        owner: source
+        column: SupplierID
+        to: 供应商
+      QuantityPerUnit:
+        type: string
+        owner: source
+        column: QuantityPerUnit
+      UnitsInStock:
+        type: number
+        owner: source
+        column: UnitsInStock
+      UnitsOnOrder:
+        type: number
+        owner: source
+        column: UnitsOnOrder
+      ReorderLevel:
+        type: number
+        owner: source
+        column: ReorderLevel
+      Discontinued:
+        type: string
+        owner: source
+        column: Discontinued
+    display: 名称
   品类:
     label: 品类
-    description: "汇总演示，待业务确认：沿订单明细→产品→品类取数；净额逐行按成交价×数量×(1−折扣)四舍五入到两位，不含运费与税。"
+    description: 汇总演示，待业务确认：沿订单明细→产品→品类取数；净额逐行按成交价×数量×(1−折扣)四舍五入到两位，不含运费与税。
     id: 品类号
-    backing: { from: R-NORTHWIND, table: Categories, key: [CategoryID] }
+    backing:
+      from: R-NORTHWIND
+      table: Categories
+      key:
+      - CategoryID
     props:
-      品类号: { type: string, owner: source, column: CategoryID }
-      名称: { type: string, owner: source, column: CategoryName }
+      品类号:
+        type: string
+        owner: source
+        column: CategoryID
+      名称:
+        type: string
+        owner: source
+        column: CategoryName
       销售净额:
         type: money
         scale: 2
-        op: "select sum(净额) from 订单明细 where 产品号.品类 = this"
-
+        op: select sum(净额) from 订单明细 where 产品号.品类 = this
+      Description:
+        type: string
+        owner: source
+        column: Description
+    display: 名称
   承运商:
     label: 承运商
     id: 承运商号
-    backing: { from: R-NORTHWIND, table: Shippers, key: [ShipperID] }
+    backing:
+      from: R-NORTHWIND
+      table: Shippers
+      key:
+      - ShipperID
     props:
-      承运商号: { type: string, owner: source, column: ShipperID }
-      公司名:   { type: string, owner: source, column: CompanyName }
-
-  # ── 同一张表，两个对象 ──────────────────────────────────────────────
-  # Orders 混了两件事。拆开之后，"订单额" 和 "有没有迟发" 各自挂在该挂的对象上，
-  # 而不是两个都挤在一行上。这是 binding 能做而 mirror 做不到的事。
-
+      承运商号:
+        type: string
+        owner: source
+        column: ShipperID
+      公司名:
+        type: string
+        owner: source
+        column: CompanyName
+      Phone:
+        type: string
+        owner: source
+        column: Phone
+    display: 公司名
   销售订单:
     label: 销售订单
     description: 订单头：谁、什么时候下的、要求何时到。
     id: 订单号
-    backing: { from: R-NORTHWIND, table: Orders, key: [OrderID] }
+    backing:
+      from: R-NORTHWIND
+      table: Orders
+      key:
+      - OrderID
     props:
-      订单号:   { type: string, owner: source, column: OrderID }
-      客户:     { type: ref, to: 客户, owner: source, column: CustomerID, nullable: true, absent: gap, gap: H-无客户归属 }
-      下单日:   { type: date,   owner: source, column: OrderDate }
-      要求到货日: { type: date, owner: source, column: RequiredDate, nullable: true, absent: none }
-
+      订单号:
+        type: string
+        owner: source
+        column: OrderID
+      客户:
+        type: ref
+        to: 客户
+        owner: source
+        column: CustomerID
+        nullable: true
+        absent: gap
+        gap: H-无客户归属
+      下单日:
+        type: date
+        owner: source
+        column: OrderDate
+      要求到货日:
+        type: date
+        owner: source
+        column: RequiredDate
+        nullable: true
+        absent: none
+      EmployeeID:
+        type: ref
+        owner: source
+        column: EmployeeID
+        to: 员工
+      ShipName:
+        type: string
+        owner: source
+        column: ShipName
+      ShipAddress:
+        type: string
+        owner: source
+        column: ShipAddress
+      ShipCity:
+        type: string
+        owner: source
+        column: ShipCity
+      ShipRegion:
+        type: string
+        owner: source
+        column: ShipRegion
+      ShipPostalCode:
+        type: string
+        owner: source
+        column: ShipPostalCode
+        nullable: true
+        absent: none
   发货:
     label: 发货
     description: 同一张 Orders 表的另一半：承运商、发货日、运费、收货地。
     id: 订单号
-    backing: { from: R-NORTHWIND, table: Orders, key: [OrderID] }
+    backing:
+      from: R-NORTHWIND
+      table: Orders
+      key:
+      - OrderID
     props:
-      订单号:   { type: string, owner: source, column: OrderID }
-      承运商:   { type: ref, to: 承运商, owner: source, column: ShipVia, nullable: true, absent: gap, gap: H-未发货 }
-      # 16,282 行里有 21 行没有发货日。我们没法在别人的表上逐行标注，
-      # 所以由这一列说明：它的缺失全部挂在同一个缺口上。
-      发货日:   { type: date,   owner: source, column: ShippedDate, nullable: true, absent: gap, gap: H-未发货 }
-      运费:     { type: money,  owner: source, column: Freight }
-      收货国家: { type: string, owner: source, column: ShipCountry }
-
+      订单号:
+        type: ref
+        owner: source
+        column: OrderID
+        to: 销售订单
+      承运商:
+        type: ref
+        to: 承运商
+        owner: source
+        column: ShipVia
+        nullable: true
+        absent: gap
+        gap: H-未发货
+      发货日:
+        type: date
+        owner: source
+        column: ShippedDate
+        nullable: true
+        absent: gap
+        gap: H-未发货
+      运费:
+        type: money
+        owner: source
+        column: Freight
+      收货国家:
+        type: string
+        owner: source
+        column: ShipCountry
+  客户人口关联:
+    label: 客户人口关联
+    backing:
+      from: R-NORTHWIND
+      table: CustomerCustomerDemo
+      key:
+      - CustomerID
+      - CustomerTypeID
+    props:
+      CustomerID:
+        type: ref
+        owner: source
+        column: CustomerID
+        to: 客户
+      CustomerTypeID:
+        type: ref
+        owner: source
+        column: CustomerTypeID
+        to: 客户人口信息
+  客户人口信息:
+    label: 客户人口信息
+    backing:
+      from: R-NORTHWIND
+      table: CustomerDemographics
+      key:
+      - CustomerTypeID
+    props:
+      CustomerTypeID:
+        type: string
+        owner: source
+        column: CustomerTypeID
+      CustomerDesc:
+        type: string
+        owner: source
+        column: CustomerDesc
+  员工辖区:
+    label: 员工辖区
+    backing:
+      from: R-NORTHWIND
+      table: EmployeeTerritories
+      key:
+      - EmployeeID
+      - TerritoryID
+    props:
+      EmployeeID:
+        type: ref
+        owner: source
+        column: EmployeeID
+        to: 员工
+      TerritoryID:
+        type: ref
+        owner: source
+        column: TerritoryID
+        to: 辖区
+  员工:
+    label: 员工
+    backing:
+      from: R-NORTHWIND
+      table: Employees
+      key:
+      - EmployeeID
+    props:
+      EmployeeID:
+        type: number
+        owner: source
+        column: EmployeeID
+      LastName:
+        type: string
+        owner: source
+        column: LastName
+      FirstName:
+        type: string
+        owner: source
+        column: FirstName
+      Title:
+        type: string
+        owner: source
+        column: Title
+      TitleOfCourtesy:
+        type: string
+        owner: source
+        column: TitleOfCourtesy
+      BirthDate:
+        type: string
+        owner: source
+        column: BirthDate
+      HireDate:
+        type: string
+        owner: source
+        column: HireDate
+      Address:
+        type: string
+        owner: source
+        column: Address
+      City:
+        type: string
+        owner: source
+        column: City
+      Region:
+        type: string
+        owner: source
+        column: Region
+      PostalCode:
+        type: string
+        owner: source
+        column: PostalCode
+      Country:
+        type: string
+        owner: source
+        column: Country
+      HomePhone:
+        type: string
+        owner: source
+        column: HomePhone
+      Extension:
+        type: string
+        owner: source
+        column: Extension
+      Notes:
+        type: string
+        owner: source
+        column: Notes
+      ReportsTo:
+        type: ref
+        owner: source
+        column: ReportsTo
+        nullable: true
+        absent: none
+        to: 员工
+      PhotoPath:
+        type: string
+        owner: source
+        column: PhotoPath
+    display: LastName
+  地区:
+    label: 地区
+    backing:
+      from: R-NORTHWIND
+      table: Regions
+      key:
+      - RegionID
+    props:
+      RegionID:
+        type: number
+        owner: source
+        column: RegionID
+      RegionDescription:
+        type: string
+        owner: source
+        column: RegionDescription
+    display: RegionDescription
+  供应商:
+    label: 供应商
+    backing:
+      from: R-NORTHWIND
+      table: Suppliers
+      key:
+      - SupplierID
+    props:
+      SupplierID:
+        type: number
+        owner: source
+        column: SupplierID
+      CompanyName:
+        type: string
+        owner: source
+        column: CompanyName
+      ContactName:
+        type: string
+        owner: source
+        column: ContactName
+      ContactTitle:
+        type: string
+        owner: source
+        column: ContactTitle
+      Address:
+        type: string
+        owner: source
+        column: Address
+      City:
+        type: string
+        owner: source
+        column: City
+      Region:
+        type: string
+        owner: source
+        column: Region
+        nullable: true
+        absent: none
+      PostalCode:
+        type: string
+        owner: source
+        column: PostalCode
+      Country:
+        type: string
+        owner: source
+        column: Country
+      Phone:
+        type: string
+        owner: source
+        column: Phone
+      Fax:
+        type: string
+        owner: source
+        column: Fax
+        nullable: true
+        absent: none
+      HomePage:
+        type: string
+        owner: source
+        column: HomePage
+        nullable: true
+        absent: none
+    display: CompanyName
+  辖区:
+    label: 辖区
+    backing:
+      from: R-NORTHWIND
+      table: Territories
+      key:
+      - TerritoryID
+    props:
+      TerritoryID:
+        type: string
+        owner: source
+        column: TerritoryID
+      TerritoryDescription:
+        type: string
+        owner: source
+        column: TerritoryDescription
+      RegionID:
+        type: ref
+        owner: source
+        column: RegionID
+        to: 地区
+    display: TerritoryDescription
 hooks:
   H-客户地址缺失:
     label: 两个客户缺少城市和国家
     blocked_on: R-NORTHWIND
     resolve_when: 客户主数据补齐城市与国家，或确认缺失的业务含义
     owner: 人/仓储主管
-    affects: [客户数]
-
+    affects:
+    - 客户数
   H-无客户归属:
     label: 订单未关联到客户
     blocked_on: R-NORTHWIND
-    resolve_when: "订单补上客户号，或确认它确实不属于任何客户"
+    resolve_when: 订单补上客户号，或确认它确实不属于任何客户
     owner: 人/仓储主管
-    affects: [订单数]
-
+    affects:
+    - 订单数
   H-未发货:
     label: 下单后尚未发货
     blocked_on: R-NORTHWIND
-    resolve_when: "该订单出现发货日，或被确认取消"
+    resolve_when: 该订单出现发货日，或被确认取消
     owner: 人/仓储主管
-    affects: [已发运费合计]
-
+    affects:
+    - 已发运费合计
 nodes:
   客户数:
     label: 客户数
-    op: "select count(*) from 客户"
-
+    op: select count(*) from 客户
   销售净额:
     label: 销售净额（示例口径，待确认）
-    op: "select sum(净额) from 订单明细"
-
+    op: select sum(净额) from 订单明细
   品类净额合计:
     label: 八个品类的净额合计
-    op: "select sum(销售净额) from 品类"
-
+    op: select sum(销售净额) from 品类
   平均明细净额:
     label: 平均每行明细净额
-    op: "select avg(净额) from 订单明细"
-
+    op: select avg(净额) from 订单明细
   最小明细净额:
     label: 最小明细净额
-    op: "select min(净额) from 订单明细"
-
+    op: select min(净额) from 订单明细
   最大明细净额:
     label: 最大明细净额
-    op: "select max(净额) from 订单明细"
-
+    op: select max(净额) from 订单明细
   订单数:
     label: 订单数
-    op: "select count(*) from 销售订单"
-
+    op: select count(*) from 销售订单
   已发运费合计:
     label: 已发货订单的运费合计
-    op: "select sum(运费) from 发货 where 发货日 is not null"
-
+    op: select sum(运费) from 发货 where 发货日 is not null
   明细行数:
     label: 订单明细行数
-    op: "select count(*) from 订单明细"
-
+    op: select count(*) from 订单明细
   打折行数:
     label: 有折扣的明细行数
-    op: "select count(*) from 订单明细 where 折扣 > 0"
-
+    op: select count(*) from 订单明细 where 折扣 > 0
   未发货运费合计:
     label: 尚未发货订单的运费合计
-    op: "select sum(运费) from 发货 where 发货日 is null"
-
+    op: select sum(运费) from 发货 where 发货日 is null
 checks:
   品类汇总未漏额:
-    # Permit only sub-cent floating point representation error.
-    expr: "销售净额 - 品类净额合计 < 0.01 and 销售净额 - 品类净额合计 > -0.01"
-
+    expr: 销售净额 - 品类净额合计 < 0.01 and 销售净额 - 品类净额合计 > -0.01
 instances:
   人:
-    - { 工号: 仓储主管 }
+  - 工号: 仓储主管

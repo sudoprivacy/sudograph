@@ -23,9 +23,11 @@ from __future__ import annotations
 import os
 import sqlite3
 from dataclasses import replace
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 from . import expr
+from .dependencies import validate_names
 from .query import Builder, NotPushable, compile_query, quote
 
 if TYPE_CHECKING:
@@ -154,6 +156,14 @@ def verify(s: Spec, base: str = ".") -> list[str]:
             if not cols:
                 out.append(f"type {tname}: {b['from']} has no table {table!r}")
                 continue
+            if b.get('where'):
+                physical = SimpleNamespace(types={table: {'props': {c: {} for c in cols}}},
+                                           nodes={}, raw={}, hooks={}, links_of=lambda _: {})
+                try:
+                    validate_names(physical, expr.parse(b['where']), table)
+                except expr.ExprError as error:
+                    out.append(f'type {tname}: invalid source filter: {error}')
+                    continue
 
             for pname in (t.get("props") or {}):
                 definition = t["props"][pname]

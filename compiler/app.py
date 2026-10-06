@@ -19,8 +19,10 @@ from __future__ import annotations
 import itertools
 import json
 import os
+import re
 from typing import Any
 
+from . import blind, browse, catalog
 from . import compile as compile_mod
 from . import diff as diff_mod
 from . import measure as measure_mod
@@ -58,7 +60,8 @@ def _key(basis: str | None, at: dict[str, str]) -> str:
     return f"{basis or ''}|{coords}"
 
 
-def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5) -> dict[str, Any]:
+def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5,
+           records: bool = False) -> dict[str, Any]:
     axes = coordinates(s)
     bases: list[str | None] = list(s.bases) or [None]
     combos = [
@@ -97,6 +100,8 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5) -> dict[str, Any]:
             diffs[f"{name or f'{before}->{after}'}|{_key(None, at)[1:]}"] = d.as_dict()
 
     return {
+        "coverage": catalog.enforce(s),
+        "records": browse.snapshot(s) if records else {},
         "ontology": s.name,
         "axes": axes,
         "bases": bases,
@@ -120,6 +125,7 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5) -> dict[str, Any]:
 #: on a machine with internet, on a day the CDN is up". Both are MIT.
 VENDOR = [
     os.path.join(_ROOT, "app", "vendor", "elk.bundled.js"),
+    os.path.join(_ROOT, "app", "vendor", "cytoscape.min.js"),
 ]
 
 
@@ -128,19 +134,29 @@ def languages() -> list[str]:
         return ['zh', *json.load(fh)]
 
 
-def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 'zh') -> str:
+def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 'auto') -> str:
+    if 'challenge' in b:
+        blind.public_only(b['challenge'])
     with open(os.path.join(_ROOT, 'app', 'messages.json'), encoding='utf-8') as fh:
         catalogs = json.load(fh)
     keys = set(catalogs['en'])
-    for lang, catalog in catalogs.items():
-        if set(catalog) != keys:
+    for lang, messages in catalogs.items():
+        if set(messages) != keys:
             raise ValueError(f"UI locale {lang} has missing or extra translation keys")
-    if language != 'zh' and language not in catalogs:
+    if language not in ('auto', 'zh') and language not in catalogs:
         raise ValueError(f"unknown UI language {language!r}; available: {languages()}")
-    messages = {k: k for k in keys} if language == 'zh' else catalogs[language]
-    b = {**b, 'ui': {'language': language, 'messages': messages}}
+    catalogs['zh'] = {k: k for k in keys}
+    messages = catalogs.get(language, catalogs['zh'])
+    b = {**b, 'ui': {'language': language, 'messages': messages, 'catalogs': catalogs}}
     with open(template_path, encoding="utf-8") as fh:
         html = fh.read()
+    for marker, filename in [('/*__CANVAS__*/', 'canvas.js'), ('/*__RECORDS__*/', 'records.js')]:
+        with open(os.path.join(_ROOT, 'app', filename), encoding='utf-8') as fh:
+            html = html.replace(marker, fh.read())
+    used = set(re.findall(r"\bt\(['\"]([^'\"]+)['\"]", html))
+    used.update(re.findall(r'data-ui="([^"]+)"', html))
+    if used - keys:
+        raise ValueError(f'UI translation missing: {sorted(used - keys)}')
     for placeholder in ("__BUNDLE__", "/*__VENDOR__*/"):
         if placeholder not in html:
             raise ValueError(f"{template_path} has no {placeholder} placeholder to fill")

@@ -16,6 +16,9 @@ node there — not here.
 
 This README only covers how to use the repo.
 
+Source coverage, paginated records, the authorised gateway, and raw-source
+question generation are documented in [the interface guide](docs/interfaces.md).
+
 ## Where this sits
 
 The spec is the only thing anyone writes. Everything to its left is read-only,
@@ -302,6 +305,11 @@ nothing — generalise on the third instance, not the second.
 
 ## The expression language is a SQL subset
 
+SQLGlot is a required dependency, not an optional authoring aid. Loading a spec,
+computed properties, checks, `backing.where` and gateway queries all use the
+checked parser. Unsupported AST nodes fail with a recovery message. An agent
+cannot select a different dialect through YAML or submit raw SQL to the gateway.
+
 The compiler parses it and never calls `eval`, because a spec that can eval hands
 execution to the model that wrote it.
 
@@ -377,7 +385,10 @@ What it shows:
 Layout is ELK `layered` — this is a DAG read top-down. Fit is clamped so it never
 shrinks past legibility; pan and zoom do the rest.
 
-Pass `--lang en` when generating an app for an English UI. Add languages to
+The generated app selects Chinese or English from the browser automatically.
+Pass `--lang en` to pin the UI language. Every export embeds the catalogs; an
+agent does not need to remember a translation step. Missing translation keys
+refuse generation. Add languages to
 `app/messages.json`, preserving every key and placeholder. Domain labels and
 compiler diagnostics remain authored in their original language; this does not
 translate them automatically. View selectors are presentation controls, not
@@ -418,7 +429,7 @@ Requires Python 3.11+. Install the pinned runtime dependencies with
 python -m compiler.cli examples/weiwai-capitalisation.yaml        # values + checks
 python -m compiler.cli examples/weiwai-capitalisation.yaml --view # view model JSON
 python -m compiler.cli examples/northwind.yaml                    # a spec over a live database
-python -m compiler.cli examples/northwind.yaml --measure          # ask it questions it generates itself
+python -m compiler.cli examples/northwind.yaml --measure          # computational self-checks, not an LLM evaluation
 python -m pytest                                                  # tests
 python -m tools.verify                                            # everything CI runs
 ```

@@ -108,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
         "The spec is written once and fed different leaves",
     )
     ap.add_argument("--basis", help="compute under one declared basis")
-    ap.add_argument('--lang', choices=app_mod.languages(), default='zh',
+    ap.add_argument('--lang', choices=['auto', *app_mod.languages()], default='auto',
                     help='graph interface language; business labels keep their original wording')
     ap.add_argument(
         "--app",
@@ -116,6 +116,9 @@ def main(argv: list[str] | None = None) -> int:
         help="write the self-contained graph app: every reading, every slice and "
         "every bridge computed here and inlined, so the renderer only picks",
     )
+    ap.add_argument('--records', action='store_true',
+                    help='include complete, compressed record pages in a portable export')
+    ap.add_argument('--questions', help='include public blind questions; private oracles refuse')
     ap.add_argument(
         "--diff",
         metavar="BEFORE:AFTER",
@@ -148,7 +151,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.app:
         try:
-            b = app_mod.bundle(s, fold_over=args.fold_over, top_n=args.top_n)
+            b = app_mod.bundle(s, fold_over=args.fold_over, top_n=args.top_n, records=args.records)
+            if args.questions:
+                with open(args.questions, encoding='utf-8') as fh:
+                    b['challenge'] = json.load(fh)
+                app_mod.blind.public_only(b['challenge'])
         except ValueError as e:
             print(str(e), file=sys.stderr)
             return 2
