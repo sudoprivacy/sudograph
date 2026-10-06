@@ -504,9 +504,9 @@ def test_a_folded_group_still_shows_buckets_and_top_rows():
 
     by_status = {b["value"]: b for b in g["buckets"]["状态"]}
     assert by_status["已确认"]["count"] == 9
-    # Buckets and node values must agree; they are computed from the same rows.
-    stuck = sum(b["totals"].get("金额_不含税", 0) for k, b in by_status.items() if k != "已确认")
-    assert stuck == _real().values["待坐实金额"]
+    # Folding cannot infer additivity from a currency type. Totals belong to
+    # explicit expressions, so a price never silently becomes a bucket sum.
+    assert all(not bucket['totals'] for bucket in by_status.values())
 
     top = g["top"]["金额_不含税"]
     assert len(top) == 3
@@ -1678,7 +1678,7 @@ def test_the_legend_is_infra_and_says_so_plainly():
     # The table is the only place these words exist: no per-ontology override.
     assert "KINDS[" not in html.split("const KINDS", 1)[0]
     for word in ("数从哪儿来", "还差什么", "点开看每一行"):
-        assert html.count(word) == 1, word
+        assert table.count(word) == 1, word
 
 
 def test_an_edge_to_a_hidden_row_lands_on_the_box_holding_it():
@@ -2291,12 +2291,12 @@ def test_a_literal_reaches_the_database_as_a_value_never_as_syntax(tmp_path):
     """The spec is written by an agent. The one thing that must not be possible
     is for what it writes to arrive as something other than a value."""
     _tiny_db(tmp_path)
-    spec_mod.load(str(_bound_spec(tmp_path)))
-    params: list = []
-    sql = bind_mod._sql(
-        expr.parse("运费 > 1 and 运费 < 99"), lambda n: "Freight", params
-    )
-    assert "?" in sql and "1" not in sql and params == [1, 99]
+    s = spec_mod.load(str(_bound_spec(tmp_path)))
+    query = bind_mod.compile_query(s, expr.parse(
+        "select sum(运费) from 订单 where 运费 > 1 and 运费 < 99"
+    ))
+    assert ':p0' in query.sql and '99' not in query.sql
+    assert list(query.params.values()) == [1, 99]
 
 
 def test_an_unanswerable_aggregate_over_an_unfetched_type_refuses(tmp_path):
@@ -2304,7 +2304,7 @@ def test_an_unanswerable_aggregate_over_an_unfetched_type_refuses(tmp_path):
     silence would mean summing none of them."""
     _fat_db(tmp_path, bind_mod.MAX_ROWS + 5)
     s = spec_mod.load(str(_bound_spec(tmp_path)))
-    with pytest.raises(bind_mod.BindingError, match="too many"):
+    with pytest.raises(expr.ExprError, match="too many"):
         bind_mod.answerer(s)(expr.parse("select sum(没这列) from 订单"))
 
 
@@ -2340,7 +2340,7 @@ def test_a_backed_type_wears_the_table_it_reads():
 
     html = _html()
     assert "n.backing ? n.backing.table : null" in html
-    assert "<h2>读自</h2>" in html
+    assert "<h2>${t('读自')}</h2>" in html
 
 
 def _northwind_spec():

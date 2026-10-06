@@ -26,6 +26,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from . import expr
+from .query import Builder, NotPushable, compile_query, quote
 
 if TYPE_CHECKING:
     # Only ever an annotation here, and `spec` imports this module to bind at
@@ -84,6 +85,13 @@ def connect(dsn: str, base: str = ".") -> sqlite3.Connection:
     uri = "file:" + path.replace("\\", "/") + "?mode=ro"
     conn = sqlite3.connect(uri, uri=True)
     conn.row_factory = sqlite3.Row
+    conn.create_function('sg_round', 2, expr.money_round, deterministic=True)
+    conn.create_function('sg_div', 2, expr.divide, deterministic=True)
+    for op, name in [('+', 'add'), ('-', 'sub'), ('*', 'mul'), ('/', 'div')]:
+        def decimal_op(a, b, operator=op):
+            result = expr.decimal_binary(operator, a, b)
+            return None if result is None else str(result)
+        conn.create_function(f'sg_decimal_{name}', 2, decimal_op, deterministic=True)
     return conn
 
 
@@ -148,11 +156,46 @@ def verify(s: Spec, base: str = ".") -> list[str]:
                 continue
 
             for pname in (t.get("props") or {}):
+                definition = t["props"][pname]
+                if "op" in definition:
+                    continue
+                if s.owner_of(tname, pname) != "source":
+                    out.append(
+                        f"type {tname}.{pname}: a stored ontology-owned decision has no "
+                        "backing store here. Use a related ontology-owned type for decisions, "
+                        "or an 'op' for a calculated property; do not add a source column"
+                    )
+                    continue
                 col = s.column_of(tname, pname)
                 if col not in cols:
                     out.append(
                         f"type {tname}.{pname}: {table!r} has no column {col!r}"
                     )
+                    continue
+                condition = f"({b['where']}) AND " if b.get("where") else ""
+                if not definition.get("nullable"):
+                    nulls = conn.execute(
+                        f'SELECT count(*) FROM {quote(table)} WHERE {condition}'
+                        f'{quote(col)} IS NULL'
+                    ).fetchone()[0]
+                    if nulls:
+                        out.append(
+                            f"type {tname}.{pname}: {nulls} source row(s) are null, but "
+                            "the property is not nullable. Declare nullable and what "
+                            "absence means, or correct the binding"
+                        )
+                if definition.get("type") == "enum":
+                    values = definition["values"]
+                    placeholders = ','.join('?' for _ in values)
+                    bad = conn.execute(
+                        f'SELECT DISTINCT {quote(col)} FROM {quote(table)} WHERE {condition}'
+                        f'{quote(col)} IS NOT NULL AND '
+                        f'{quote(col)} NOT IN ({placeholders}) LIMIT 5',
+                        values,
+                    ).fetchall()
+                    if bad:
+                        out.append(f"type {tname}.{pname}: source values "
+                                   f"{[r[0] for r in bad]} are not in the declared enum")
                     continue
                 want = _COMPATIBLE.get((t["props"][pname] or {}).get("type"))
                 if want and cols[col] and not any(k in cols[col] for k in want):
@@ -169,22 +212,45 @@ def verify(s: Spec, base: str = ".") -> list[str]:
             # an error because it looks like an answer. Checked against the data
             # for the same reason the key is: it is a claim about rows.
             idp = t.get("id")
-            if idp and idp in (t.get("props") or {}):
+            if idp and s.column_of(tname, idp) in cols:
                 for bad in _not_unique(conn, table, [s.column_of(tname, idp)], b):
                     out.append(
                         f"type {tname}: id {idp!r} names more than one row — "
                         f"{bad} value(s) are shared. The key declares "
                         f"{b.get('key')}, so no single property identifies a row "
-                        f"here; narrow the type with backing.where, or bind one "
-                        f"whose rows an id can name"
+                        f"here; omit id to use the full backing.key, or narrow the "
+                        f"type with backing.where"
                     )
             key = b.get("key") or []
             if key and all(k in cols for k in key):
+                condition = f"({b['where']}) AND " if b.get("where") else ""
+                null_key = ' OR '.join(f'{quote(k)} IS NULL' for k in key)
+                if conn.execute(f'SELECT 1 FROM {quote(table)} WHERE {condition}'
+                                f'({null_key}) LIMIT 1').fetchone():
+                    out.append(f"type {tname}: key {key} contains null; a row needs an identity")
                 for dupes in _not_unique(conn, table, key, b):
                     out.append(
                         f"type {tname}: key {key} is not unique in {table} — "
                         f"{dupes} value(s) name more than one row"
                     )
+        for hname, hook in s.hooks.items():
+            owner = str(hook.get('owner') or '')
+            if '/' not in owner:
+                continue
+            tname, identity = owner.split('/', 1)
+            b = s.backing_of(tname)
+            if not b or b['from'] not in s.raw:
+                continue
+            dsn = s.raw[b['from']]['dsn']
+            conn = conns.get(dsn)
+            if conn is None or not _columns(conn, b['table']):
+                continue
+            cols = [s.column_of(tname, p) for p in s.id_props(tname)]
+            key_sql = " || '·' || ".join(f'CAST({quote(c)} AS TEXT)' for c in cols)
+            condition = f"({b['where']}) AND " if b.get('where') else ''
+            if not conn.execute(f'SELECT 1 FROM {quote(b["table"])} WHERE {condition}'
+                                f'({key_sql}) = ? LIMIT 1', [identity]).fetchone():
+                out.append(f"hook {hname}: no {tname} with id {identity!r} in its source binding")
     finally:
         for c in conns.values():
             c.close()
@@ -206,7 +272,7 @@ def load(s: Spec, tname: str, base: str = ".") -> list[dict]:
     if not b:
         return list(s.instances.get(tname) or [])
     raw = s.raw[b["from"]]
-    props = list(s.types[tname].get("props") or {})
+    props = [p for p, d in (s.types[tname].get("props") or {}).items() if "op" not in d]
     cols = {pn: s.column_of(tname, pn) for pn in props}
     select = ", ".join(f'"{c}" as "{p}"' for p, c in cols.items())
     where = f" where {b['where']}" if b.get("where") else ""
@@ -242,7 +308,7 @@ def bind_all(s: Spec, base: str = ".") -> Spec:
     )
 
 
-def answerer(s: Spec, at: dict | None = None):
+def answerer(s: Spec, at: dict | None = None, basis: str | None = None):
     """A way to hand an aggregate to the database, for the evaluator to try first.
 
     `at` travels with it because the slice must reach the query. Built without
@@ -255,128 +321,56 @@ def answerer(s: Spec, at: dict | None = None):
     if not any(s.backing_of(t) for t in s.types):
         return None
 
-    def answer(node: Any) -> Any:
+    def answer(node: Any, scope: dict | None = None) -> Any:
         try:
-            return aggregate(s, node, s.source_base, at)
-        except NotPushable:
+            return aggregate(s, node, s.source_base, at, basis=basis, scope=scope)
+        except NotPushable as error:
             # Only legitimate when the rows are here to do it the other way.
             if node.type_name in s.unloaded:
-                raise BindingError(
+                raise expr.ExprError(
                     f"{node.type_name} holds {s.unloaded[node.type_name]} rows, too many "
                     f"to work through here, and this aggregate cannot be handed to the "
                     f"database. Narrow the type with backing.where, or express it so the "
-                    f"query can answer it"
+                    f"query can answer it. Reason: {error}"
                 ) from None
             return expr.DECLINED
 
     return answer
 
-#: Operators that mean the same thing in our expressions and in SQL. Translated
-#: rather than passed through: the subset is small enough to enumerate, and
-#: enumerating it is what keeps a spec from reaching the database with anything
-#: the compiler has not understood first.
-_SQL_OPS = {
-    "=": "=", "<>": "<>", "!=": "<>", "<": "<", ">": ">", "<=": "<=", ">=": ">=",
-    "+": "+", "-": "-", "*": "*", "/": "/",
-    "and": "AND", "or": "OR",
-}
+def aggregate(s: Spec, node: Any, base: str = ".", at: dict | None = None,
+              *, basis: str | None = None, scope: dict | None = None) -> Any:
+    """Execute a checked, parameterised aggregate without fetching its rows."""
+    query = compile_query(s, node, at=at, basis=basis, scope=scope)
+    with connect(query.dsn, base) as conn:
+        try:
+            return conn.execute(query.sql, query.params).fetchone()[0]
+        except sqlite3.Error as e:
+            raise expr.ExprError(f"source query failed: {e}; expression: {node}") from e
 
 
-class NotPushable(Exception):
-    """This expression cannot be answered by the database alone."""
-
-
-def _sql(node: Any, col: Any, params: list) -> str:
-    """One expression, translated. Raises when any part of it has no translation.
-
-    Never interpolated: every literal becomes a bound parameter, so a value in a
-    spec cannot become syntax in a query. The spec is written by an agent, and
-    the one thing that must not be possible is for what it writes to be executed
-    as something other than a value.
-    """
-
-    if isinstance(node, expr.Lit):
-        params.append(node.value)
-        return "?"
-    if isinstance(node, expr.Ref):
-        return f'"{col(node.name)}"'
-    if isinstance(node, expr.Not):
-        return f"(NOT {_sql(node.operand, col, params)})"
-    if isinstance(node, expr.Neg):
-        return f"(-{_sql(node.operand, col, params)})"
-    if isinstance(node, expr.IsNull):
-        tail = "IS NOT NULL" if node.negated else "IS NULL"
-        return f"({_sql(node.operand, col, params)} {tail})"
-    if isinstance(node, expr.Bin):
-        op = _SQL_OPS.get(node.op)
-        if not op:
-            raise NotPushable(f"no translation for {node.op!r}")
-        return f"({_sql(node.left, col, params)} {op} {_sql(node.right, col, params)})"
-    raise NotPushable(f"no translation for {type(node).__name__}")
-
-
-def aggregate(s: Spec, node: Any, base: str = ".", at: dict | None = None) -> Any:
-    """Answer one aggregate from the database, or raise NotPushable.
-
-    This is what lets a type be larger than memory. The expression language
-    already says exactly one aggregate over exactly one type with an optional
-    filter — which is a SELECT — so the translation is a rename of columns and
-    nothing more. Anything the subset does not cover raises rather than being
-    approximated.
-
-    `at` is the slice in force, and it is not optional for correctness: the
-    rows in memory are filtered by it elsewhere, so a query that ignored it
-    would put a whole-book figure on a graph whose rows are one market's. The
-    headline would read 330 above two rows adding to 30, under a heading saying
-    which market — one number meaning two things, which is the single thing
-    this project is built to prevent.
-    """
-    tname = node.type_name
-    b = s.backing_of(tname)
-    if not b:
-        raise NotPushable(f"{tname} is not backed by a table")
-
-    props = (s.types[tname].get("props") or {})
-
-    def col(name: str) -> str:
-        p = props.get(name)
-        if p is None:
-            raise NotPushable(f"{name!r} is not a property of {tname}")
-        if "op" in p:
-            # Computed here, so the database has never heard of it.
-            raise NotPushable(f"{tname}.{name} is computed, not stored")
-        return s.column_of(tname, name)
-
-    params: list = []
-    where = b.get("where")
-    clauses = [f"({where})"] if where else []
-    if node.where is not None:
-        clauses.append(_sql(node.where, col, params))
-    # The slice, in the same WHERE the rows would have been filtered by. A type
-    # that declares none of the dimensions is reference data and stays whole,
-    # exactly as _restrict leaves it.
-    for dim, value in (at or {}).items():
-        axis = s.axis_of(tname, dim)
-        if not axis:
-            continue
-        clauses.append(f'"{col(axis)}" = ?')
-        params.append(value)
-    tail = (" WHERE " + " AND ".join(clauses)) if clauses else ""
-
-    if node.func == "count":
-        head = "count(*)" if node.prop in (None, "*") else f'count("{col(node.prop)}")'
-    elif node.func == "sum":
-        head = f'sum("{col(node.prop)}")'
-    else:
-        raise NotPushable(f"no translation for {node.func}()")
-
-    raw = s.raw[b["from"]]
-    with connect(raw["dsn"], base) as conn:
-        row = conn.execute(
-            f'select {head} from "{b["table"]}"{tail}', params
+def link_evidence(s: Spec, tname: str, prop: str, at=None) -> dict:
+    """Count and sample dangling refs in the source, including unfetched tables."""
+    builder = Builder(s, dict(at or {}))
+    joins = []
+    row = builder.row(tname, joins)
+    target = s.links_of(tname)[prop]
+    ids = s.id_props(target)
+    if len(ids) != 1:
+        raise expr.ExprError(f"{tname}.{prop}: a scalar ref cannot name a composite identity")
+    target_key = row.path((prop, ids[0]))
+    source_key = row.property(prop)
+    bad = f"({source_key} IS NOT NULL AND {target_key} IS NULL)"
+    clauses = row.filters()
+    base_sql = f"FROM {row.source()} {' '.join(joins)}"
+    where = ' WHERE ' + ' AND '.join(clauses) if clauses else ''
+    with connect(builder.dsn, s.source_base) as conn:
+        result = conn.execute(
+            f"SELECT count(*), count({source_key}), COALESCE(sum({bad}), 0) {base_sql}{where}",
+            builder.params,
         ).fetchone()
-    value = row[0]
-    # `sum` over no rows is NULL in SQL and 0 in the row-by-row evaluator; the
-    # two must not disagree about an empty set or a figure would change meaning
-    # with the size of its input.
-    return 0 if value is None and node.func == "sum" else value
+        columns = ','.join(row.property(p) for p in s.id_props(tname))
+        sample_where = ' WHERE ' + ' AND '.join([*clauses, bad])
+        sample = conn.execute(f"SELECT {columns} {base_sql}{sample_where} LIMIT 5",
+                              builder.params).fetchall() if result[2] else []
+    return {'total': result[0], 'linked': result[1], 'affected': result[2],
+            'sample': [r[0] if len(r) == 1 else '·'.join(str(x) for x in r) for r in sample]}

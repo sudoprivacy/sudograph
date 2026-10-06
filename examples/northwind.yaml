@@ -6,11 +6,9 @@
 # is late or on time. So the table is bound twice, with different columns and
 # different identities, and neither object is a table.
 #
-# Nothing here restates what the database already answers. Column types, indexes
-# and foreign keys are read back and compared (see compiler/bind.py), never
-# written down — a fact held in two places is a fact that can disagree. What is
-# written is what the database cannot say: which table carries this object, which
-# columns name one of its rows, and what the business calls any of it.
+# The binding is checked against the live columns, keys and reference values.
+# The agent still proposes which objects and relationships the business means;
+# the database cannot establish that semantic interpretation.
 #
 # This build of Northwind holds 16,282 orders and 609,283 order lines. That is
 # the other half of the argument: those rows cannot go in a spec file, so the
@@ -40,8 +38,8 @@ types:
       客户号:   { type: string, owner: source, column: CustomerID }
       公司名:   { type: string, owner: source, column: CompanyName }
       联系人:   { type: string, owner: source, column: ContactName, nullable: true, absent: none }
-      国家:     { type: string, owner: source, column: Country }
-      城市:     { type: string, owner: source, column: City }
+      国家:     { type: string, owner: source, column: Country, nullable: true, absent: gap, gap: H-客户地址缺失 }
+      城市:     { type: string, owner: source, column: City, nullable: true, absent: gap, gap: H-客户地址缺失 }
 
   # 609,283 行 —— 取不进内存，也不需要。它的聚合由库来答，所以它在图上是一个
   # 有行数的类型，只是行本身不在这儿。
@@ -51,11 +49,38 @@ types:
     # 不再说第二遍。写成单列的 id 会让 609,283 行压到 16,282 个订单号上。
     backing: { from: R-NORTHWIND, table: "Order Details", key: [OrderID, ProductID] }
     props:
-      订单号:   { type: string, owner: source, column: OrderID }
-      产品号:   { type: string, owner: source, column: ProductID }
+      订单号:   { type: ref, to: 销售订单, owner: source, column: OrderID }
+      产品号:   { type: ref, to: 产品, owner: source, column: ProductID }
       成交价:   { type: money,  owner: source, column: UnitPrice }
       数量:     { type: number, owner: source, column: Quantity }
       折扣:     { type: number, owner: source, column: Discount }
+      净额:
+        type: money
+        scale: 2
+        op: "成交价 * 数量 * (1 - 折扣)"
+
+  产品:
+    label: 产品
+    id: 产品号
+    backing: { from: R-NORTHWIND, table: Products, key: [ProductID] }
+    props:
+      产品号: { type: string, owner: source, column: ProductID }
+      名称: { type: string, owner: source, column: ProductName }
+      品类: { type: ref, to: 品类, owner: source, column: CategoryID }
+      标价: { type: money, owner: source, column: UnitPrice }
+
+  品类:
+    label: 品类
+    description: "汇总演示，待业务确认：沿订单明细→产品→品类取数；净额逐行按成交价×数量×(1−折扣)四舍五入到两位，不含运费与税。"
+    id: 品类号
+    backing: { from: R-NORTHWIND, table: Categories, key: [CategoryID] }
+    props:
+      品类号: { type: string, owner: source, column: CategoryID }
+      名称: { type: string, owner: source, column: CategoryName }
+      销售净额:
+        type: money
+        scale: 2
+        op: "select sum(净额) from 订单明细 where 产品号.品类 = this"
 
   承运商:
     label: 承运商
@@ -95,6 +120,13 @@ types:
       收货国家: { type: string, owner: source, column: ShipCountry }
 
 hooks:
+  H-客户地址缺失:
+    label: 两个客户缺少城市和国家
+    blocked_on: R-NORTHWIND
+    resolve_when: 客户主数据补齐城市与国家，或确认缺失的业务含义
+    owner: 人/仓储主管
+    affects: [客户数]
+
   H-无客户归属:
     label: 订单未关联到客户
     blocked_on: R-NORTHWIND
@@ -110,6 +142,30 @@ hooks:
     affects: [已发运费合计]
 
 nodes:
+  客户数:
+    label: 客户数
+    op: "select count(*) from 客户"
+
+  销售净额:
+    label: 销售净额（示例口径，待确认）
+    op: "select sum(净额) from 订单明细"
+
+  品类净额合计:
+    label: 八个品类的净额合计
+    op: "select sum(销售净额) from 品类"
+
+  平均明细净额:
+    label: 平均每行明细净额
+    op: "select avg(净额) from 订单明细"
+
+  最小明细净额:
+    label: 最小明细净额
+    op: "select min(净额) from 订单明细"
+
+  最大明细净额:
+    label: 最大明细净额
+    op: "select max(净额) from 订单明细"
+
   订单数:
     label: 订单数
     op: "select count(*) from 销售订单"
@@ -129,6 +185,11 @@ nodes:
   未发货运费合计:
     label: 尚未发货订单的运费合计
     op: "select sum(运费) from 发货 where 发货日 is null"
+
+checks:
+  品类汇总未漏额:
+    # Permit only sub-cent floating point representation error.
+    expr: "销售净额 - 品类净额合计 < 0.01 and 销售净额 - 品类净额合计 > -0.01"
 
 instances:
   人:

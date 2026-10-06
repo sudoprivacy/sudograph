@@ -228,10 +228,8 @@ class Spec:
         }
 
     def ids_of(self, type_name: str) -> set:
-        t = self.types.get(type_name) or {}
         rows = self.instances.get(type_name) or []
-        idp = t.get("id")
-        return {r.get(idp) for r in rows if isinstance(r, dict)} if idp else set()
+        return {self.identify(type_name, r) for r in rows if isinstance(r, dict)}
 
 
 def load(path: str) -> Spec:
@@ -431,6 +429,8 @@ def _computed_prop_problems(s: Spec, tname: str, pname: str, p: dict) -> list[st
 
     if p.get("from"):
         out.append(f"{where}: a computed property cannot have 'from' — it is not upstream")
+    if "column" in p:
+        out.append(f"{where}: a computed property cannot also bind a source column; drop 'column'")
 
     # Written out per row *and* computed is the contradiction this exists to
     # remove: one of them is stale the moment the other changes.
@@ -452,7 +452,7 @@ def _computed_prop_problems(s: Spec, tname: str, pname: str, p: dict) -> list[st
                 f"{tname} nor a computed node"
             )
     out += _hidden_judgement(where, p, s.bases)
-    if "this" in expr.referenced_names(ast) and not (s.types.get(tname) or {}).get("id"):
+    if "this" in expr.referenced_names(ast) and not s.id_props(tname):
         out.append(f"{where}: op uses 'this' but {tname} declares no 'id' for it to mean")
     return out
 
@@ -689,11 +689,13 @@ def check(s: Spec) -> list[str]:
         if ref and "/" in str(ref):
             tname, iid = str(ref).split("/", 1)
             rows = s.instances.get(tname)
-            if rows is None:
+            if tname not in s.types:
                 out.append(f"hook {hname}: owner names unknown type {tname!r}")
+            elif s.backing_of(tname):
+                pass  # Resolved against the source after structural validation.
             elif tname in malformed or tname not in s.types:
                 pass  # already reported; do not compound one fault with another
-            elif not any(r.get(s.types[tname]["id"]) == iid for r in rows):
+            elif not any(str(s.identify(tname, r)) == iid for r in (rows or [])):
                 out.append(f"hook {hname}: no {tname} with id {iid!r}")
         if not h.get("resolve_when"):
             out.append(f"hook {hname} needs 'resolve_when' — otherwise it can never clear")

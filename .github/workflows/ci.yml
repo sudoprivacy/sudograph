@@ -16,7 +16,7 @@ jobs:
       # Pinned. An unpinned linter is a gate whose meaning changes with whatever
       # PyPI served that morning: ruff 0.16 widened its defaults and turned a
       # green local run red here, which says nothing about the code.
-      - run: pip install pytest==9.1.1 pyyaml==6.0.3 jsonschema==4.26.0 ruff==0.16.8
+      - run: pip install -r requirements.txt pytest==9.1.1 jsonschema==4.26.0 ruff==0.16.8
       # One step, because the list of gates lives in tools/verify.py and is the
       # same list a developer runs locally. Spelled out here a second time it
       # drifts, and it drifts by the local copy getting shorter — which is how

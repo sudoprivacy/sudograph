@@ -316,8 +316,25 @@ select sum(金额) from 委外合同 where 供应商 = '供应商07' -- a link n
 A node's whole expression may be a bare `select`; anywhere else an aggregate is a
 parenthesised scalar subquery, as in SQL. Keywords are case-insensitive.
 
-- **the grammar** is defined in `compiler/expr.py` — one place, and the parser is
-  built from it
+`sum`, `count`, `avg`, `min` and `max` work over source or computed properties.
+`avg`, `min` and `max` return null for an empty set; `sum` returns zero.
+Relationship traversal follows declared, unique scalar refs:
+
+```yaml
+# On each Category object, `this` means its identity.
+sales:
+  type: money
+  scale: 2
+  op: "select sum(net) from OrderLine where product.category = this"
+```
+
+The compiler turns that path into parameterised LEFT JOINs against the existing
+SQLite source. Missing targets fail a reference check. It refuses arbitrary JOIN
+conditions, composite targets and cross-source SQL. Folding never sums money
+columns automatically: a price is money too, so totals need explicit expressions.
+
+- **SQL syntax** is parsed by SQLGlot; `compiler/sql_parser.py` admits the
+  supported subset and rejects other constructs with recovery advice
 - **why SQL, what is subtracted, and why each subtraction** is [§7.8](https://s.shareone.vip/s/sudo-cloud-plan)
 - every subtraction refuses **by name and says where the capability lives**, so
   you meet it at the point of use rather than by reading either of the above
@@ -328,7 +345,7 @@ parenthesised scalar subquery, as in SQL. Keywords are case-insensitive.
 python -m compiler.cli examples/weiwai-real.yaml --app weiwai.html
 ```
 
-One self-contained HTML file: Cytoscape.js + ELK inlined, no network request at
+One self-contained HTML file: selectable SVG + ELK inlined, no network request at
 load, opens from disk. An audit deliverable gets read at a client site, and a CDN
 reference turns "open this file" into "open this file, on a machine with
 internet, on a day the CDN is up".
@@ -342,6 +359,10 @@ on the day it matters most.
 
 What it shows:
 
+- a data projection for source bindings, identities, columns and declared refs;
+  switch to metrics and rules when reviewing business definitions
+- generated measurement questions, answers, execution traces and unmeasured
+  metrics, under **Measurements**; the score does not certify business meaning
 - a reading selector and one selector per dimension — the coordinates of the view
 - colour by kind (raw / hook / derived / type), border by completeness
 - click a node: its value, the expression *this reading* uses, which hooks make it
@@ -355,6 +376,12 @@ What it shows:
 
 Layout is ELK `layered` — this is a DAG read top-down. Fit is clamped so it never
 shrinks past legibility; pan and zoom do the rest.
+
+Pass `--lang en` when generating an app for an English UI. Add languages to
+`app/messages.json`, preserving every key and placeholder. Domain labels and
+compiler diagnostics remain authored in their original language; this does not
+translate them automatically. View selectors are presentation controls, not
+permissions: the self-contained file contains all bundled views.
 
 ## Three gates on every write
 
@@ -384,8 +411,8 @@ That record travels with the spec into git, so there is no second place where
 
 ## Running it
 
-Requires Python 3.11+ and `pyyaml`. Nothing else — the compiler is meant to run
-wherever an agent runs.
+Requires Python 3.11+. Install the pinned runtime dependencies with
+`pip install -r requirements.txt` (PyYAML and SQLGlot).
 
 ```bash
 python -m compiler.cli examples/weiwai-capitalisation.yaml        # values + checks

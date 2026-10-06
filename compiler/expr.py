@@ -1,105 +1,49 @@
-"""A restricted SQL subset: parsed into an AST, then evaluated. Never eval'd.
+"""Evaluate a checked SQL subset over ontology objects.
 
-Everything outside the whitelist is a syntax error — attribute chains, function
-definitions, imports, arbitrary calls. Adding a capability means adding a rule
-here, deliberately, because specs are written by agents: a spec that can eval is
-a spec that hands execution to the model.
-
-**Why SQL and not a language of our own.** An earlier version of this file used
-an invented syntax (`sum(T where c -> p)`). It parsed fine and nobody could read
-it. The expressions are the part of a spec a business reviewer actually has to
-check, so the syntax has to be one that both a person and a model already know,
-and SQL is the only data language with that property. What is written here is
-real SQL as far as it goes; the restrictions are subtractions, not dialect.
-
-Grammar (lowest precedence first):
-
-    stmt      := select | or_expr
-    or_expr   := and_expr ('or' and_expr)*
-    and_expr  := not_expr ('and' not_expr)*
-    not_expr  := 'not' not_expr | cmp
-    cmp       := sum (('='|'<>'|'!='|'<='|'>='|'<'|'>') sum)?
-               | sum 'is' ['not'] 'null'
-    sum       := product (('+'|'-') product)*
-    product   := unary (('*'|'/') unary)*
-    unary     := '-' unary | atom
-    atom      := NUMBER | STRING | 'null' | NAME | '(' (select | or_expr) ')'
-    select    := 'select' agg 'from' NAME ['where' or_expr]
-    agg       := 'sum' '(' NAME ')' | 'count' '(' (NAME | '*') ')'
-
-A node's whole expression may be a bare `select`; anywhere else an aggregate is
-a **scalar subquery** and must be parenthesised, exactly as in SQL. That is not
-ceremony: without the parentheses, `select sum(x) from T where c + 1` has two
-readings, and a figure whose meaning depends on how the reader groups it is the
-opposite of what this project is for.
-
-Keywords are case-insensitive. NAME is deliberately permissive (any run of
-non-delimiter characters) so business vocabulary stays in the customer's own
-language while the grammar itself stays SQL.
-
-**Deliberate subtractions from SQL**, each because it would let a figure mean two
-things: no joins or subqueries in FROM (one type per aggregate — a relationship
-between types is modelled as a link, not smuggled into an expression), no
-GROUP BY (grouping is a view decision and lives in the compiler), no ORDER BY or
-LIMIT (a total does not depend on row order), no DISTINCT, no CASE, no functions
-beyond SUM and COUNT.
-
-**Where SQL's own semantics are kept**: SUM skips nulls and COUNT(<prop>) counts
-the non-null, as everywhere else in SQL. The risk that creates — a total silently
-understated by a missing figure — is not fixed by changing the arithmetic, which
-would surprise every reader. It is caught one level up, by `absent: gap`.
-
-**Where they are refused instead**: `x = null` is never true in SQL, which reads
-as "no such row" and means "the question was malformed". Rather than evaluate it
-to false, this rejects it and names `is null`.
+SQLGlot parses standard syntax; sql_parser lowers only supported constructs to
+this AST. Database translation and row evaluation share this representation.
+Paths follow declared refs, preserving one source row per aggregate input.
 """
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-AGGREGATES = ("sum", "count")
-KEYWORDS = {"and", "or", "not", "where", "null", "select", "from", "is"} | set(AGGREGATES)
+from . import sql_parser
 
-_TOKEN = re.compile(
-    r"""
-    (?P<space>\s+)
-  | (?P<number>\d+(?:\.\d+)?)
-  | (?P<string>'[^']*')
-  | (?P<gone>->|==)
-  | (?P<op><=|>=|<>|!=|=|[<>+\-*/()])
-  | (?P<name>[^\s'()<>=!+\-*/.,;:]+)
-    """,
-    re.VERBOSE,
-)
+AGGREGATES = ("sum", "count", "avg", "min", "max")
 
-#: Spellings from the invented syntax this replaced. They are recognised only so
-#: the error can name the SQL that takes their place — a bare "unexpected token"
-#: would leave the author guessing at a language they are still learning.
-_GONE = {
-    "->": "the projection arrow is gone; write `select sum(<prop>) from <Type> where <cond>`",
-    "==": "use `=` for equality, as in SQL — not `==`",
-}
 
-#: SQL this subset does not have. Each entry says where the capability lives
-#: instead, because every one of them exists somewhere in the system — refusing
-#: without saying where is how a restriction reads as an omission.
-_SUBTRACTED = {
-    "group": "GROUP BY is not in this subset — grouping is a view decision, so the "
-    "compiler buckets instances for the graph app instead",
-    "order": "ORDER BY is not in this subset — a total must not depend on row order; "
-    "ranking for display is the view model's `top`",
-    "limit": "LIMIT is not in this subset — a figure computed from some of the rows is "
-    "not the figure; the view model's `top_n` does the truncating for display",
-    "having": "HAVING is not in this subset — filter in WHERE",
-    "join": "JOIN is not in this subset — a relationship between two types is modelled "
-    "as a link on the graph, not smuggled into one node's expression",
-    "union": "UNION is not in this subset — add the two selects instead",
-}
+def money_round(value, scale=0):
+    if value is None:
+        return None
+    result = Decimal(str(value)).quantize(Decimal(1).scaleb(-scale), rounding=ROUND_HALF_UP)
+    return int(result) if scale == 0 else float(result)
 
+
+def divide(left, right):
+    if left is None or right is None:
+        return None
+    if right == 0:
+        raise ExprError("division by zero")
+    return left / right
+
+
+def decimal_binary(op, left, right):
+    """Keep decimal money arithmetic exact until the property's rounding boundary."""
+    if left is None or right is None:
+        return None
+    a, b = Decimal(str(left)), Decimal(str(right))
+    if op == '+':
+        return a + b
+    if op == '-':
+        return a - b
+    if op == '*':
+        return a * b
+    return divide(a, b)
 
 #: What an aggregate answerer returns when it cannot answer this one, kept
 #: distinct from None because None is a legitimate answer.
@@ -115,33 +59,6 @@ class ExprError(ValueError):
     """
 
 
-@dataclass(frozen=True)
-class Tok:
-    kind: str
-    text: str
-    pos: int
-
-
-def tokenize(src: str) -> list[Tok]:
-    out: list[Tok] = []
-    i = 0
-    while i < len(src):
-        m = _TOKEN.match(src, i)
-        if not m:
-            raise ExprError(f"unrecognised character {src[i]!r} at position {i}")
-        i = m.end()
-        kind = m.lastgroup
-        if kind == "space":
-            continue
-        text = m.group()
-        if kind == "gone":
-            raise ExprError(f"{_GONE[text]} (at position {m.start()}): {src!r}")
-        if kind == "name" and text.lower() in KEYWORDS:
-            kind = text.lower()
-        out.append(Tok(kind, text, m.start()))
-    return out
-
-
 # ── AST ────────────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
@@ -154,6 +71,13 @@ class Ref:
     """A bare identifier: resolved against instance properties, then node values."""
 
     name: str
+
+
+@dataclass(frozen=True)
+class Path:
+    """A path of declared refs, never arbitrary Python attribute access."""
+
+    parts: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -189,162 +113,8 @@ class Select:
     where: Any | None
 
 
-class _Parser:
-    def __init__(self, toks: list[Tok], src: str) -> None:
-        self.toks = toks
-        self.src = src
-        self.i = 0
-
-    def peek(self) -> Tok | None:
-        return self.toks[self.i] if self.i < len(self.toks) else None
-
-    def take(self, *kinds: str) -> Tok:
-        t = self.peek()
-        if t is None:
-            raise ExprError(f"expression ends early, expected {'/'.join(kinds)}: {self.src!r}")
-        if kinds and t.kind not in kinds and t.text not in kinds:
-            raise ExprError(
-                f"got {t.text!r} at position {t.pos}, expected {'/'.join(kinds)}: {self.src!r}"
-            )
-        self.i += 1
-        return t
-
-    def accept(self, *texts: str) -> Tok | None:
-        t = self.peek()
-        if t is not None and (t.text in texts or t.kind in texts):
-            self.i += 1
-            return t
-        return None
-
-    # Grammar ────────────────────────────────────────────────────────
-
-    def parse(self) -> Any:
-        node = self.statement()
-        if self.peek() is not None:
-            t = self.peek()
-            raise ExprError(f"trailing input {t.text!r} at position {t.pos}: {self.src!r}")
-        return node
-
-    def statement(self) -> Any:
-        t = self.peek()
-        if t is not None and t.kind == "select":
-            return self.select_stmt()
-        return self.or_expr()
-
-    def or_expr(self) -> Any:
-        node = self.and_expr()
-        while self.accept("or"):
-            node = Bin("or", node, self.and_expr())
-        return node
-
-    def and_expr(self) -> Any:
-        node = self.not_expr()
-        while self.accept("and"):
-            node = Bin("and", node, self.not_expr())
-        return node
-
-    def not_expr(self) -> Any:
-        if self.accept("not"):
-            return Not(self.not_expr())
-        return self.cmp()
-
-    def cmp(self) -> Any:
-        node = self.sum()
-        if self.accept("is"):
-            negated = bool(self.accept("not"))
-            self.take("null")
-            return IsNull(node, negated)
-        t = self.peek()
-        if t is not None and t.text in ("=", "<>", "!=", "<", "<=", ">", ">="):
-            self.i += 1
-            right = self.sum()
-            null_side = (isinstance(node, Lit) and node.value is None) or (
-                isinstance(right, Lit) and right.value is None
-            )
-            if null_side:
-                raise ExprError(
-                    f"comparing with null using {t.text!r} is never true in SQL — "
-                    f"write `is null` or `is not null`: {self.src!r}"
-                )
-            return Bin("!=" if t.text == "<>" else t.text, node, right)
-        return node
-
-    def sum(self) -> Any:
-        node = self.product()
-        while True:
-            t = self.accept("+", "-")
-            if not t:
-                return node
-            node = Bin(t.text, node, self.product())
-
-    def product(self) -> Any:
-        node = self.unary()
-        while True:
-            t = self.accept("*", "/")
-            if not t:
-                return node
-            node = Bin(t.text, node, self.unary())
-
-    def unary(self) -> Any:
-        if self.accept("-"):
-            return Neg(self.unary())
-        return self.atom()
-
-    def atom(self) -> Any:
-        t = self.take()
-        if t.kind == "number":
-            return Lit(float(t.text) if "." in t.text else int(t.text))
-        if t.kind == "string":
-            return Lit(t.text[1:-1])
-        if t.kind == "null":
-            return Lit(None)
-        if t.text == "(":
-            inner = self.peek()
-            nested = inner is not None and inner.kind == "select"
-            node = self.select_stmt() if nested else self.or_expr()
-            self.take(")")
-            return node
-        if t.kind in AGGREGATES:
-            raise ExprError(
-                f"{t.text.lower()}(...) needs a select around it: write "
-                f"`(select {t.text.lower()}(<prop>) from <Type> where <cond>)` "
-                f"(at position {t.pos}): {self.src!r}"
-            )
-        if t.kind == "name":
-            return Ref(t.text)
-        raise ExprError(f"{t.text!r} at position {t.pos} cannot be a value")
-
-    def select_stmt(self) -> Select:
-        self.take("select")
-        func = self.take(*AGGREGATES).text.lower()
-        self.take("(")
-        if self.accept("*"):
-            if func != "count":
-                raise ExprError(f"sum(*) is not a thing — name the property to add: {self.src!r}")
-            prop = None
-        else:
-            prop = self.take("name").text
-        self.take(")")
-        self.take("from")
-        type_name = self.take("name").text
-        where = self.or_expr() if self.accept("where") else None
-        self.refuse_subtracted()
-        return Select(func, prop, type_name, where)
-
-    def refuse_subtracted(self) -> None:
-        """Name the SQL we deliberately do not have, and say where it went.
-
-        Without this the author gets "trailing input 'group'", which reads as a
-        typo. Each of these has a real home elsewhere in the system, and saying
-        so is the difference between a dead end and a redirection.
-        """
-        t = self.peek()
-        if t is not None and t.text.lower() in _SUBTRACTED:
-            raise ExprError(f"{_SUBTRACTED[t.text.lower()]} (at position {t.pos}): {self.src!r}")
-
-
 def parse(src: str) -> Any:
-    return _Parser(tokenize(src), src).parse()
+    return sql_parser.parse(src)
 
 
 # ── Evaluation ─────────────────────────────────────────────────────────
@@ -364,6 +134,8 @@ def evaluate(
     scope: dict[str, Any],
     instances: dict[str, list[dict]],
     agg: Any = None,
+    resolve: Any = None,
+    *, decimal_math: bool = False,
 ) -> Any:
     """`scope` holds the names visible here: node values, or one instance's props.
 
@@ -372,21 +144,31 @@ def evaluate(
     and may decline, which is how a type larger than memory stays usable while
     one that is not keeps the row-by-row path.
     """
+    def run(n, local=None):
+        return evaluate(n, scope if local is None else local, instances, agg, resolve,
+                        decimal_math=decimal_math)
+
     if isinstance(node, Lit):
         return node.value
     if isinstance(node, Ref):
         if node.name in scope:
             return scope[node.name]
         raise ExprError(f"unknown name {node.name!r}: neither a property nor a computed node")
+    if isinstance(node, Path):
+        if resolve is None:
+            raise ExprError(f"{'.'.join(node.parts)} needs declared links to follow")
+        return resolve(scope.get('__type__'), node.parts, scope)
     if isinstance(node, Not):
-        return not evaluate(node.operand, scope, instances, agg)
+        value = run(node.operand)
+        return None if value is None else not value
     if isinstance(node, Neg):
-        return -evaluate(node.operand, scope, instances, agg)
+        value = run(node.operand)
+        return None if value is None else -value
     if isinstance(node, IsNull):
-        return (evaluate(node.operand, scope, instances, agg) is not None) == node.negated
+        return (run(node.operand) is not None) == node.negated
     if isinstance(node, Select):
         if agg is not None:
-            answered = agg(node)
+            answered = agg(node, scope)
             if answered is not _DECLINED:
                 return answered
         rows = instances.get(node.type_name)
@@ -395,28 +177,33 @@ def evaluate(
         kept = [
             r
             for r in rows
-            if node.where is None or evaluate(node.where, {**scope, **r}, instances, agg)
+            if node.where is None or run(node.where, {**scope, **r, '__type__': node.type_name})
         ]
         if node.func == "count" and node.prop is None:
             return len(kept)
-        for r in kept:
-            if node.prop not in r:
-                raise ExprError(
-                    f"an instance of {node.type_name} has no property {node.prop!r}"
-                )
-        values = [r[node.prop] for r in kept if r[node.prop] is not None]
-        return len(values) if node.func == "count" else sum(values)
+        column = Path(tuple(node.prop.split('.'))) if '.' in node.prop else Ref(node.prop)
+        values = [run(column, {**scope, **r, '__type__': node.type_name}) for r in kept]
+        values = [v for v in values if v is not None]
+        if node.func == "count":
+            return len(values)
+        if node.func == "sum":
+            return sum(values)
+        if not values:
+            return None
+        if node.func == "avg":
+            return sum(values) / len(values)
+        return min(values) if node.func == "min" else max(values)
     if isinstance(node, Bin):
+        a = run(node.left)
+        b = run(node.right)
         if node.op == "and":
-            return bool(evaluate(node.left, scope, instances, agg)) and bool(
-                evaluate(node.right, scope, instances, agg)
-            )
+            if (a is not None and not a) or (b is not None and not b):
+                return False
+            return None if a is None or b is None else True
         if node.op == "or":
-            return bool(evaluate(node.left, scope, instances, agg)) or bool(
-                evaluate(node.right, scope, instances, agg)
-            )
-        a = evaluate(node.left, scope, instances, agg)
-        b = evaluate(node.right, scope, instances, agg)
+            if a or b:
+                return True
+            return None if a is None or b is None else False
         # SQL semantics are kept, deliberately: a comparison involving a null is
         # unknown, which keeps the row out of a filter, and arithmetic touching
         # a null is null. Python would raise on both, so a figure computed here
@@ -425,11 +212,11 @@ def evaluate(
         # case this project cares most about. Found by the measurement harness
         # the first time it ran against a column that was actually nullable.
         if a is None or b is None:
-            if node.op in _CMP:
-                return False
             return None
         if node.op in _CMP:
             return _CMP[node.op](a, b)
+        if decimal_math and node.op in ('+', '-', '*', '/'):
+            return decimal_binary(node.op, a, b)
         if node.op == "+":
             return a + b
         if node.op == "-":
@@ -437,9 +224,7 @@ def evaluate(
         if node.op == "*":
             return a * b
         if node.op == "/":
-            if b == 0:
-                raise ExprError("division by zero")
-            return a / b
+            return divide(a, b)
     raise ExprError(f"cannot evaluate node: {node!r}")
 
 
@@ -512,3 +297,31 @@ def referenced_names(node: Any) -> set[str]:
     if isinstance(node, Select):
         return set()
     return set()
+
+
+def to_sql(node: Any) -> str:
+    """Render the admitted AST, so generated questions do not split source text."""
+    def ident(name):
+        return '"' + name.replace('"', '""') + '"'
+
+    if isinstance(node, Lit):
+        if node.value is None:
+            return 'NULL'
+        if isinstance(node.value, str):
+            return "'" + node.value.replace("'", "''") + "'"
+        return str(node.value)
+    if isinstance(node, Ref):
+        return ident(node.name)
+    if isinstance(node, Path):
+        return '.'.join(ident(p) for p in node.parts)
+    if isinstance(node, (Not, Neg)):
+        return f"({'NOT ' if isinstance(node, Not) else '-'}{to_sql(node.operand)})"
+    if isinstance(node, IsNull):
+        return f"({to_sql(node.operand)} IS {'NOT ' if node.negated else ''}NULL)"
+    if isinstance(node, Bin):
+        return f"({to_sql(node.left)} {node.op.upper()} {to_sql(node.right)})"
+    if isinstance(node, Select):
+        prop = '*' if node.prop is None else '.'.join(ident(p) for p in node.prop.split('.'))
+        tail = ' WHERE ' + to_sql(node.where) if node.where is not None else ''
+        return f"SELECT {node.func.upper()}({prop}) FROM {ident(node.type_name)}{tail}"
+    raise ExprError(f"cannot render {node!r}")

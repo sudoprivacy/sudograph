@@ -31,12 +31,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
 from . import bind as bind_mod
 from . import compile as compile_mod
 from . import expr
+from .query import link_resolver
 from .spec import Spec
 
 
@@ -84,6 +85,8 @@ class Result:
             "expected": self.expected,
             "got": self.got,
             "ok": self.ok,
+            "generator": self.id.split('/', 1)[0],
+            "node": self.id.split('/', 1)[-1],
         }
 
 
@@ -91,6 +94,7 @@ class Result:
 class Run:
     ontology: str
     results: list[Result] = field(default_factory=list)
+    uncovered: list[dict] = field(default_factory=list)
 
     def score(self) -> tuple[int, int]:
         return sum(1 for r in self.results if r.ok), len(self.results)
@@ -105,22 +109,14 @@ class Run:
             # infer it from an exit code that will not carry it.
             "gates": False,
             "results": [r.as_dict() for r in self.results],
+            "uncovered": self.uncovered,
         }
 
 
 def fingerprint(s: Spec) -> str:
     """What the spec says, independent of how it is laid out in the file."""
     payload = json.dumps(
-        {
-            "types": s.types,
-            "raw": s.raw,
-            "hooks": s.hooks,
-            "nodes": s.nodes,
-            "checks": s.checks,
-            "ops": s.ops,
-            "bases": s.bases,
-            "bridges": s.bridges,
-        },
+        asdict(s),
         sort_keys=True,
         ensure_ascii=False,
         default=str,
@@ -128,100 +124,62 @@ def fingerprint(s: Spec) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
-def _negate(src: str) -> str:
-    """The same aggregate over the rows the original leaves out."""
-    head, _, where = src.partition(" where ")
-    return f"{head} where not ({where})" if where else src
+def correctness(s: Spec, basis: str | None = None, at: dict | None = None) -> Run:
+    """Generate additive partition and independent execution-route questions.
 
-
-def _whole(src: str) -> str:
-    """The same aggregate over every row."""
-    head, _, _ = src.partition(" where ")
-    return head
-
-
-def correctness(s: Spec, basis: str | None = None) -> Run:
-    """Does the graph agree with the data underneath it.
-
-    Two generators, both deriving their questions from what the spec already
-    says, so neither can go stale while the spec moves:
-
-      * **A filter partitions.** Any aggregate with a condition must, added to
-        the same aggregate over the rows it excludes, come to the aggregate over
-        all of them. This catches a mistranslated filter, a null handled one way
-        here and another way there, and a condition that silently drops rows —
-        faults that each look like a plausible number on their own.
-      * **Two routes, one answer.** Where rows are in memory *and* the type is a
-        view over a table, the figure is computed both ways. They are different
-        code: one walks dicts in Python, one is SQL. Two routes to a number is
-        two chances to disagree, and the point of having both is to notice.
+    Partition checks apply only to SUM/COUNT: averages and extrema cannot be
+    added across subsets. SQL UNKNOWN is deliberately visible as uncovered
+    rows; WHERE c and WHERE NOT c do not cover null predicates.
     """
     run = Run(ontology=s.name)
     before = fingerprint(s)
-    agg = bind_mod.answerer(s)
+    if not any(s.backing_of(t) for t in s.types):
+        run.uncovered = [{'node': n, 'reason': 'no direct backed aggregate'} for n in s.nodes]
+        return run
+    compiled = compile_mod.compile_spec(s, basis=basis, at=at)
+    working = replace(s, instances=compiled.rows)
+    agg = bind_mod.answerer(working, at, basis)
+    resolve = link_resolver(working)
 
     for name, node in s.nodes.items():
         src = compile_mod.op_for(node, basis)
-        if not src:
+        ast = expr.parse(src) if src else None
+        if not isinstance(ast, expr.Select) or not s.backing_of(ast.type_name):
+            run.uncovered.append({"node": name, "reason": "no direct backed aggregate"})
             continue
-        try:
-            ast = expr.parse(src)
-        except expr.ExprError:
-            continue
-        if not isinstance(ast, expr.Select) or ast.where is None:
-            continue
-        if not s.backing_of(ast.type_name):
-            continue
-
-        parts = [_whole(src), src, _negate(src)]
-        try:
-            whole, kept, rest = (
-                expr.evaluate(expr.parse(p), {}, s.instances, agg) for p in parts
-            )
-        except (expr.ExprError, bind_mod.BindingError):
-            continue
-        run.results.append(
-            Result(
-                id=f"partition/{name}",
-                asks=f"{name}: the rows it keeps and the rows it leaves out are all of them",
-                trace=[f"{p} = {v}" for p, v in zip(parts, (whole, kept, rest), strict=True)],
-                expected=whole,
-                got=(kept or 0) + (rest or 0),
-            )
-        )
-
-    for tname in s.types:
-        if not s.backing_of(tname) or tname in s.unloaded:
-            continue
-        for name, node in s.nodes.items():
-            src = compile_mod.op_for(node, basis)
-            if not src:
-                continue
+        start = len(run.results)
+        if ast.where is not None and ast.func in ('sum', 'count'):
+            parts = [replace(ast, where=None), ast, replace(ast, where=expr.Not(ast.where))]
             try:
-                ast = expr.parse(src)
-            except expr.ExprError:
-                continue
-            if not isinstance(ast, expr.Select) or ast.type_name != tname:
-                continue
+                whole, kept, rest = [expr.evaluate(a, compiled.values, working.instances,
+                                                  agg, resolve) for a in parts]
+                run.results.append(Result(
+                    id=f"partition/{name}",
+                    asks=(f"{name}: selected + excluded = all rows "
+                          "(null predicates can leave a gap)"),
+                    trace=[f"{expr.to_sql(a)} = {v}"
+                           for a, v in zip(parts, (whole, kept, rest), strict=True)],
+                    expected=whole, got=(kept or 0) + (rest or 0),
+                ))
+            except (expr.ExprError, bind_mod.BindingError) as e:
+                run.uncovered.append({"node": name, "reason": str(e)})
+        if ast.type_name not in s.unloaded:
             try:
-                in_sql = bind_mod.aggregate(s, ast, s.source_base)
-            except bind_mod.NotPushable:
-                continue
-            in_rows = expr.evaluate(ast, {}, s.instances)
-            run.results.append(
-                Result(
+                in_sql = bind_mod.aggregate(working, ast, s.source_base, at,
+                                            basis=basis, scope=compiled.values)
+                in_rows = expr.evaluate(ast, compiled.values, working.instances,
+                                        resolve=resolve)
+                run.results.append(Result(
                     id=f"routes/{name}",
-                    asks=f"{name}: the source and the rows in hand give the same figure",
-                    trace=[f"source: {src} = {in_sql}", f"rows:   {src} = {in_rows}"],
-                    expected=in_sql,
-                    got=in_rows,
-                )
-            )
-
+                    asks=f"{name}: database and in-memory rows give the same figure",
+                    trace=[f"source: {expr.to_sql(ast)} = {in_sql}",
+                           f"rows: {expr.to_sql(ast)} = {in_rows}"],
+                    expected=in_sql, got=in_rows,
+                ))
+            except (expr.ExprError, bind_mod.BindingError, bind_mod.NotPushable) as e:
+                run.uncovered.append({"node": name, "reason": str(e)})
+        if len(run.results) == start and not any(x['node'] == name for x in run.uncovered):
+            run.uncovered.append({"node": name, "reason": "rows not loaded; no additive partition"})
     if fingerprint(s) != before:
-        raise Tampered(
-            f"{s.name} changed while being measured, so these numbers describe "
-            f"something that no longer exists. A harness that can edit the thing "
-            f"it scores is not measuring it"
-        )
+        raise Tampered(f"{s.name} changed while measured; the harness is not measuring it")
     return run

@@ -108,6 +108,8 @@ def main(argv: list[str] | None = None) -> int:
         "The spec is written once and fed different leaves",
     )
     ap.add_argument("--basis", help="compute under one declared basis")
+    ap.add_argument('--lang', choices=app_mod.languages(), default='zh',
+                    help='graph interface language; business labels keep their original wording')
     ap.add_argument(
         "--app",
         metavar="OUT.html",
@@ -151,13 +153,13 @@ def main(argv: list[str] | None = None) -> int:
             print(str(e), file=sys.stderr)
             return 2
         with open(args.app, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(app_mod.render(b))
+            fh.write(app_mod.render(b, language=args.lang))
         print(f"{args.app}: {len(b['views'])} view(s), {len(b['diffs'])} bridge diff(s)")
         return 0
 
     if args.measure:
         try:
-            run = measure_mod.correctness(s, basis=args.basis)
+            run = measure_mod.correctness(s, basis=args.basis, at=at)
         except measure_mod.Tampered as e:
             print(str(e), file=sys.stderr)
             return 2
@@ -173,6 +175,8 @@ def main(argv: list[str] | None = None) -> int:
             if not r.ok:
                 print(f"       expected {r.expected}, got {r.got}")
         print(f"\n{passed}/{total} — {s.name}")
+        for item in run.uncovered:
+            print(f"  UNMEASURED {item['node']}: {item['reason']}")
         if passed != total:
             # Reported, never enforced. A number that falls is something to
             # explain; a harness that blocks on it is something to route around.
@@ -229,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
     # for, and "it compiled" is exactly the moment the next question is "and is
     # it right?". The count is real: it is how many questions this spec can
     # already be asked about itself.
-    askable = len(measure_mod.correctness(s, basis=args.basis).results)
+    askable = len(measure_mod.correctness(s, basis=args.basis, at=at).results)
     if askable:
         print(
             f"\n{askable} question(s) can be generated from this spec and checked "

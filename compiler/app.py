@@ -23,6 +23,7 @@ from typing import Any
 
 from . import compile as compile_mod
 from . import diff as diff_mod
+from . import measure as measure_mod
 from .spec import Spec
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -79,6 +80,7 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5) -> dict[str, Any]:
                 s, basis=basis, at=at, fold_over=fold_over, top_n=top_n
             )
             views[_key(basis, at)] = c.view
+            c.view['measurement'] = measure_mod.correctness(s, basis=basis, at=at).as_dict()
 
     # Bridges are the deliverable, so they are computed here too. With exactly
     # two readings the single pairing is implied; past that only the declared
@@ -121,7 +123,22 @@ VENDOR = [
 ]
 
 
-def render(b: dict[str, Any], template_path: str = TEMPLATE) -> str:
+def languages() -> list[str]:
+    with open(os.path.join(_ROOT, 'app', 'messages.json'), encoding='utf-8') as fh:
+        return ['zh', *json.load(fh)]
+
+
+def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 'zh') -> str:
+    with open(os.path.join(_ROOT, 'app', 'messages.json'), encoding='utf-8') as fh:
+        catalogs = json.load(fh)
+    keys = set(catalogs['en'])
+    for lang, catalog in catalogs.items():
+        if set(catalog) != keys:
+            raise ValueError(f"UI locale {lang} has missing or extra translation keys")
+    if language != 'zh' and language not in catalogs:
+        raise ValueError(f"unknown UI language {language!r}; available: {languages()}")
+    messages = {k: k for k in keys} if language == 'zh' else catalogs[language]
+    b = {**b, 'ui': {'language': language, 'messages': messages}}
     with open(template_path, encoding="utf-8") as fh:
         html = fh.read()
     for placeholder in ("__BUNDLE__", "/*__VENDOR__*/"):

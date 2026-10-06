@@ -15,12 +15,14 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field, replace
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from typing import Any
 
 from . import bind as bind_mod
 from . import expr
 from . import lineage as lin_mod
+from .dependencies import vertices
+from .query import link_resolver
 from .spec import NODE_KINDS, Spec
 
 
@@ -67,6 +69,8 @@ class Compiled:
     values: dict[str, Any] = field(default_factory=dict)
     checks: list[Check] = field(default_factory=list)
     view: dict[str, Any] = field(default_factory=dict)
+    rows: dict[str, list[dict]] = field(default_factory=dict, repr=False)
+    links: dict[tuple[str, str], dict] = field(default_factory=dict, repr=False)
 
     @property
     def passed(self) -> bool:
@@ -220,12 +224,9 @@ def _money_scale(value: Any, prop: dict) -> Any:
     would disagree on exact halves. `scale` defaults to 0 — whole units — and a
     currency kept in cents declares `scale: 2`.
     """
-    if prop.get("type") != "money" or not isinstance(value, (int, float)):
+    if prop.get("type") != "money" or not isinstance(value, (int, float, Decimal)):
         return value
-    scale = prop.get("scale", 0)
-    q = Decimal(1).scaleb(-scale)
-    rounded = Decimal(str(value)).quantize(q, rounding=ROUND_HALF_UP)
-    return int(rounded) if scale == 0 else float(rounded)
+    return expr.money_round(value, prop.get("scale", 0))
 
 
 def op_for(node: dict, basis: str | None) -> str | None:
@@ -254,35 +255,12 @@ def _order(s: Spec, basis: str | None = None) -> list[tuple]:
         for pn, pdef in (tdef.get("props") or {}).items()
         if "op" in pdef
     }
-    by_type: dict[str, set[str]] = {}
-    for t, pn in computed:
-        by_type.setdefault(t, set()).add(pn)
-
-    def of(src: str) -> tuple[set, set]:
-        """(node deps, prop deps) of one expression."""
-        ast = expr.parse(src or "0")
-        names = expr.referenced_names(ast)
-        nodes = {("node", n) for n in names & set(s.nodes)}
-        props = set()
-        # Whatever this aggregates over, it reads that type's computed columns.
-        for t in expr.aggregated_types(ast):
-            props |= {("prop", t, pn) for pn in by_type.get(t, ())}
-        return nodes, props
-
     deps: dict[tuple, set] = {}
     for n, d in s.nodes.items():
-        a, b = of(op_for(d, basis))
-        deps[("node", n)] = a | b
+        deps[("node", n)] = vertices(s, expr.parse(op_for(d, basis) or '0'))
     for t, pn in computed:
         pdef = s.types[t]["props"][pn]
-        a, b = of(op_for(pdef, basis))
-        # A sibling column of the same row is a dependency too.
-        siblings = {
-            ("prop", t, x)
-            for x in expr.referenced_names(expr.parse(op_for(pdef, basis) or "0"))
-            & by_type.get(t, set())
-        }
-        deps[("prop", t, pn)] = a | b | siblings
+        deps[("prop", t, pn)] = vertices(s, expr.parse(op_for(pdef, basis) or '0'), t)
     derived = deps
     out: list[tuple] = []
     temp: set[tuple] = set()
@@ -349,13 +327,15 @@ def compile_spec(
     # Built after the slice is known and carrying it, because the database must
     # be asked the same question the rows are. Built before, every pushable
     # figure answered for the whole book while the rows beside it were filtered.
-    agg = bind_mod.answerer(s, at)
     s = _corroborate(s, c)
 
     # Rows are copied before anything computes into them, so a compile never
     # writes back into the spec it was handed.
     work = {t: [dict(r) for r in rows] for t, rows in s.instances.items()}
     s = replace(s, instances=work)
+    c.rows = work
+    agg = bind_mod.answerer(s, at, basis)
+    resolve = link_resolver(s)
 
     # ── values ────────────────────────────────────────────────────────
     for vertex in _order(s, basis):
@@ -366,7 +346,7 @@ def compile_spec(
                 continue
             try:
                 c.values[name] = expr.evaluate(
-                    expr.parse(src), dict(c.values), s.instances, agg
+                    expr.parse(src), dict(c.values), s.instances, agg, resolve
                 )
             except expr.ExprError as e:
                 c.checks.append(Check(f"node/{name}", False, str(e)))
@@ -383,7 +363,8 @@ def compile_spec(
                 scope["this"] = s.identify(tname, row)
             try:
                 row[pname] = _money_scale(
-                    expr.evaluate(expr.parse(src), scope, s.instances, agg),
+                    expr.evaluate(expr.parse(src), scope, s.instances, agg, resolve,
+                                  decimal_math=s.types[tname]['props'][pname]['type'] == 'money'),
                     s.types[tname]["props"][pname],
                 )
             except expr.ExprError as e:
@@ -420,8 +401,8 @@ def compile_spec(
             # must never read as evidence.
             continue
         try:
-            ok = bool(expr.evaluate(expr.parse(src), dict(c.values), s.instances, agg))
-            detail = "" if ok else f"{src} is false"
+            ok = bool(expr.evaluate(expr.parse(src), dict(c.values), s.instances, agg, resolve))
+            detail = src if ok else f"{src} is false"
         except expr.ExprError as e:
             ok, detail = False, str(e)
         c.checks.append(Check(f"articulation/{cname}", ok, detail))
@@ -567,11 +548,22 @@ def compile_spec(
     # following it learns only that the graph lied. Resolving every one of them
     # on every compile is the difference between a relationship and a string
     # that happens to look like an id.
-    for tname, rows in s.instances.items():
+    for tname in {**{t: None for t in s.unloaded}, **s.instances}:
+        rows = s.instances.get(tname, [])
         links = s.links_of(tname)
         if not links:
             continue
         for prop, target in links.items():
+            if s.backing_of(tname) and s.backing_of(target):
+                evidence = bind_mod.link_evidence(s, tname, prop, at)
+                c.links[(tname, prop)] = evidence
+                c.checks.append(Check(
+                    f"link/{tname}/{prop}", not evidence['affected'],
+                    f"{evidence['affected']} of {evidence['linked']} linked rows have no {target}"
+                    if evidence['affected'] else '',
+                    affected=evidence['affected'], sample=evidence['sample'],
+                ))
+                continue
             known = s.ids_of(target)
             dangling = [
                 s.identify(tname, row)
@@ -775,7 +767,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
     # every connector floating unattached at the top of the canvas looking like
     # noise. Provenance is the first question anyone asks of a figure, so the
     # edge that answers it cannot be the one that is missing.
-    for tname in s.instances:
+    for tname in {**{t: None for t in s.unloaded}, **s.instances}:
         supplied: dict[str, list[str]] = {}
         for pname in (s.types.get(tname) or {}).get("props") or {}:
             for src in s.sources_of(tname, pname):
@@ -828,6 +820,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 "kind": "type",
                 "layer": 0,
                 "label": t.get("label", tname),
+                "description": t.get("description"),
                 "count": s.unloaded.get(tname, len(members)),
                 # Not "folded away to keep the canvas readable" but "never
                 # fetched", and the two are different promises to the reader:
@@ -874,10 +867,9 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 key = r.get(axis)
                 slot = by.setdefault(key, {"value": key, "count": 0, "totals": {}})
                 slot["count"] += 1
-                for mc in money_cols:
-                    v = r.get(mc)
-                    if v is not None:
-                        slot["totals"][mc] = slot["totals"].get(mc, 0) + v
+                # Currency alone says nothing about additivity: a price, a
+                # balance and a transaction can all be money. Only explicit
+                # expressions may make totals; folding never invents one.
             buckets[axis] = sorted(by.values(), key=lambda b: (-b["count"], str(b["value"])))
 
         # Top-N by each money column, so a folded group still surfaces the rows
@@ -912,11 +904,13 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 "top": top,
                 "id_prop": "·".join(s.id_props(tname)),
                 "owners": {p: s.owner_of(tname, p) for p in props},
+                "columns": {p: s.column_of(tname, p) for p, d in props.items() if 'op' not in d}
+                           if s.backing_of(tname) else {},
                 # How a computed column got its value, so the panel can show the
                 # formula the way a derived node shows its expression. A figure
                 # whose derivation is only in the author's head is the thing
                 # this replaced.
-                "ops": {p: d["op"] for p, d in props.items() if "op" in d},
+                "ops": {p: op_for(d, c.basis) for p, d in props.items() if "op" in d},
             }
         )
         for name in aggregated_by.get(tname, ()):
@@ -930,6 +924,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
         # which is the long list again wearing a different hat.
         for prop, target in s.links_of(tname).items():
             linked = [r for r in rows if r.get(prop) is not None]
+            evidence = c.links.get((tname, prop))
             edges.append(
                 {
                     "from": tname,
@@ -943,8 +938,9 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                     # other is ours to defend. The owner rule already says
                     # which, so the edge carries it.
                     "owner": s.owner_of(tname, prop),
-                    "linked": len(linked),
-                    "unlinked": len(rows) - len(linked),
+                    "linked": evidence['linked'] if evidence else len(linked),
+                    "unlinked": (evidence['total'] - evidence['linked']) if evidence
+                                else len(rows) - len(linked),
                 }
             )
             if folded:

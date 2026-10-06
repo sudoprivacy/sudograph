@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import expr
+from .dependencies import vertices
 from .spec import Spec
 
 FULL = "full"
@@ -28,6 +29,22 @@ MISSING = "missing"
 
 def direct_inputs(s: Spec, basis: str | None = None) -> dict[str, set[str]]:
     """node -> the nodes its expression reads directly, under `basis`."""
+    def scalar_inputs(ast, row_type=None, visited=None):
+        visited = set(visited or ())
+        out = set()
+        for v in vertices(s, ast, row_type):
+            if v in visited:
+                continue
+            visited.add(v)
+            if v[0] == 'node':
+                out.add(v[1])
+            else:
+                _, tname, pname = v
+                definition = s.types[tname]['props'][pname]
+                source = definition.get(f'op@{basis}', definition['op'])
+                out |= scalar_inputs(expr.parse(source), tname, visited)
+        return out
+
     out: dict[str, set[str]] = {}
     for name, d in s.nodes.items():
         src = d.get(f"op@{basis}") if basis and f"op@{basis}" in d else d.get("op")
@@ -35,7 +52,7 @@ def direct_inputs(s: Spec, basis: str | None = None) -> dict[str, set[str]]:
             out[name] = set()
             continue
         ast = expr.parse(src)
-        out[name] = expr.referenced_names(ast) & set(s.nodes)
+        out[name] = scalar_inputs(ast)
     return out
 
 

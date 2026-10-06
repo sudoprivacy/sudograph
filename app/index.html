@@ -105,22 +105,37 @@
 <body>
 <header>
   <h1 id="title">sudograph</h1>
-  <label>口径 <select id="basis"></select></label>
+  <label><span data-ui="口径">口径</span> <select id="basis"></select></label>
   <span id="dims" style="display:flex;gap:14px;flex-wrap:wrap"></span>
-  <label>桥 <select id="bridge"></select></label>
-  <button id="bridgeBtn">桥视图</button>
-  <button id="instBtn">全部展开</button>
-  <button id="fit">复位</button>
+  <label><span data-ui="桥">桥</span> <select id="bridge"></select></label>
+  <button id="bridgeBtn" data-ui="桥视图">桥视图</button>
+  <button id="instBtn" data-ui="全部展开">全部展开</button>
+  <button id="fit" data-ui="复位">复位</button>
+  <label><span data-ui="查看">查看</span> <select id="projection">
+    <option value="data" data-ui="数据关系">数据关系</option>
+    <option value="all" data-ui="指标与规则">指标与规则</option>
+  </select></label>
+  <button id="checksBtn" data-ui="检查">检查</button>
+  <button id="measureBtn" data-ui="评测题">评测题</button>
   <span id="legend"></span>
 </header>
 <main>
   <div id="cy"></div>
-  <aside id="panel"><p class="muted">点一个节点看它的来历。</p></aside>
+  <aside id="panel"><p class="muted" data-ui="点一个节点看它的来历。">点一个节点看它的来历。</p></aside>
 </main>
 <footer><span id="status" style="display:flex;gap:16px;flex-wrap:wrap"></span></footer>
 
 <script>
 const BUNDLE = __BUNDLE__;
+const t = (key, vars = {}) => {
+  const text = BUNDLE.ui.messages[key];
+  if (text == null) throw new Error(`Missing UI message: ${key}`);
+  return text.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+};
+document.documentElement.lang = BUNDLE.ui.language;
+document.querySelectorAll('[data-ui]').forEach(el => el.textContent = t(el.dataset.ui));
+const esc = value => String(value ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const $ = id => document.getElementById(id);
 const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '—');
@@ -131,7 +146,12 @@ const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '�
    away from a static diagram in the first place. Visibility is a view decision,
    so it belongs here; the figures still come only from the compiler. */
 const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
-                expanded: new Set() };
+                expanded: new Set(), panel: 'checks',
+                projection: Object.values(BUNDLE.views)[0].groups.some(g => g.backing) ? 'data' : 'all' };
+$('projection').value = state.projection;
+$('projection').onchange = e => { state.projection = e.target.value; draw(); };
+$('checksBtn').onclick = () => { state.panel = 'checks'; showChecks(view()); };
+$('measureBtn').onclick = () => { state.panel = 'measure'; showMeasurements(view()); };
 
 /* ── controls ──────────────────────────────────────────────────────── */
 $('title').textContent = BUNDLE.ontology;
@@ -153,7 +173,7 @@ for (const [dim, values] of Object.entries(BUNDLE.axes)) {
   for (const v of values) {
     const o = document.createElement('option');
     o.value = v === null ? '' : v;
-    o.textContent = v === null ? '全部' : v;
+    o.textContent = v === null ? t('全部') : v;
     sel.appendChild(o);
   }
   sel.onchange = e => {
@@ -201,17 +221,17 @@ function defaultBridgeName() {
    the infra; nothing downstream writes them, which is exactly why they cannot
    borrow a word from whatever the first ontology happened to be about. */
 const KINDS = {
-  raw:      { var:'--raw',   name:'取数点',   does:'数从哪儿来',   layer:'FIRST' },
-  hook:     { var:'--hook',  name:'缺口',     does:'还差什么'                    },
-  derived:  { var:'--derived', name:'算出来的值'                                 },
-  type:     { var:'--type',  name:'对象类型', does:'点开看每一行'                },
+  raw:      { var:'--raw',   name:t('取数点'),   does:t('数从哪儿来'),   layer:'FIRST' },
+  hook:     { var:'--hook',  name:t('缺口'),     does:t('还差什么')                    },
+  derived:  { var:'--derived', name:t('算出来的值')                                 },
+  type:     { var:'--type',  name:t('对象类型'), does:t('点开看每一行')                },
   instance: { var:'--inst'                                                       },
 };
-const GRADE = { partial:['#6b5325','部分'], missing:['#6e3a2e','缺失'] };
+const GRADE = { partial:['#6b5325',t('部分')], missing:['#6e3a2e',t('缺失')] };
 const EDGES = {
-  flow:    { dash:'', colour:'--edge', name:'流向'      },
-  guessed: { dash:'dot', colour:'--carried', name:'我们推断的关联' },
-  affects: { dash:'dash', colour:'--hook', name:'使它暂定' },
+  flow:    { dash:'', colour:'--edge', name:t('流向')      },
+  guessed: { dash:'dot', colour:'--carried', name:t('我们推断的关联') },
+  affects: { dash:'dash', colour:'--hook', name:t('使它暂定') },
 };
 const edgeStyle = rel =>
   EDGES[(rel === 'affects' || rel === 'cites') ? 'affects' : 'flow'];
@@ -250,14 +270,14 @@ $('legend').innerHTML =
     (() => { const a = hex(css('--derived')), b = hex(css('--hook'));
       const ch = i => Math.round(a[i] + (b[i] - a[i]) * PROVISIONAL_MIX);
       return `rgb(${ch(0)},${ch(1)},${ch(2)})`; })()
-  }"></i>带缺口<em>颜色偏橙 = 上游还有缺口</em></span>` +
+  }"></i>${t('带缺口')}<em>${t('颜色偏橙 = 上游还有缺口')}</em></span>` +
   Object.values(KINDS).filter(k => k.name)
     .map(k => `<span><i style="background:var(${k.var})"></i>${k.name}${
       k.does ? `<em>${k.does}</em>` : ''}</span>`).join('') +
   Object.values(EDGES)
     .map(e => `<span><u class="${e.dash}" style="border-top-color:${
       css(e.colour)}"></u>${e.name}</span>`).join('') +
-  `<span>边框：` + Object.values(GRADE)
+  `<span>${t('边框')}：` + Object.values(GRADE)
     .map(([c, label]) => `<i style="background:transparent;border-color:${c}"></i>${label}`)
     .join('') + `</span>`;
 
@@ -312,15 +332,15 @@ function linesOf(n, open) {
   // as a count that wore an arrow and did nothing when clicked.
   const n0 = x => x.toLocaleString('en-US');
   const mark = n.kind === 'type' && n.count
-    ? (n.unfetched ? `  · ${n0(n.count)} 行（未取回）`
-       : n.folded  ? `  · ${n0(n.count)} 行（太多，未展开）`
+    ? (n.unfetched ? `  · ${n0(n.count)} ${t('行（未取回）')}`
+       : n.folded  ? `  · ${n0(n.count)} ${t('行（太多，未展开）')}`
        : `  ${open ? '▾' : '▸'}${n.count}`)
-    : (n.kind === 'hook' && n.waiting_on) ? `  · ${n.waiting_on} 项` : null;
+    : (n.kind === 'hook' && n.waiting_on) ? `  · ${n.waiting_on} ${t('项')}` : null;
   // A plug exists to expose a difference against an independent measure, so the
   // difference goes on the face of it. Showing only the total left the check
   // one click away, which is the same silent absorption the plug is there to
   // prevent.
-  const residual = n.residual != null ? `差 ${fmt(n.residual)}` : null;
+  const residual = n.residual != null ? `${t('差')} ${fmt(n.residual)}` : null;
   // A backed type wears the table it is a view over. Two boxes reading the same
   // table is how "an object is not a table" becomes visible instead of being
   // something you have to be told.
@@ -360,6 +380,7 @@ async function draw() {
 
   const shown = new Map();
   for (const n of v.nodes) {
+    if (state.projection === 'data' && !['raw', 'type', 'instance'].includes(n.kind)) continue;
     if (n.kind === 'instance' && !state.expanded.has(n.type)) continue;
     shown.set(n.id, n);
   }
@@ -571,12 +592,14 @@ async function draw() {
 
   const bad = v.checks.filter(c => !c.ok);
   $('status').innerHTML =
-    `<span>${shown.size} 节点 · ${edges.length} 边</span>` +
-    `<span class="${bad.length ? 'fail' : ''}">${v.checks.length - bad.length}/${v.checks.length} 检查通过</span>` +
-    (d ? `<span>桥 ${d.bases[0]} → ${d.bases[1]}：${d.entries.length} 条${
+    `<span>${shown.size} ${t('节点')} · ${edges.length} ${t('边')}</span>` +
+    `<span class="${bad.length ? 'fail' : ''}">${v.checks.length - bad.length}/${v.checks.length} ${t('检查通过')}</span>` +
+    (d ? `<span>${t('桥')} ${d.bases[0]} → ${d.bases[1]}：${d.entries.length} ${
         d.vocab.entry_noun}，${d.vocab.posted_noun} ${fmt(d.posted)}</span>` : '');
 
-  if (d) showBridge(d); else showChecks(v);
+  if (d) showBridge(d);
+  else if (state.panel === 'measure') showMeasurements(v);
+  else showChecks(v);
 }
 
 
@@ -661,6 +684,9 @@ const anchors = (() => {
   // this id is a row inside a folded type, or lives under another reading.
     api.on('reveal', ids => {
       let changed = false;
+      if (state.projection === 'data') {
+        state.projection = 'all'; $('projection').value = 'all'; changed = true;
+      }
       for (const id of ids || []) {
         const t = id.includes('/') ? id.split('/', 1)[0] : null;
         if (t && !state.expanded.has(t)) { state.expanded.add(t); changed = true; }
@@ -805,31 +831,31 @@ function showNode(n) {
   if (n.value != null) rows.push(`<div class="val">${fmt(n.value)}</div>`);
   if (n.completeness)
     rows.push(`<p><span class="tag ${n.completeness}">${n.completeness}</span></p>`);
-  if (n.op) rows.push(`<h2>表达式</h2><div class="op">${n.op}</div>`);
-  if (n.resolve_when) rows.push(`<h2>解除条件</h2><p>${n.resolve_when}</p>`);
-  if (n.owner) rows.push(`<div class="kv"><span>负责人</span><span>${n.owner}</span></div>`);
-  if (n.connector) rows.push(`<h2>取数</h2><div class="op">${n.connector}</div>`);
+  if (n.op) rows.push(`<h2>${t('表达式')}</h2><div class="op">${n.op}</div>`);
+  if (n.description) rows.push(`<p>${esc(n.description)}</p>`);
+  if (n.resolve_when) rows.push(`<h2>${t('解除条件')}</h2><p>${n.resolve_when}</p>`);
+  if (n.owner) rows.push(`<div class="kv"><span>${t('负责人')}</span><span>${n.owner}</span></div>`);
+  if (n.connector) rows.push(`<h2>${t('取数')}</h2><div class="op">${n.connector}</div>`);
   if (n.backing) {
-    rows.push(`<h2>读自</h2><div class="op">${n.backing.table}</div>`);
-    rows.push(`<div class="kv"><span>标识一行</span><span>${n.backing.key.join(', ')}</span></div>`);
+    rows.push(`<h2>${t('读自')}</h2><div class="op">${n.backing.table}</div>`);
+    rows.push(`<div class="kv"><span>${t('标识一行')}</span><span>${n.backing.key.join(', ')}</span></div>`);
     if (n.backing.where)
-      rows.push(`<div class="kv"><span>只取</span><span>${n.backing.where}</span></div>`);
+      rows.push(`<div class="kv"><span>${t('只取')}</span><span>${n.backing.where}</span></div>`);
     if (n.unfetched)
-      rows.push(`<p class="muted">${n.unfetched.toLocaleString('en-US')} 行，没有取进来；` +
-                `它的合计由库直接算。</p>`);
+      rows.push(`<p class="muted">${t('{count} 行，没有取进来；它的合计由库直接算。', {count: n.unfetched.toLocaleString('en-US')})}</p>`);
   }
   if (n.provisional_because?.length)
-    rows.push(`<h2>因这些缺口而暂定</h2><ul>${n.provisional_because.map(h => `<li>${h}</li>`).join('')}</ul>`);
+    rows.push(`<h2>${t('因这些缺口而暂定')}</h2><ul>${n.provisional_because.map(h => `<li>${h}</li>`).join('')}</ul>`);
   if (n.lineage?.inputs?.length)
-    rows.push(`<h2>直接输入</h2><ul>${n.lineage.inputs.map(x => `<li>${x}</li>`).join('')}</ul>`);
+    rows.push(`<h2>${t('直接输入')}</h2><ul>${n.lineage.inputs.map(x => `<li>${x}</li>`).join('')}</ul>`);
   if (n.lineage?.leaves?.length)
-    rows.push(`<h2>最终依赖的叶子</h2><ul>${n.lineage.leaves.map(x => `<li>${x}</li>`).join('')}</ul>`);
+    rows.push(`<h2>${t('最终依赖的叶子')}</h2><ul>${n.lineage.leaves.map(x => `<li>${x}</li>`).join('')}</ul>`);
   // A remainder with nowhere named is a remainder that got absorbed, so the
   // two are shown together or not at all.
   if (n.residual != null) {
-    rows.push(`<div class="kv"><span>对照</span><span>${n.plug_against ?? '—'}</span></div>`);
-    rows.push(`<div class="kv"><span>残差</span><span>${fmt(n.residual)}</span></div>`);
-    rows.push(`<div class="kv"><span>差额挂在</span><span>${n.residual_to ?? '—'}</span></div>`);
+    rows.push(`<div class="kv"><span>${t('对照')}</span><span>${n.plug_against ?? '—'}</span></div>`);
+    rows.push(`<div class="kv"><span>${t('残差')}</span><span>${fmt(n.residual)}</span></div>`);
+    rows.push(`<div class="kv"><span>${t('差额挂在')}</span><span>${n.residual_to ?? '—'}</span></div>`);
   }
   // Every property is either an upstream fact or a decision made here, never
   // both. It is the hardest rule in the model and the app was not showing it,
@@ -837,9 +863,9 @@ function showNode(n) {
   if (n.props) {
     const g = view().groups.find(x => x.type === n.type) || {};
     const owners = g.owners || {}, ops = g.ops || {};
-    rows.push(`<h2>属性</h2>` + Object.entries(n.props).map(([k, val]) =>
+    rows.push(`<h2>${t('属性')}</h2>` + Object.entries(n.props).map(([k, val]) =>
       `<div class="kv"><span>${k} <span class="own ${owners[k] || ''}">${
-        ops[k] ? '算出' : owners[k] === 'source' ? '上游' : owners[k] === 'ontology' ? '本体' : ''
+        ops[k] ? t('算出') : owners[k] === 'source' ? t('上游') : owners[k] === 'ontology' ? t('本体') : ''
       }</span></span><span>${fmt(val)}</span></div>` +
       // A computed column shows its formula, exactly as a derived node does.
       (ops[k] ? `<div class="op">${ops[k]}</div>` : '')).join(''));
@@ -854,9 +880,25 @@ function showNode(n) {
 function showGroup(tname) {
   const g = view().groups.find(x => x.type === tname);
   if (!g) return '';
-  const out = [`<h2>${g.count} 行${g.folded ? '（已折叠）' : ''}</h2>`];
+  const out = [`<h2>${g.count} ${t('行')}${g.folded ? t('（已折叠）') : ''}</h2>`];
+  if (g.columns) {
+    out.push(`<h2>${t('列映射')}</h2>` + Object.entries(g.columns).map(([prop, col]) =>
+      `<div class="kv"><span>${esc(prop)}</span><span>${esc(col)}</span></div>`).join(''));
+  }
+  if (g.members?.length && Object.keys(g.ops || {}).length) {
+    out.push(`<h2>${t('业务汇总')}</h2>`);
+    for (const member of g.members) {
+      const label = Object.entries(member.props).find(([k, val]) =>
+        k !== g.id_prop && typeof val === 'string')?.[1] ?? member.id;
+      out.push(`<details data-object-id="${esc(g.type + '/' + member.id)}"><summary>${esc(label)}</summary>`);
+      for (const [prop, op] of Object.entries(g.ops))
+        out.push(`<div class="kv"><span>${esc(prop)}</span><span>${fmt(member.props[prop])}</span></div>` +
+                 `<div class="op">${esc(op)}</div>`);
+      out.push('</details>');
+    }
+  }
   for (const [axis, buckets] of Object.entries(g.buckets || {})) {
-    out.push(`<h2>按 ${axis}</h2>`);
+    out.push(`<h2>${t('按 {axis}', {axis})}</h2>`);
     for (const b of buckets) {
       const totals = Object.entries(b.totals || {})
         .map(([c, t]) => `${c} ${fmt(t)}`).join(' · ');
@@ -866,7 +908,7 @@ function showGroup(tname) {
   }
   for (const [col, rows_] of Object.entries(g.top || {})) {
     if (!rows_.length) continue;
-    out.push(`<h2>${col} 最大的 ${rows_.length} 条</h2>`);
+    out.push(`<h2>${t('{col} 最大的 {count} 条', {col, count: rows_.length})}</h2>`);
     for (const r of rows_)
       out.push(`<div class="kv"><span>${r.id}</span><span>${fmt(r.value)}</span></div>`);
   }
@@ -881,8 +923,8 @@ const checkLine = c =>
   `<div class="entry"><strong>${c.name}</strong>` +
   (c.detail ? `<div class="muted">${c.detail}</div>` : '') +
   (c.sample && c.sample.length
-    ? `<div class="muted">例如 ${c.sample.join('、')}${
-        c.affected > c.sample.length ? ` …共 ${c.affected.toLocaleString('en-US')} 行` : ''
+    ? `<div class="muted">${t('例如')} ${c.sample.join('、')}${
+        c.affected > c.sample.length ? ` …${t('共 {count} 行', {count: c.affected.toLocaleString('en-US')})}` : ''
       }</div>`
     : '') +
   `</div>`;
@@ -894,9 +936,33 @@ function showChecks(v) {
   // shipped, and we know" are different things to tell a reader.
   const noted = v.checks.filter(c => c.ok && c.affected);
   $('panel').innerHTML = (bad.length
-    ? `<h2>未通过的检查</h2>` + bad.map(checkLine).join('')
-    : `<h2>检查</h2><p class="muted">${v.checks.length} 条全部通过。点一个节点看它的来历。</p>`)
-    + (noted.length ? `<h2>通过，但有数</h2>` + noted.map(checkLine).join('') : '');
+    ? `<h2>${t('未通过的检查')}</h2>` + bad.map(checkLine).join('')
+    : `<h2>${t('检查')}</h2><p class="muted">${t('{count} 条全部通过。点一个节点看它的来历。', {count: v.checks.length})}</p>`)
+    + (noted.length ? `<h2>${t('通过，但有数')}</h2>` + noted.map(checkLine).join('') : '')
+    + `<details><summary>${t('全部检查')}</summary>${v.checks.map(checkLine).join('')}</details>`;
+  if (state.projection === 'data') $('panel').insertAdjacentHTML('afterbegin',
+    `<p class="muted">${t('数据投影：核对对象、列、主键和关联；业务指标在另一视图。')}</p>`);
+}
+
+function showMeasurements(v) {
+  const run = v.measurement;
+  if (!run) { $('panel').textContent = t('暂无可自动生成的题。'); return; }
+  const out = [`<h2>${t('评测题')}</h2><p>${t('{passed}/{total} 题通过；分数不阻止修改。', run)}</p>` +
+    `<p class="muted">${t('这些题检查计算性质，不证明业务定义正确。')}</p>`];
+  for (const q of run.results) {
+    const label = v.nodes.find(n => n.id === q.node)?.label ?? q.node;
+    const rule = q.generator === 'partition'
+      ? t('选中部分 + 排除部分 = 全部（NULL 可能留下缺口）') : t('数据库计算 = 内存逐行计算');
+    out.push(`<details class="entry" data-question-id="${esc(q.id)}"><summary>` +
+      `<strong>${esc(label)}</strong> · ${t(q.ok ? '通过' : '未通过')}</summary>` +
+      `<p>${rule}</p><p class="muted">${t('infra 自动生成')} · ${esc(q.id)}</p>` +
+      `<div class="kv"><span>${t('预期')}</span><span>${fmt(q.expected)}</span></div>` +
+      `<div class="kv"><span>${t('实际')}</span><span>${fmt(q.got)}</span></div>` +
+      `<h2>${t('计算轨迹')}</h2><div class="op">${q.trace.map(esc).join('\n')}</div></details>`);
+  }
+  if (run.uncovered?.length) out.push(`<h2>${t('未覆盖')}</h2>` +
+    run.uncovered.map(q => `<p>${esc(q.node)}: ${esc(q.reason)}</p>`).join(''));
+  $('panel').innerHTML = out.join('');
 }
 
 // Every trade-specific noun below rides on the diff. The renderer knows that a
@@ -912,20 +978,19 @@ function showBridge(d) {
       <div class="muted">${fmt(e.before)} → ${fmt(e.after)}</div>
       ${lands.length
         ? `<div>${lands.map(([slot, where]) => `${slot} ${where}`).join(' · ')}</div>`
-        : `<div class="muted">仅记录，不计入${w.posted_noun}</div>`}
-      <div class="muted">因为 ${e.because}</div></div>`);
+        : `<div class="muted">${t('仅记录，不计入{total}', {total: w.posted_noun})}</div>`}
+      <div class="muted">${t('因为')} ${e.because}</div></div>`);
   }
   part.push(`<div class="kv"><span>${w.posted_noun}</span><span>${fmt(d.posted)}</span></div>`);
   if (d.carried.length) {
-    part.push(`<h2>${w.carried_noun}</h2><p class="muted">由上面的${
-      w.entry_noun}带动，不另计入${w.posted_noun}。</p>`);
+    part.push(`<h2>${w.carried_noun}</h2><p class="muted">${t('由上面的{entry}带动，不另计入{total}。', {entry: w.entry_noun, total: w.posted_noun})}</p>`);
     for (const c of d.carried)
       part.push(`<div class="carried"><strong>${c.label}</strong>
         <div>${fmt(c.amount)}</div>
-        <div class="muted">来自 ${c.origins.join('、') || '—'}</div></div>`);
+        <div class="muted">${t('来自')} ${c.origins.join('、') || '—'}</div></div>`);
   }
   if (d.unexplained.length)
-    part.push(`<h2 class="fail">无法解释</h2><ul class="fail">${
+    part.push(`<h2 class="fail">${t('无法解释')}</h2><ul class="fail">${
       d.unexplained.map(x => `<li>${x}</li>`).join('')}</ul>`);
   $('panel').innerHTML = part.join('');
 }
@@ -948,7 +1013,7 @@ function refit() {
   const W = bb.width || 1, H = bb.height || 1;
   const box = $('cy').getBoundingClientRect();
   if (!box.width || !box.height) return;
-  pz.k = Math.max(Math.min((box.width - 60) / W, (box.height - 60) / H, 1.4), 0.3);
+  pz.k = Math.max(Math.min((box.width - 60) / W, (box.height - 60) / H, 1.4), 0.85);
   pz.x = (box.width - W * pz.k) / 2 - bb.x * pz.k;
   pz.y = (box.height - H * pz.k) / 2 - bb.y * pz.k;
   applyTransform();
