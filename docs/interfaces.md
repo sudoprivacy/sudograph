@@ -93,7 +93,9 @@ Credentials reach its bridge on stdin, never argv or logs. An operator config ca
 replace `policy` with `nexus: {endpoint: "127.0.0.1:<port>", grant_paths:
 {sales: "/grants/sales.json"}}`. The daemon must enforce permission on those
 resources; use the `zone-grants` policy from the companion cluster change and
-read-only zone keys. This bootstrap binding is not fine-grained Nexus ReBAC.
+read-only zone keys. That policy refuses combination with `--enable-rebac`
+instead of silently replacing a provider. This bootstrap binding is not
+fine-grained Nexus ReBAC.
 The bootstrap client refuses remote plaintext and TLS configurations, because
 certificate identity can take precedence over the supplied token. A production
 certificate adapter must prove the caller identity instead of forwarding a node
@@ -137,6 +139,9 @@ repeats that acceptance against a fresh Nexus data/identity directory and random
 loopback port, including anonymous/invalid-key denial, cross-zone denial and a
 read-then-write attempt against the same dummy grant. It also reruns the Northwind
 view checks through `NexusAuthority`, and removes its isolated daemon afterward.
+The [recorded acceptance](trials/nexus-northwind-2026-10-07.json) states the
+tested commits and limitations. Its revocation case removes the view grant;
+it does not claim to test Nexus API-key revocation.
 
 Send JSON to `POST /v1` with `Authorization: Bearer <credential>`:
 

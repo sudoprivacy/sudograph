@@ -1,0 +1,52 @@
+{
+  "profile": "nexusd-cluster",
+  "isolated": true,
+  "checks": {
+    "valid_caller_read": true,
+    "invalid_caller_denied": true,
+    "anonymous_denied": true,
+    "other_zone_denied": true,
+    "read_then_write_denied": true
+  },
+  "northwind": {
+    "database": "northwind.db",
+    "transport": "loopback HTTP",
+    "authority": "NexusAuthority",
+    "all_orders": 16282,
+    "germany_orders": 2193,
+    "germany_freight": 537189.75,
+    "checks": [
+      "authentication",
+      "discovery",
+      "graph scope",
+      "page scope",
+      "aggregate scope",
+      "column visibility",
+      "scope tampering denied",
+      "cross-view denied",
+      "export permission",
+      "revocation"
+    ],
+    "passed": true
+  },
+  "passed": true,
+  "raw_database_mounted": false,
+  "sqlite_driver_integrated": false,
+  "date": "2026-10-07",
+  "nexus_commit": "9f06f98cc60b05bca90edf6226cd9ed8f7bb2ce2",
+  "gateway_commit": "49184c92d7830612ee546306968b693526f7f556",
+  "revocation_kind": "operator-owned view grant removed; not an API-key-revocation experiment",
+  "shared_instance_connected": false,
+  "permission_tests": {
+    "kernel": 3,
+    "permission": 14,
+    "cluster_policy": 3
+  },
+  "reproduce": "python -m tools.check_nexus_access --binary <patched-nexusd-cluster> <northwind.db>",
+  "limits": [
+    "Dedicated loopback daemon only; not the shared production deployment.",
+    "Gateway executes SQLite; no Nexus SQL driver or raw database VFS mount.",
+    "Sealed credential digest maps subject; this is not full ReBAC.",
+    "TLS/certificate caller identity and agent sandbox isolation remain unverified."
+  ]
+}
