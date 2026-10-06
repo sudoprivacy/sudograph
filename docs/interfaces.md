@@ -35,7 +35,8 @@ shows one hop around a selected object; `Full graph` restores the overview.
 Neither control changes the compiled model or access permissions. The default is
 ELK layered with its own orthogonal edge routes, including bends and endpoints.
 Cytoscape keeps a curved self-loop for self-relations. fCoSE is an optional
-comparison: it uses relative placement constraints from the acyclic ordering,
+comparison: it uses relative placement constraints from the acyclic ordering
+and straight ordinary edges as in the official demo,
 but the tested configurations still have some edges crossing nodes. The metrics
 overview limits layers to four nodes with Coffman-Graham layering so fan-out
 does not put every measure on one long row. Dense views still need zoom or focus

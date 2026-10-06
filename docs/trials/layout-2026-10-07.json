@@ -9,7 +9,7 @@
   "method": "ai-dev-browser trusted selector interaction; rendered node bounds and actual edge geometry",
   "config": {
     "ELK": "ORTHOGONAL; metrics Coffman-Graham with at most four nodes per layer",
-    "fCoSE": "proof; ELK initial positions; acyclic relative placement constraints"
+    "fCoSE": "proof; ELK initial positions; acyclic relative placement constraints; straight ordinary edges as in official demo"
   },
   "results": {
     "data-elk": {
@@ -22,7 +22,7 @@
     "data-fcose": {
       "nodes": 14,
       "edges": 15,
-      "fit_zoom": 0.8727523702283438,
+      "fit_zoom": 0.8727395073298726,
       "edge_node_intersection_pairs": 2,
       "diagonal_non_selfloop_segments": 0
     },
@@ -36,8 +36,8 @@
     "all-fcose": {
       "nodes": 29,
       "edges": 32,
-      "fit_zoom": 0.5851434262613179,
-      "edge_node_intersection_pairs": 27,
+      "fit_zoom": 0.6020264522492934,
+      "edge_node_intersection_pairs": 22,
       "diagonal_non_selfloop_segments": 0
     }
   },
