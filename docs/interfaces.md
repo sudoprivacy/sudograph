@@ -23,16 +23,23 @@ that record pages are not included. `compiler.browse.page` serves bounded pages
 from the source with stable key ordering; it never requires loading the full
 table into a graph.
 
-Cytoscape 3.30.2 renders the active graph, with ELK layout and DOM labels for text
+Cytoscape 3.30.2 renders the active graph, with ELK layered or fCoSE and DOM labels for text
 selection. The ShareOne application-anchor protocol supplies canvas node bounds.
 Source rows are paged separately: a large database does not imply placing all its
 rows on one canvas. No million-node rendering performance claim has been made.
 
-The data projection starts with source connectors folded out of the canvas and
+Both views start with source connectors folded out of the canvas and
 edge labels shown around a selected node. Source provenance remains in each
 type's details; `Show sources` restores its nodes and edges. `Focus neighbors`
 shows one hop around a selected object; `Full graph` restores the overview.
-Neither control changes the compiled model or access permissions. ELK offers
+Neither control changes the compiled model or access permissions. The default is
+ELK layered with its own orthogonal edge routes, including bends and endpoints.
+Cytoscape keeps a curved self-loop for self-relations. fCoSE is an optional
+comparison: it uses relative placement constraints from the acyclic ordering,
+but the tested configurations still have some edges crossing nodes. The metrics
+overview limits layers to four nodes with Coffman-Graham layering so fan-out
+does not put every measure on one long row. Dense views still need zoom or focus
+for reading. ELK offers
 left-to-right and top-to-bottom layouts; `Rearrange` discards manual placement
 for the current view. Dragging node borders moves their text and attached edges.
 Placements survive projection/focus/language switches during the current page
@@ -40,12 +47,23 @@ session; they are not saved to the server or across a reload.
 
 The template includes a Chinese/English selector. Controls, legend and panels
 switch together without changing graph identities or coordinates. Business
-names and authored evidence retain the source language. Missing template
-translations fail rendering rather than silently falling back to one language.
+names, authored descriptions and property names use the spec's `translations`
+catalogue. Keys are original display text, values are translated display text:
+`translations: {en: {Customer: Customer, Sales: Revenue}}`. A declared locale
+must cover the ontology name, all node/type/source/hook labels, descriptions,
+resolution criteria and property display names; the compiler rejects incomplete
+catalogues before binding rows. IDs, refs, formulas and source values stay stable.
+Legacy specs without a business catalogue retain original business text. Missing
+template translations fail rendering rather than silently falling back.
 
 `Data projection` and `Metrics and rules` are display choices, not workflow
 stages. Node colours describe kinds and unresolved upstream gaps; they do not
 encode stage, permission or a claim that a business definition is correct.
+The Northwind example currently includes draft business interpretations (net
+sales, gap-resolution criteria and an illustrative owner role). They demonstrate
+stage-two mechanisms but are not user-confirmed business policy. The current
+work remains source projection and infra validation; the display selector cannot
+prove that a spec contains only source facts.
 
 ## Server-side visibility
 
@@ -64,12 +82,23 @@ source-wide coverage report or connector credential is returned. A browser
 projection selector is presentation, never the permission boundary.
 
 `NexusAuthority(client, grant_paths)` uses the **caller's credential** to read an
-operator-owned grant resource through Nexus. Its client must return authenticated
-`subject` and `content`, and perform `sys_read` with the caller's OperationContext.
-The grant content is `{"resource":"view/a","subject":"alice","actions":["read"]}`.
+operator-owned grant resource through the official client's typed Read RPC.
+ReadResponse supplies bytes, not a subject. The sealed operator grant therefore
+binds a credential digest to a subject:
+`{"resource":"view/a","subject":"alice","credential_sha256":"<SHA-256>","actions":["read"]}`.
 A missing grant, mismatch, denied read or unavailable backend denies access.
-It is an integration adapter, not proof that the actual Nexus SQL driver and
-permission provider have been deployed. The data-side syscall/driver integration
+Install `npm ci --prefix nexus-client` for the pinned official Node client.
+Credentials reach its bridge on stdin, never argv or logs. An operator config can
+replace `policy` with `nexus: {endpoint: "127.0.0.1:<port>", grant_paths:
+{sales: "/grants/sales.json"}}`. The daemon must enforce permission on those
+resources; use the `zone-grants` policy from the companion cluster change and
+read-only zone keys. This bootstrap binding is not fine-grained Nexus ReBAC.
+The bootstrap client refuses remote plaintext and TLS configurations, because
+certificate identity can take precedence over the supplied token. A production
+certificate adapter must prove the caller identity instead of forwarding a node
+certificate beside somebody else's token.
+The SQLite still runs in the data owner's Gateway process. The actual SQL driver
+has not been connected, so this does not finish design §7.9. Data-side syscall/driver integration
 and network egress restrictions are still required by design §7.9.
 
 For local boundary tests, `FileCapabilities` reads an operator-owned policy on
@@ -92,6 +121,21 @@ transport binds only loopback. A deployment must put it behind authenticated
 TLS ingress and keep the policy, database and process out of the agent sandbox.
 Local file capabilities are a bootstrap test backend, not a replacement for
 Nexus ReBAC. Neither backend relies on a caller-supplied `--as` identity.
+
+`python -m tools.check_northwind_access /absolute/path/northwind.db` starts an
+isolated HTTP server and proves authentication, registered row scope, graph
+counts, pagination, aggregates, omitted address fields, cross-view denial,
+separate export permission and immediate revocation on the real Orders table.
+This test does not contact Nexus. The browser identifies authorised exports
+with a scope notice without revealing unavailable objects or their counts.
+The public Northwind ShareOne page is labelled a public demo snapshot; its share
+password, if any, is separate from data authorisation.
+
+`python -m tools.check_nexus_access --binary <patched-nexusd-cluster> <northwind.db>`
+repeats that acceptance against a fresh Nexus data/identity directory and random
+loopback port, including anonymous/invalid-key denial, cross-zone denial and a
+read-then-write attempt against the same dummy grant. It also reruns the Northwind
+view checks through `NexusAuthority`, and removes its isolated daemon afterward.
 
 Send JSON to `POST /v1` with `Authorization: Bearer <credential>`:
 

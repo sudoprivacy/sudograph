@@ -1,0 +1,8 @@
+{
+  "name": "sudograph-nexus-transport",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@nexus-ai-fs/vfs-client": "https://sudowork-runtime-1309794936.cos.accelerate.myqcloud.com/nexus-vfs/clients/node/0.3.0/nexus-ai-fs-vfs-client-0.3.0.tgz"
+  }
+}

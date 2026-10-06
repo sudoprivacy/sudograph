@@ -382,17 +382,31 @@ What it shows:
 - instances are off by default: the scalar graph is what a reviewer reads, and 31
   instance nodes against 15 figures shrink every label past reading
 
-Layout is ELK `layered` — this is a DAG read top-down. Fit is clamped so it never
-shrinks past legibility; pan and zoom do the rest.
+Layout defaults to ELK `layered` with its orthogonal edge routes. Data projection
+starts left-to-right; metrics use bounded top-down layers. The layout menu also
+offers fCoSE with relative placement constraints for comparison. Fit shows the
+whole graph; dense views still need zoom or **Focus neighbors** to read labels.
+Dragging a node moves its text and edges; positions persist across view and
+language switches in the current page session.
 
 The generated app selects Chinese or English from the browser automatically.
 Pass `--lang en` to pin the UI language. Every export embeds the catalogs; an
 agent does not need to remember a translation step. Missing translation keys
 refuse generation. Add languages to
-`app/messages.json`, preserving every key and placeholder. Domain labels and
-compiler diagnostics remain authored in their original language; this does not
-translate them automatically. View selectors are presentation controls, not
+`app/messages.json`, preserving every key and placeholder. For business text,
+declare `translations.<locale>` in the ontology: labels, descriptions, resolution
+criteria and property names must all be covered or loading fails. Northwind
+includes an English catalogue. Legacy specs without one retain the source
+business language; identities, expressions and diagnostic evidence are not
+automatically translated. View selectors are presentation controls, not
 permissions: the self-contained file contains all bundled views.
+
+Server-side views instead authorise every graph, query, page and export request;
+registered row scope reaches reads before counts and aggregates. Export requires
+its own grant. The [interface contract](docs/interfaces.md#server-side-visibility)
+describes local capabilities, caller-authenticated Nexus grants and repeatable
+Northwind acceptance. Nexus SQL-driver integration and the shared deployment
+are still pending; the ShareOne page remains a public demo snapshot.
 
 ## Three gates on every write
 

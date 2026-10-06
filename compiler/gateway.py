@@ -7,7 +7,6 @@ are separately compiled resources: no hidden rows/readings are sent to clients.
 
 from __future__ import annotations
 
-import copy
 import hashlib
 import hmac
 import json
@@ -16,7 +15,7 @@ from pathlib import Path
 from typing import Protocol
 
 from . import app, bind, browse, expr
-from .compile import _restrict, compile_spec
+from .compile import compile_spec
 from .dependencies import validate_names
 from .query import link_resolver
 from .spec import SpecError, load
@@ -61,11 +60,12 @@ class FileCapabilities:
 class NexusAuthority:
     """Use a trusted Nexus client whose read propagates the caller's credential.
 
-    `read(path, credential=...)` MUST call the data-side KernelSyscall/sys_read
-    with the caller's authenticated OperationContext, never a root service token.
-    The grant files are operator-owned resources in Nexus. There is no local allow
-    fallback on connection failure, denial, malformed grant or subject mismatch.
-    This adapter deliberately does not invent a REST endpoint absent from Nexus.
+    `read(path, credential=...)` calls the typed Read RPC with the caller's
+    credential. Nexus authenticates that credential; the operator-owned grant
+    binds its SHA-256 digest to a subject and actions, because ReadResponse does
+    not return an authenticated subject. The caller must be unable to WRITE the
+    grant: arm nexusd-cluster's permission policy and issue read-only zone grants.
+    No root service token, connection fallback or caller-supplied identity.
     """
 
     def __init__(self, client, grant_paths):
@@ -79,11 +79,13 @@ class NexusAuthority:
             grant = json.loads(result.content)
             if (
                 grant["resource"] == resource
+                and isinstance(grant["actions"], list)
                 and action in grant["actions"]
-                and result.subject
-                and grant["subject"] == result.subject
+                and isinstance(grant["subject"], str) and grant["subject"]
+                and hmac.compare_digest(grant["credential_sha256"],
+                                        hashlib.sha256(credential.encode()).hexdigest())
             ):
-                return result.subject
+                return grant["subject"]
         except Exception:
             pass
         raise Denied("resource or operation unavailable")
@@ -131,28 +133,7 @@ class Gateway:
         if definition is None:
             raise Denied("resource or operation unavailable")
         # The client cannot supply a file path, basis, source, SQL table or policy.
-        s = load(definition.spec)
-        if definition.at:
-            # Put the registered scope into each backing before counting, sampling,
-            # following refs or aggregating. Display filtering cannot enforce this.
-            if set(definition.at) - set(s.dimensions):
-                raise ValueError("registered view has an unknown dimension")
-            s = copy.deepcopy(s)
-            s = _restrict(s, definition.at)
-            for tn in s.types:
-                clauses = []
-                for dim, value in definition.at.items():
-                    if prop := s.axis_of(tn, dim):
-                        clauses.append(
-                            expr.to_sql(
-                                expr.Bin("=", expr.Ref(s.column_of(tn, prop)), expr.Lit(value))
-                            )
-                        )
-                backing = s.backing_of(tn)
-                if backing and clauses:
-                    previous = [f"({backing['where']})"] if backing.get("where") else []
-                    backing["where"] = " AND ".join([*previous, *clauses])
-            s = bind.bind_all(s, s.source_base)
+        s = load(definition.spec, scope=definition.at)
         if operation == "page":
             allowed = {"type", "offset", "limit", "where"}
             if set(params) - allowed:
@@ -181,6 +162,8 @@ class Gateway:
         if not c.passed:
             raise SpecError("registered view failed its checks; ask the view owner to repair it")
         b = {
+            "access": {"mode": "authorised", "view": resource},
+            "translations": s.translations,
             "ontology": s.name,
             "axes": {},
             "bases": [definition.basis],

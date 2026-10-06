@@ -2,6 +2,8 @@ __pycache__/
 .venv/
 *.pyc
 *.edits.yaml
+node_modules/
+.shareone_history.json
 
 # Generated apps are build artifacts; the template and the vendored libraries
 # are the sources. `--app` writes wherever you point it.

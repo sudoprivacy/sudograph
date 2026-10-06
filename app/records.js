@@ -23,7 +23,7 @@ async function showRecords(tname, offset=0, filter=null) {
   if(mine!==browseSeq)return;
   const id=row=>r.ids.map(p=>row[r.columns.indexOf(p)]).join('·');
   const label=row=>row[r.columns.indexOf(r.display)] ?? id(row);
-  $('panel').innerHTML=`<h2>${esc(g.label)} · ${fmt(total)} ${t('行')}</h2>`+
+  $('panel').innerHTML=`<h2>${esc(bt(g.label))} · ${fmt(total)} ${t('行')}</h2>`+
     `<p>${t('类型 → 分页记录 → 属性与关系')}</p>`+
     `<div><button id="prevPage" ${offset===0?'disabled':''}>${t('上一页')}</button> `+
     `<span>${offset+1}–${Math.min(offset+data.length,total)}</span> `+
@@ -31,7 +31,7 @@ async function showRecords(tname, offset=0, filter=null) {
     `<p><input id="pageNumber" type="number" min="1" max="${Math.max(1,Math.ceil(total/size))}" value="${Math.floor(offset/size)+1}" style="width:70px"> `+
     `<button id="goPage">${t('跳页')}</button></p>`+
     data.map((row,i)=>`<details data-record="${i}"><summary>${esc(label(row))} <small>${esc(id(row))}</small></summary>`+
-      r.columns.map((p,j)=>`<div class="kv"><span>${esc(p)}</span><span>${esc(fmt(row[j]))}</span></div>`+
+      r.columns.map((p,j)=>`<div class="kv"><span>${esc(bt(p))}</span><span>${esc(fmt(row[j]))}</span></div>`+
       (r.refs[p]&&row[j]!=null?`<button data-follow="${i}:${j}">${t('查看关联')} ${esc(r.refs[p])}</button>`:'')).join('')+
       `<div data-inverse="${i}"></div></details>`).join('');
   $('prevPage').onclick=()=>showRecords(tname,Math.max(0,offset-size),filter);

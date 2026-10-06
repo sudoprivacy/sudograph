@@ -155,6 +155,17 @@
           }
         ]
       }
+    },
+    "translations": {
+      "type": "object",
+      "description": "Display-only translations keyed by original text. IDs, formulas and source data remain stable. Declared locales must cover node labels and descriptions.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   },
   "$defs": {

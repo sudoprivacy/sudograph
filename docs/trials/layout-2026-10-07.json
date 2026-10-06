@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-07",
+  "renderer": "Cytoscape 3.30.2",
+  "layout_versions": {
+    "ELK": "repository-vendored elk.bundled.js",
+    "fCoSE": "2.2.0"
+  },
+  "elk_vendor_sha256": "b0745abd7f23cd91690a1587e377edbe19fd7233c783300290936720546216d4",
+  "method": "ai-dev-browser trusted selector interaction; rendered node bounds and actual edge geometry",
+  "config": {
+    "ELK": "ORTHOGONAL; metrics Coffman-Graham with at most four nodes per layer",
+    "fCoSE": "proof; ELK initial positions; acyclic relative placement constraints"
+  },
+  "results": {
+    "data-elk": {
+      "nodes": 14,
+      "edges": 15,
+      "fit_zoom": 0.9672619047619052,
+      "edge_node_intersection_pairs": 0,
+      "diagonal_non_selfloop_segments": 0
+    },
+    "data-fcose": {
+      "nodes": 14,
+      "edges": 15,
+      "fit_zoom": 0.8727523702283438,
+      "edge_node_intersection_pairs": 2,
+      "diagonal_non_selfloop_segments": 0
+    },
+    "all-elk": {
+      "nodes": 29,
+      "edges": 32,
+      "fit_zoom": 0.4468036355304362,
+      "edge_node_intersection_pairs": 0,
+      "diagonal_non_selfloop_segments": 0
+    },
+    "all-fcose": {
+      "nodes": 29,
+      "edges": 32,
+      "fit_zoom": 0.5851434262613179,
+      "edge_node_intersection_pairs": 27,
+      "diagonal_non_selfloop_segments": 0
+    }
+  },
+  "limitations": [
+    "One Northwind graph; not a general proof of either algorithm.",
+    "Bezier checks sample curves; orthogonal edges use segment/rectangle clipping.",
+    "Fit overview of metrics still needs zoom/focus to read.",
+    "Dragging can introduce new occlusions; initial layout checks do not constrain manual edits."
+  ],
+  "browser_checks": [
+    "Both layout selectors work in the hosted ShareOne iframe",
+    "English business labels contain no Chinese display text",
+    "Real drag moves label by the same delta as node",
+    "Focus/language switches preserve manual positions",
+    "Public snapshot notice and ShareOne anchors available"
+  ]
+}

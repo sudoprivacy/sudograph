@@ -1299,14 +1299,15 @@ def test_canvas_keeps_selectable_dom_labels_and_application_anchors():
     assert "api.on('hittest'" in html and 'canvasRect(id)' in html
 
 
-def test_the_layout_engine_is_elk_and_only_elk():
-    """Layout was never cytoscape's contribution — cytoscape-elk is an adapter
-    that calls elkjs. Dropping cytoscape kept the layout and lost 365 KB."""
+def test_layout_engines_are_vendored_for_offline_use():
     assert "new ELK()" in _html()
     assert [
         os.path.join(app_mod._ROOT, "app", "vendor", "elk.bundled.js"),
         os.path.join(app_mod._ROOT, "app", "vendor", "cytoscape.min.js"),
-    ] == app_mod.VENDOR
+    ] == app_mod.VENDOR[:2]
+    assert [os.path.basename(path) for path in app_mod.VENDOR[2:]] == [
+        "layout-base.js", "cose-base.js", "cytoscape-fcose.js",
+    ]
 
 
 def test_connectors_are_pinned_to_the_top_row():
@@ -1745,7 +1746,7 @@ def test_a_count_reads_as_secondary_to_the_name_beside_it():
     """
     html = _html()
     body = html.split("function linesOf", 1)[1].split("function measure", 1)[0]
-    assert "[n.label, mark]" in body
+    assert "[bt(n.label, language), mark]" in body
     assert "${n.label}" not in body
     draw = html.split("async function draw()", 1)[1]
     assert "el('tspan'" in draw
@@ -2315,7 +2316,7 @@ def test_a_type_too_large_to_fetch_is_on_the_canvas_but_does_not_open():
     # Two reasons the rows are not here, told apart: too many to draw, versus
     # never fetched. Neither offers an arrow, because an arrow that opens an
     # empty box is the same broken promise as one that does nothing.
-    assert "t('行')" in body
+    assert "tr('行')" in body
     assert "showRecords(n.id)" in html and "DecompressionStream('gzip')" in html
     assert "!n.unfetched && !n.folded && !open" in html
 
@@ -2335,7 +2336,7 @@ def test_a_backed_type_wears_the_table_it_reads():
     assert over["销售订单"] == over["发货"] == "Orders"
 
     html = _html()
-    assert "t('来源表') + ': ' + n.backing.table" in html
+    assert "tr('来源表') + ': ' + n.backing.table" in html
     assert "<h2>${t('读自')}</h2>" in html
 
 

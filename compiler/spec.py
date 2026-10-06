@@ -38,7 +38,7 @@ PROP_TYPES = ("string", "money", "number", "date", "enum", "ref", "bool")
 
 TOP_LEVEL = {
     "ontology", "dimensions", "bases", "bridges", "types", "raw",
-    "hooks", "instances", "nodes", "ops", "checks",
+    "hooks", "instances", "nodes", "ops", "checks", "translations",
 }
 
 #: Node keys that may be written per reading, as `<key>@<basis>`.
@@ -102,6 +102,7 @@ class Spec:
     #: answered by the database; anything that needs the rows themselves refuses
     #: rather than quietly working on none of them.
     unloaded: dict[str, int] = field(default_factory=dict)
+    translations: dict[str, dict[str, str]] = field(default_factory=dict)
 
     def owner_of(self, type_name: str, prop: str) -> str | None:
         t = self.types.get(type_name)
@@ -234,7 +235,7 @@ class Spec:
         return {self.identify(type_name, r) for r in rows if isinstance(r, dict)}
 
 
-def load(path: str) -> Spec:
+def load(path: str, *, scope: dict | None = None) -> Spec:
     with open(path, encoding="utf-8") as fh:
         doc = yaml.safe_load(fh)
     if not isinstance(doc, dict):
@@ -256,6 +257,7 @@ def load(path: str) -> Spec:
         bases=doc.get("bases") or [],
         bridges=doc.get("bridges") or {},
         dimensions=doc.get("dimensions") or [],
+        translations=doc.get("translations") or {},
         source_base=os.path.dirname(os.path.abspath(path)),
     )
     for name, raw in s.raw.items():
@@ -281,12 +283,18 @@ def load(path: str) -> Spec:
                 "the spec claims things the source does not say:\n  - "
                 + "\n  - ".join(broken)
             )
-        s = bind_mod.bind_all(s, base)
     try:
         if any(r.get('coverage') == 'complete' for r in s.raw.values()):
             enforce(s)
     except ValueError as e:
         raise SpecError(str(e)) from e
+    # Validate the owner's complete inventory first, then apply the registered
+    # access scope BEFORE the first row count/load. A display slice after load
+    # both reads forbidden rows and needlessly binds the database twice.
+    if scope:
+        s = bind_mod.scoped(s, scope)
+    if any(s.backing_of(t) for t in s.types):
+        s = bind_mod.bind_all(s, s.source_base)
     return s
 
 
@@ -532,6 +540,32 @@ def check(s: Spec) -> list[str]:
     round trip per mistake.
     """
     out: list[str] = []
+
+    if not isinstance(s.translations, dict):
+        out.append("translations must map locale names to source-text translations")
+    else:
+        required = {s.name}
+        for block in (s.types, s.raw, s.hooks, s.nodes):
+            for name, definition in block.items():
+                if not isinstance(definition, dict):
+                    continue
+                required.add(definition.get('label',name))
+                required.update(
+                    definition[k] for k in ('description','resolve_when') if definition.get(k)
+                )
+        for definition in s.types.values():
+            if isinstance(definition, dict):
+                required.update(definition.get('props') or {})
+        for locale,messages in s.translations.items():
+            if not isinstance(messages,dict) or any(
+                not isinstance(k,str) or not isinstance(v,str) or not v.strip()
+                for k,v in messages.items()
+            ):
+                out.append(f"translations.{locale} must contain nonempty string translations")
+            elif required-set(messages):
+                out.append(
+                    f"translations.{locale} missing display text: {sorted(required-set(messages))}"
+                )
 
     # Shape before anything reads a row. A mapping under 'instances' is almost
     # always a type definition pasted into the wrong section, and every later

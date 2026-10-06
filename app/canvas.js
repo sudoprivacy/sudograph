@@ -23,19 +23,55 @@ function canvasRect(id) {
   const r = n.renderedBoundingBox(), host = $('cy').getBoundingClientRect();
   return {x: host.x + r.x1, y: host.y + r.y1, width:r.w, height:r.h};
 }
+function routeSelfLoops() {
+  const boxes=cy.nodes().map(n=>({node:n,box:n.boundingBox({includeLabels:false})}));
+  for(const edge of cy.edges().filter(e=>e.source().id()===e.target().id())) {
+    const source=edge.source(),obstacles=boxes.filter(o=>o.node.id()!==source.id() &&
+      !source.ancestors().contains(o.node) && !source.descendants().contains(o.node));
+    let best=null;
+    for(let angle=0;angle<360;angle+=45) {
+      edge.style({'loop-direction':angle+'deg','control-point-step-size':100});
+      const a=edge.sourceEndpoint(),b=edge.targetEndpoint(),controls=edge.controlPoints()||[];
+      if(!a || !b || controls.length!==2)continue;
+      const middle={x:(controls[0].x+controls[1].x)/2,y:(controls[0].y+controls[1].y)/2},samples=[];
+      for(const [start,control,end] of [[a,controls[0],middle],[middle,controls[1],b]])
+        for(let i=0;i<=24;i++) {const t=i/24;samples.push({
+          x:(1-t)**2*start.x+2*(1-t)*t*control.x+t*t*end.x,
+          y:(1-t)**2*start.y+2*(1-t)*t*control.y+t*t*end.y});}
+      let blocked=0,clearance=Infinity;
+      for(const {box} of obstacles) {
+        const distances=samples.map(p=>Math.hypot(Math.max(box.x1-p.x,0,p.x-box.x2),
+          Math.max(box.y1-p.y,0,p.y-box.y2)));
+        const nearest=Math.min(...distances);if(nearest<2)blocked++;
+        clearance=Math.min(clearance,nearest);
+      }
+      if(!best || blocked<best.blocked || (blocked===best.blocked&&clearance>best.clearance))
+        best={angle,blocked,clearance};
+    }
+    if(best)edge.style('loop-direction',best.angle+'deg');
+  }
+}
 async function drawCanvas(v, shown, edges, mine) {
   if(cy && canvasLayoutKey && !resetCanvasLayout)canvasLayouts.set(canvasLayoutKey,{
     positions:Object.fromEntries(cy.nodes().map(n=>[n.id(),{...n.position()}])),
+    routes:Object.fromEntries(cy.edges().map(e=>[e.id(),Object.fromEntries(
+      ['curve-style','edge-distances','segment-weights','segment-distances',
+        'source-endpoint','target-endpoint'].map(name=>[name,e.style(name)]))])),
     zoom:cy.zoom(),pan:{...cy.pan()}});
-  const key=JSON.stringify([state.basis,coordKey(),state.projection,state.direction,
+  const engine=state.layoutEngine==='auto'?'elk':state.layoutEngine;
+  const key=JSON.stringify([state.basis,coordKey(),state.projection,state.direction,engine,
     state.sources,state.focus,[...shown.keys()].sort()]);
   if(resetCanvasLayout){canvasLayouts.delete(key);resetCanvasLayout=false;}
   const saved=canvasLayouts.get(key);
   const nodes = [...shown.values()];
   const direction=state.direction==='auto'?(state.projection==='data'?'RIGHT':'DOWN'):state.direction;
-  const box = n => ({id:n.id, width:measure(linesOf(n,false)).w,
-    height:measure(linesOf(n,false)).h + 12,
-    layoutOptions:{'elk.layered.layering.layerConstraint':(KINDS[n.kind]||{}).layer || 'NONE'}});
+  const box = n => {
+    // Reserve enough space for every available language, including wrapped text.
+    // A language switch then preserves both manual placement and route geometry.
+    const sizes=Object.keys(BUNDLE.ui.catalogs).map(lang=>measure(linesOf(n,false,lang)));
+    return {id:n.id,width:Math.max(...sizes.map(s=>s.w)),height:Math.max(...sizes.map(s=>s.h))+12,
+      layoutOptions:{'elk.layered.layering.layerConstraint':(KINDS[n.kind]||{}).layer || 'NONE'}};
+  };
   const children=nodes.filter(n=>n.kind!=='instance').map(n=>{
     const result=box(n), members=nodes.filter(row=>row.kind==='instance'&&row.type===n.id);
     if(members.length) {
@@ -47,7 +83,10 @@ async function drawCanvas(v, shown, edges, mine) {
     return result;
   });
   const laid = await elk.layout({id:'root', layoutOptions:{'elk.algorithm':'layered',
+    'elk.edgeRouting':'ORTHOGONAL',
     'elk.direction':direction, 'elk.spacing.nodeNode':'55','elk.spacing.componentComponent':'75',
+    ...(state.projection==='all'?{'elk.layered.layering.strategy':'COFFMAN_GRAHAM',
+      'elk.layered.layering.coffmanGraham.layerBound':'4'}:{}),
     'elk.layered.thoroughness':'20',
     'elk.hierarchyHandling':'INCLUDE_CHILDREN','elk.layered.spacing.nodeNodeBetweenLayers':'115'},
     children,
@@ -63,13 +102,21 @@ async function drawCanvas(v, shown, edges, mine) {
   (function walk(list,x=0,y=0){for(const n of list||[]){
     positions.set(n.id,{...n,x:n.x+x,y:n.y+y});walk(n.children,n.x+x,n.y+y);
   }})(laid.children);
+  const routes=new Map();
+  (function walkRoutes(g,x=0,y=0){
+    for(const e of g.edges||[])if(e.sections?.length) {
+      routes.set(e.id,e.sections.flatMap(s=>[s.startPoint,...(s.bendPoints||[]),s.endPoint])
+        .map(p=>({x:p.x+x,y:p.y+y})));
+    }
+    for(const child of g.children||[])walkRoutes(child,x+(child.x||0),y+(child.y||0));
+  })(laid);
   cy = cytoscape({container:host, minZoom:.08,maxZoom:4,
     elements:[...nodes.map(n=> {const p=positions.get(n.id);return {data:{id:n.id,
       label:linesOf(n,false).map(l=>l.parts.join('')).join('\n'), color:fillOf(n),
       w:p.width,h:p.height,...(n.kind==='instance'?{parent:n.type}:{})},
       position:saved?.positions[n.id] || {x:p.x+p.width/2,y:p.y+p.height/2}};}),
       ...edges.map((e,i)=>({data:{id:'edge-'+i,source:e.from,target:e.to,
-        label:e.via || '',meta:e,loop:e.from===e.to,color:css(inferred(e)?EDGES.guessed.colour:edgeStyle(e.rel).colour),
+        label:bt(e.via || ''),meta:e,loop:e.from===e.to,color:css(inferred(e)?EDGES.guessed.colour:edgeStyle(e.rel).colour),
         dash:inferred(e)?'dotted':edgeStyle(e.rel).dash?'dashed':'solid'}}))],
     style:[{selector:'node',style:{shape:'roundrectangle','background-color':'data(color)',
       width:'data(w)',height:'data(h)','border-width':1,'border-color':'#778399',
@@ -92,6 +139,40 @@ async function drawCanvas(v, shown, edges, mine) {
     for(const e of d.entries)cy.getElementById(e.node).style({'border-color':css('--entry'),'border-width':4});
     for(const e of d.carried)cy.getElementById(e.node).style({'border-color':css('--carried'),'border-width':3});
   }
+  if(engine==='fcose' && !saved) {
+    // Use the acyclic ordering from ELK as generic relative-placement constraints.
+    // No business-specific node names, and no constraints on compound parents.
+    const horizontal=direction==='RIGHT',axis=horizontal?'x':'y',size=horizontal?'width':'height';
+    const constraints=[],pairs=new Set();
+    for(const e of edges) {
+      if(e.from===e.to || cy.getElementById(e.from).isParent() || cy.getElementById(e.to).isParent())continue;
+      const p=positions.get(e.from),q=positions.get(e.to);
+      if(Math.abs(p[axis]-q[axis])<20)continue;
+      const [a,b]=p[axis]<q[axis]?[p,q]:[q,p],pair=a.id+'\0'+b.id;
+      if(pairs.has(pair))continue;pairs.add(pair);
+      constraints.push({...(horizontal?{left:a.id,right:b.id}:{top:a.id,bottom:b.id}),
+        gap:(a[size]+b[size])/2+65});
+    }
+    cy.layout({name:'fcose',quality:'proof',animate:false,randomize:false,fit:false,
+      nodeRepulsion:9000,idealEdgeLength:130,gravity:.15,packComponents:false,
+      relativePlacementConstraint:constraints}).run();
+  }
+  if(engine==='elk')for(const [i,meta] of edges.entries()) {
+    const edge=cy.getElementById('edge-'+i),points=routes.get('e'+i);
+    if(meta.from===meta.to || !points?.length)continue;
+    if(saved?.routes?.[edge.id()]) {edge.style(saved.routes[edge.id()]);continue;}
+    // Cytoscape segments consume ELK's actual bend points, not a new Bezier route.
+    const a=edge.source().position(),b=edge.target().position();
+    const dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy)||1;
+    const bends=points.slice(1,-1),weights=[],distances=[];
+    for(const p of bends){weights.push(((p.x-a.x)*dx+(p.y-a.y)*dy)/(length*length));
+      distances.push((dx*(p.y-a.y)-dy*(p.x-a.x))/length);}
+    edge.style({'curve-style':bends.length?'segments':'straight',
+      'edge-distances':'node-position','segment-weights':weights,'segment-distances':distances,
+      'source-endpoint':[points[0].x-a.x,points[0].y-a.y],
+      'target-endpoint':[points.at(-1).x-b.x,points.at(-1).y-b.y]});
+  }
+  routeSelfLoops();
   const layer = document.createElement('div');
   layer.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden';
   $('cy').appendChild(layer);
@@ -129,7 +210,7 @@ async function drawCanvas(v, shown, edges, mine) {
   updateCanvasSelection();
   labels();
   const bad=v.checks.filter(c=>!c.ok);
-  $('status').textContent=`Cytoscape ${cytoscape.version} · ${shown.size} ${t('节点')} · `+
+  $('status').textContent=`${engine==='elk'?'ELK layered':'fCoSE'} · Cytoscape ${cytoscape.version} · ${shown.size} ${t('节点')} · `+
     `${edges.length} ${t('边')} · ${v.checks.length-bad.length}/${v.checks.length} ${t('检查通过')}`;
   if(state.bridgeMode) showBridge(bridge());
   else if(state.panel==='measure') showMeasurements(v);
@@ -142,8 +223,8 @@ async function drawCanvas(v, shown, edges, mine) {
 }
 
 function showRelation(e) {
-  $('panel').innerHTML=`<h2>${t('关系')}</h2><p>${esc(e.from)} → ${esc(e.to)}</p>`+
-    `<p>${esc(e.via || e.rel)}</p>`+
+  $('panel').innerHTML=`<h2>${t('关系')}</h2><p>${esc(bt(e.from))} → ${esc(bt(e.to))}</p>`+
+    `<p>${esc(bt(e.via || e.rel))}</p>`+
     (e.rel==='same_source_key'?`<p>${t('同一来源主键的两个业务投影；各自筛选可能不同。')}</p>`+
       `<div class="op">${esc(e.table)} · ${esc(e.key.join(', '))}</div>`:'')+
     (e.rel==='links'?`<p>${t('每条来源记录最多关联一条目标记录；多个来源记录可以指向同一目标。')}</p>`+

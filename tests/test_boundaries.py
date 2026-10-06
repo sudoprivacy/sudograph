@@ -6,6 +6,10 @@ import gzip
 import hashlib
 import json
 import sqlite3
+import threading
+import urllib.error
+import urllib.request
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -13,8 +17,11 @@ import pytest
 from test_relations import shop as shop_fixture
 
 from compiler import app, bind, blind, browse, catalog, expr, spec
+from compiler import gateway as gateway_module
 from compiler.compile import compile_spec
 from compiler.gateway import Denied, FileCapabilities, Gateway, NexusAuthority, View
+from compiler.nexus import NexusClient
+from compiler.serve import handler
 
 
 @pytest.fixture
@@ -220,6 +227,55 @@ def test_gateway_scope_applies_to_counts_pages_aggregates_and_unloaded(shop, tmp
         )
 
 
+def test_registered_scope_is_present_on_the_first_binding_read(shop, tmp_path, monkeypatch):
+    load, _, path = shop
+    load()
+    auth, _ = authority(tmp_path, {"A": ["read"]})
+    counts, reads = [], []
+    original_count, original_load = bind.count, bind.load
+
+    def counted(s, tn, base):
+        if tn == "Line":
+            counts.append(s.backing_of(tn).get("where"))
+        return original_count(s, tn, base)
+
+    def loaded(s, tn, base):
+        if tn == "Line":
+            reads.append(s.backing_of(tn).get("where"))
+        return original_load(s, tn, base)
+
+    monkeypatch.setattr(bind, "count", counted)
+    monkeypatch.setattr(bind, "load", loaded)
+    Gateway({"A": View(str(path), at={"market": "A"})}, auth).execute(
+        "test-capability", "A", "graph"
+    )
+    assert counts and reads
+    assert all("market" in clause and "'A'" in clause for clause in [*counts, *reads])
+
+
+def test_declared_business_language_requires_labels_descriptions_and_properties(shop):
+    load, _, _ = shop
+    s = load()
+    required = {s.name}
+    for block in (s.types, s.raw, s.hooks, s.nodes):
+        required.update(d.get("label", name) for name, d in block.items())
+    required.update(p for t in s.types.values() for p in t.get("props", {}))
+    messages = {text: "Translated " + text for text in required}
+
+    def translated(d):
+        d["translations"] = {"en": messages}
+
+    translated_spec = load(translated)
+    assert compile_spec(translated_spec).values == compile_spec(s).values
+    assert app.bundle(translated_spec)["translations"]["en"]["Sales"] == "Translated Sales"
+    for missing in ("Sales", "net"):
+        def incomplete(d, missing=missing):
+            d["translations"] = {"en": {k: v for k, v in messages.items() if k != missing}}
+
+        with pytest.raises(spec.SpecError, match="missing display text"):
+            load(incomplete)
+
+
 def test_nexus_adapter_propagates_caller_and_never_falls_back():
     calls = []
 
@@ -229,8 +285,9 @@ def test_nexus_adapter_propagates_caller_and_never_falls_back():
             if credential != "alice-token":
                 raise PermissionError()
             return SimpleNamespace(
-                subject="alice",
-                content=json.dumps({"resource": "view/a", "subject": "alice", "actions": ["read"]}),
+                content=json.dumps({"resource": "view/a", "subject": "alice", "actions": ["read"],
+                                    "credential_sha256": hashlib.sha256(
+                                        credential.encode()).hexdigest()}),
             )
 
     a = NexusAuthority(Client(), {"view/a": "/grants/a"})
@@ -239,6 +296,58 @@ def test_nexus_adapter_propagates_caller_and_never_falls_back():
         with pytest.raises(Denied):
             a.require(token, "view/a", action)
     assert calls[0] == ("/grants/a", "alice-token")
+
+
+def test_nexus_transport_refuses_an_unverified_certificate_identity():
+    with pytest.raises(ValueError, match="authenticated loopback"):
+        NexusClient("other-host:2126")
+    with pytest.raises(ValueError, match="certificate identity"):
+        NexusClient("127.0.0.1:2126", tls={"cert": "node-cert.pem"})
+
+
+def test_nexus_grants_are_bound_to_the_credential_and_actions_are_not_substrings():
+    grant = {"resource": "sales", "subject": "alice", "actions": ["read"],
+             "credential_sha256": hashlib.sha256(b"alice-token").hexdigest()}
+
+    class Client:
+        def read(self, path, *, credential):
+            return SimpleNamespace(content=json.dumps(grant))
+
+    authority = NexusAuthority(Client(), {"sales": "/grants/sales"})
+    with pytest.raises(Denied):
+        authority.require("bob-token", "sales", "read")
+    grant["actions"] = "bread"
+    with pytest.raises(Denied):
+        authority.require("alice-token", "sales", "read")
+
+
+def test_http_never_discloses_an_operator_spec_failure(tmp_path, monkeypatch):
+    auth, _ = authority(tmp_path, {"public": ["read"]})
+    gateway = Gateway({"public": View("operator-owned.yaml")}, auth)
+
+    def broken(*args, **kwargs):
+        raise spec.SpecError("PRIVATE SOURCE TABLE: 999 forbidden rows and hidden field")
+
+    monkeypatch.setattr(gateway_module, "load", broken)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler(gateway))
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{server.server_port}/v1",
+            data=json.dumps({"operation": "graph", "view": "public"}).encode(),
+            headers={"Authorization": "Bearer test-capability"},
+        )
+        with pytest.raises(urllib.error.HTTPError) as error:
+            urllib.request.urlopen(request, timeout=5)
+        assert error.value.code == 503
+        result = json.load(error.value)
+        assert result["error"] == "VIEW_UNAVAILABLE"
+        assert "PRIVATE" not in json.dumps(result) and "999" not in json.dumps(result)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
 
 
 def test_blind_questions_come_from_raw_not_graph(shop, tmp_path):

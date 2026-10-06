@@ -638,3 +638,124 @@ checks:
 instances:
   人:
   - 工号: 仓储主管
+translations:
+  en:
+    Northwind 分销: Northwind distribution
+    Northwind 业务库（只读）: Northwind database (read only)
+    缺口负责人（示例角色）: Gap owner (example role)
+    示例工作流角色（人工指定的缺口负责人），不是 Northwind 员工数据；原始人员在“员工”类型。: Example workflow role assigned
+      to resolve gaps. Source personnel are represented by Employee.
+    客户: Customer
+    订单明细: Order line
+    产品: Product
+    品类: Category
+    承运商: Shipper
+    销售订单: Sales order
+    发货: Shipment
+    客户人口关联: Customer demographic link
+    客户人口信息: Customer demographic
+    员工辖区: Employee territory
+    员工: Employee
+    地区: Region
+    供应商: Supplier
+    辖区: Territory
+    下单的公司。地理分布跨 21 个国家，所以"归属哪个销售辖区"在原库里答不了。: The company placing an order. Customers
+      span 21 countries; source data does not define their assigned sales territory.
+    汇总演示，待业务确认：沿订单明细→产品→品类取数；净额逐行按成交价×数量×(1−折扣)四舍五入到两位，不含运费与税。: 'Draft aggregate for
+      business review: follow Order line → Product → Category. Net amount is transaction
+      price × quantity × (1 − discount), rounded per line to two decimal places, excluding
+      freight and tax.'
+    订单头：谁、什么时候下的、要求何时到。: 'Order header: who ordered, when, and the required delivery
+      date.'
+    同一张 Orders 表的另一半：承运商、发货日、运费、收货地。: 'Another projection of Orders: shipper, shipment
+      date, freight and destination.'
+    两个客户缺少城市和国家: Two customers lack city and country
+    客户主数据补齐城市与国家，或确认缺失的业务含义: Populate customer city and country, or confirm the business
+      meaning of missing values.
+    订单未关联到客户: Orders without a customer
+    订单补上客户号，或确认它确实不属于任何客户: Populate the customer reference, or confirm that the order
+      belongs to no customer.
+    下单后尚未发货: Orders not yet shipped
+    该订单出现发货日，或被确认取消: Record a shipment date, or confirm cancellation.
+    客户数: Customer count
+    销售净额（示例口径，待确认）: Net sales (draft definition; review required)
+    八个品类的净额合计: Total net sales across eight categories
+    平均每行明细净额: Mean net amount per order line
+    最小明细净额: Minimum order-line net amount
+    最大明细净额: Maximum order-line net amount
+    订单数: Order count
+    已发货订单的运费合计: Freight on shipped orders
+    订单明细行数: Order-line count
+    有折扣的明细行数: Discounted order-line count
+    尚未发货订单的运费合计: Freight on unshipped orders
+    工号: Staff ID
+    客户号: Customer ID
+    公司名: Company name
+    联系人: Contact
+    国家: Country
+    城市: City
+    订单号: Order ID
+    产品号: Product ID
+    成交价: Transaction price
+    数量: Quantity
+    折扣: Discount
+    净额: Net amount
+    名称: Name
+    标价: List price
+    销售净额: Net sales
+    运费: Freight
+    发货日: Shipped date
+    下单日: Order date
+    要求日: Required date
+    货运地址: Ship address
+    H-客户地址缺失: Missing customer address
+    H-无客户归属: Missing customer reference
+    H-未发货: Unshipped orders
+    人: Gap owner
+    人/仓储主管: Warehouse supervisor (example role)
+    要求到货日: Required delivery date
+    承运商号: Shipper ID
+    收货国家: Ship country
+    品类号: Category ID
+    ContactTitle: ContactTitle
+    Address: Address
+    Region: Region
+    PostalCode: PostalCode
+    Phone: Phone
+    Fax: Fax
+    SupplierID: SupplierID
+    QuantityPerUnit: QuantityPerUnit
+    UnitsInStock: UnitsInStock
+    UnitsOnOrder: UnitsOnOrder
+    ReorderLevel: ReorderLevel
+    Discontinued: Discontinued
+    Description: Description
+    EmployeeID: EmployeeID
+    ShipName: ShipName
+    ShipAddress: ShipAddress
+    ShipCity: ShipCity
+    ShipRegion: ShipRegion
+    ShipPostalCode: ShipPostalCode
+    CustomerID: CustomerID
+    CustomerTypeID: CustomerTypeID
+    CustomerDesc: CustomerDesc
+    TerritoryID: TerritoryID
+    LastName: LastName
+    FirstName: FirstName
+    Title: Title
+    TitleOfCourtesy: TitleOfCourtesy
+    BirthDate: BirthDate
+    HireDate: HireDate
+    City: City
+    Country: Country
+    HomePhone: HomePhone
+    Extension: Extension
+    Notes: Notes
+    ReportsTo: ReportsTo
+    PhotoPath: PhotoPath
+    RegionID: RegionID
+    RegionDescription: RegionDescription
+    CompanyName: CompanyName
+    ContactName: ContactName
+    HomePage: HomePage
+    TerritoryDescription: TerritoryDescription

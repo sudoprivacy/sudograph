@@ -116,6 +116,10 @@
     "拖动节点边缘调整位置；选中文字可评论。": "Drag node borders to arrange; select text to comment.",
     "随机抽测": "Random sample",
     "本次仅隔离会话上下文，未做操作系统沙箱隔离；三题不代表整体准确率。": "This trial used a fresh conversation, without an OS sandbox. Three questions do not establish overall accuracy.",
-    "全部题目": "All questions"
+    "全部题目": "All questions",
+    "布局引擎": "Layout engine",
+    "仅显示此授权视图；其他范围可能不可见。": "Only this authorised view is shown; other scopes may be unavailable.",
+    "公开演示快照": "Public demo snapshot",
+    "离线快照": "Offline snapshot"
   }
 }

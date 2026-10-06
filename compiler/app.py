@@ -100,6 +100,7 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5,
             diffs[f"{name or f'{before}->{after}'}|{_key(None, at)[1:]}"] = d.as_dict()
 
     return {
+        "translations": s.translations,
         "coverage": catalog.enforce(s),
         "records": browse.snapshot(s) if records else {},
         "ontology": s.name,
@@ -126,6 +127,9 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5,
 VENDOR = [
     os.path.join(_ROOT, "app", "vendor", "elk.bundled.js"),
     os.path.join(_ROOT, "app", "vendor", "cytoscape.min.js"),
+    os.path.join(_ROOT, "app", "vendor", "layout-base.js"),
+    os.path.join(_ROOT, "app", "vendor", "cose-base.js"),
+    os.path.join(_ROOT, "app", "vendor", "cytoscape-fcose.js"),
 ]
 
 

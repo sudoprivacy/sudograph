@@ -20,6 +20,7 @@ so a spec cannot write to a source system even by accident.
 
 from __future__ import annotations
 
+import copy
 import os
 import sqlite3
 from dataclasses import replace
@@ -289,6 +290,30 @@ def load(s: Spec, tname: str, base: str = ".") -> list[dict]:
     with connect(raw["dsn"], base) as conn:
         rows = conn.execute(f'select {select} from "{b["table"]}"{where}').fetchall()
     return [dict(r) for r in rows]
+
+
+def scoped(s: Spec, scope: dict) -> Spec:
+    """Apply an operator-registered scope to bindings and inline reference rows.
+
+    Called only by the data owner's loader. Caller-selected display coordinates
+    do not grant access, and types without the axis remain shared reference data.
+    """
+    if set(scope) - set(s.dimensions):
+        raise ValueError("registered view has an unknown dimension")
+    s = copy.deepcopy(s)
+    for tn in s.types:
+        axes = [(s.axis_of(tn, dim), value) for dim, value in scope.items()]
+        axes = [(prop, value) for prop, value in axes if prop]
+        if tn in s.instances:
+            s.instances[tn] = [r for r in s.instances[tn]
+                               if all(r.get(prop) == value for prop, value in axes)]
+        backing = s.backing_of(tn)
+        if backing and axes:
+            clauses = [expr.to_sql(expr.Bin("=", expr.Ref(s.column_of(tn, prop)), expr.Lit(value)))
+                       for prop, value in axes]
+            previous = [f"({backing['where']})"] if backing.get("where") else []
+            backing["where"] = " AND ".join([*previous, *clauses])
+    return s
 
 
 def bind_all(s: Spec, base: str = ".") -> Spec:

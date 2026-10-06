@@ -7,7 +7,9 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from .gateway import Denied, FileCapabilities, Gateway, View
+from .gateway import Denied, FileCapabilities, Gateway, NexusAuthority, View
+from .nexus import NexusClient
+from .spec import SpecError
 
 
 def handler(gateway):
@@ -39,6 +41,10 @@ def handler(gateway):
                         "recovery": "Use an authorised view; changing YAML cannot grant access.",
                     },
                 )
+            except SpecError:
+                # Registered specs are operator configuration. Their failures
+                # can mention source-wide counts/columns and must not leak them.
+                self.unavailable()
             except (ValueError, KeyError, TypeError) as error:
                 self.reply(
                     400,
@@ -49,13 +55,13 @@ def handler(gateway):
                     },
                 )
             except Exception:
-                self.reply(
-                    503,
-                    {
-                        "error": "VIEW_UNAVAILABLE",
-                        "recovery": "Ask the operator to check the source and registered view.",
-                    },
-                )
+                self.unavailable()
+
+        def unavailable(self):
+            self.reply(503, {
+                "error": "VIEW_UNAVAILABLE",
+                "recovery": "Ask the operator to check the source and registered view.",
+            })
 
         def reply(self, status, body):
             payload = json.dumps(body, ensure_ascii=False).encode()
@@ -83,7 +89,12 @@ def main():
         name: View(str((path.parent / v["spec"]).resolve()), v.get("basis"), v.get("at"))
         for name, v in config["views"].items()
     }
-    gateway = Gateway(views, FileCapabilities(path.parent / config["policy"]))
+    if nexus := config.get("nexus"):
+        authority = NexusAuthority(NexusClient(nexus["endpoint"], tls=nexus.get("tls")),
+                                   nexus["grant_paths"])
+    else:
+        authority = FileCapabilities(path.parent / config["policy"])
+    gateway = Gateway(views, authority)
     # Loopback only: a TLS-authenticated deployment must supply its trusted ingress.
     ThreadingHTTPServer(("127.0.0.1", args.port), handler(gateway)).serve_forever()
 
