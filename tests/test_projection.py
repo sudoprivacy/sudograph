@@ -9,11 +9,12 @@ import os
 import sqlite3
 import subprocess
 import sys
+from html.parser import HTMLParser
 
 import pytest
 import yaml
 
-from compiler import app, bind, browse, cli, project, spec
+from compiler import app, bind, browse, cli, gateway, project, spec
 
 
 @pytest.fixture
@@ -44,6 +45,7 @@ def test_source_projection_preserves_null_composite_identity_and_read_only_sourc
     db, _ = source
     before = hashlib.sha256(db.read_bytes()).digest()
     s = load_doc(source)
+    assert s.types["Teams"]["display"] == "name"
     assert s.id_props("Items") == ["team", "seq"]
     assert s.links_of("Items") == {"team": "Teams"}
     b = app.bundle(s, records=True)
@@ -52,7 +54,13 @@ def test_source_projection_preserves_null_composite_identity_and_read_only_sourc
     assert rows[0][r["columns"].index("amount")] is None
     assert b["projection"]["mode"] == "source_projection"
     assert b["coverage"][0]["complete"]
-    assert next(o for o in b["coverage"][0]["objects"] if o["name"] == "Summary")["excluded"]
+    relation = next(e for e in b["views"]["|"]["edges"] if e["rel"] == "links")
+    assert relation["from"] == "Items" and relation["to"] == "Teams"
+    assert relation["source_column"] == "team" and relation["target_key"] == ["id"]
+    summary = next(o for o in b["coverage"][0]["objects"] if o["name"] == "Summary")
+    assert summary["excluded"]
+    assert "COUNT(*)" in summary["definition"]
+    assert not b["coverage"][0]["record_complete"]
     assert hashlib.sha256(db.read_bytes()).digest() == before
 
 
@@ -65,6 +73,8 @@ def test_source_projection_preserves_null_composite_identity_and_read_only_sourc
         lambda d: d["types"]["Items"]["props"]["seq"].update(type="ref", to="Teams"),
         lambda d: d["types"]["Items"]["backing"].update(key=["seq"]),
         lambda d: d["types"]["Items"].update(id="seq"),
+        lambda d: d["raw"]["SOURCE"]["exclude"].update(Teams="hide this table"),
+        lambda d: d["raw"]["SOURCE"]["exclude"].update({"Items.amount": "hide this value"}),
     ],
 )
 def test_projection_refuses_authored_facts_and_guessed_relationships(source, change):
@@ -72,6 +82,32 @@ def test_projection_refuses_authored_facts_and_guessed_relationships(source, cha
         spec.SpecError, match=r"source_projection|primary key|carries rows inline|op hides"
     ):
         load_doc(source, change)
+
+
+@pytest.mark.parametrize("mode", [None, "business"])
+def test_operator_phase_cannot_be_downgraded_by_author(source, mode, capsys):
+    db, path = source
+    doc = project.draft("sqlite:///" + db.as_posix())
+    if mode is None:
+        del doc["mode"]
+    else:
+        doc["mode"] = mode
+    path.write_text(yaml.safe_dump(doc), encoding="utf-8")
+    with pytest.raises(spec.SpecError, match="registered workflow requires"):
+        spec.load(str(path), expected_mode="source_projection")
+    assert cli.main([str(path), "--mode", "source_projection"]) == 2
+    assert "registered workflow requires" in capsys.readouterr().err
+
+    class Authority:
+        def require(self, *args):
+            return "reader"
+
+    service = gateway.Gateway(
+        {"source": gateway.View(str(path), expected_mode="source_projection")}, Authority()
+    )
+    for operation in ("graph", "page", "query", "export"):
+        with pytest.raises(spec.SpecError, match="registered workflow requires"):
+            service.execute("credential", "source", operation)
 
 
 def test_record_export_honours_registered_source_row_scope(source):
@@ -111,6 +147,33 @@ def test_native_template_is_reproducible_across_python_hash_seeds():
         for seed in ("1", "2")
     ]
     assert hashes[0] == hashes[1]
+
+
+def test_snapshot_payload_is_outside_comment_text_scan():
+    """A text anchoring engine walks all body text, including inline scripts."""
+    class BodyText(HTMLParser):
+        in_body = False
+        text = ""
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "body":
+                self.in_body = True
+
+        def handle_endtag(self, tag):
+            if tag == "body":
+                self.in_body = False
+
+        def handle_data(self, data):
+            if self.in_body:
+                self.text += data
+
+    payload = "source-payload-" * 500_000
+    html = app.render({"records": {"LargeSource": payload}})
+    body = BodyText()
+    body.feed(html)
+    assert payload in html  # The full source snapshot is still delivered.
+    assert payload not in body.text
+    assert len(body.text) < 200_000
 
 
 def test_projection_cli_missing_source_returns_four_without_clobbering_yaml(tmp_path):

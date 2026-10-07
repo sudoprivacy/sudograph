@@ -60,11 +60,20 @@ template translations fail rendering rather than silently falling back.
 `Data projection` and `Metrics and rules` are display choices, not workflow
 stages. Node colours describe kinds and unresolved upstream gaps; they do not
 encode stage, permission or a claim that a business definition is correct.
-The Northwind example currently includes draft business interpretations (net
-sales, gap-resolution criteria and an illustrative owner role). They demonstrate
-stage-two mechanisms but are not user-confirmed business policy. The current
-work remains source projection and infra validation; the display selector cannot
-prove that a spec contains only source facts.
+`mode: source_projection` rejects authored rows, business formulas, gaps and
+undeclared relationships in every spec load. `compiler.project` generates and
+requires this contract. Operators can pin it independently of author-editable
+YAML with `compiler.cli --mode source_projection` or a registered view's
+`expected_mode: source_projection`; changing or deleting the YAML mode refuses.
+`examples/northwind.yaml` uses this source contract. Draft interpretations are
+kept separately in `examples/northwind-business.yaml`; they are not confirmed
+business policy. A display selector never selects a workflow contract.
+
+Node text selects details; explicit `+`/`×` controls expand/collapse records or
+fields. Wheels over selectable labels use the same zoom rule as the canvas.
+Source snapshots live in the document head, outside body text anchoring scans;
+all records remain available. Neither comments nor repeated text scanning should
+scale with the byte size of the data snapshot.
 
 ## Server-side visibility
 
@@ -81,6 +90,13 @@ requires a separate `export` grant. Discovery returns only authorised view names
 the caller cannot supply a spec path, basis, source connection or policy. No
 source-wide coverage report or connector credential is returned. A browser
 projection selector is presentation, never the permission boundary.
+
+The authorised graph can reuse the renderer's filtering, pagination, focus and
+identity anchors. Authorisation must filter source reads and returned graph
+objects on the server first. Do not reuse client-side show/hide as enforcement,
+or send inaccessible identities merely to display that something is hidden.
+Stage-two metrics and rules can use the same renderer and stable identities,
+with bounded drill-down; their policy and calculation contract remain explicit.
 
 `NexusAuthority(client, grant_paths)` uses the **caller's credential** to read an
 operator-owned grant resource through the official client's typed Read RPC.

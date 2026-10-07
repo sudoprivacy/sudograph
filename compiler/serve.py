@@ -86,7 +86,8 @@ def main():
     path = Path(args.config).resolve()
     config = json.loads(path.read_text(encoding="utf-8"))
     views = {
-        name: View(str((path.parent / v["spec"]).resolve()), v.get("basis"), v.get("at"))
+        name: View(str((path.parent / v["spec"]).resolve()), v.get("basis"), v.get("at"),
+                   v.get("expected_mode"))
         for name, v in config["views"].items()
     }
     if nexus := config.get("nexus"):

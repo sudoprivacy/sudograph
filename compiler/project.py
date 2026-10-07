@@ -47,6 +47,12 @@ def draft(dsn: str, *, base=".", name="Source projection") -> dict:
             "backing": {"from": "SOURCE", "table": obj["name"], "key": key},
             "props": props,
         }
+        # Display is presentation, never identity. Select only an unambiguous
+        # named source field; multiple candidates keep the declared key label.
+        display = [p for p, d in props.items() if d["type"] == "string" and
+                   (p.lower() in ("name", "label", "title") or p.lower().endswith("name"))]
+        if len(display) == 1:
+            types[obj["name"]]["display"] = display[0]
     for name_, t in types.items():
         for fk in tables[name_]["foreign_keys"]:
             if sum(f["id"] == fk["id"] for f in tables[name_]["foreign_keys"]) > 1:
@@ -99,6 +105,18 @@ def verify_projection(s):
             inventories[raw] = {
                 o["name"]: o for o in catalog.scan(definition["dsn"], s.source_base)
             }
+            exclusions = definition.get("exclude") or {}
+            for obj in inventories[raw].values():
+                if obj["name"] in exclusions and obj["kind"] == "table" and any(
+                    c["pk"] for c in obj["columns"]
+                ):
+                    errors.append(f"{obj['name']}: cannot exclude a keyed source table "
+                                  "from source_projection")
+                for col in obj["columns"]:
+                    if (obj["name"] + "." + col["name"] in exclusions and
+                            "BLOB" not in col["type"].upper()):
+                        errors.append(f"{obj['name']}.{col['name']}: cannot exclude a "
+                                      "source scalar column from source_projection")
     for tn, t in s.types.items():
         b = s.backing_of(tn)
         obj = inventories.get(b.get("from"), {}).get(b.get("table"))
@@ -171,7 +189,7 @@ def main(argv=None):
         output.write_text(
             yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8"
         )
-        spec.load(str(output))  # Use the same enforcement as every author.
+        spec.load(str(output), expected_mode="source_projection")
     except bind.SourceUnavailable as e:
         print(str(e), file=sys.stderr)
         return 4
@@ -180,7 +198,8 @@ def main(argv=None):
         return 2
     print(f"Validated source projection: {output}")
     if args.app:
-        return cli.main([str(output), "--app", args.app, *(["--records"] if args.records else [])])
+        return cli.main([str(output), "--mode", "source_projection", "--app", args.app,
+                         *(["--records"] if args.records else [])])
     return 0
 
 

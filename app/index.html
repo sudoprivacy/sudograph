@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>sudograph</title>
+<!-- Data is not document text. Keep the snapshot outside the body scanned by
+     text-selection/comment engines, irrespective of source size or host. -->
+<script>const BUNDLE = __BUNDLE__;</script>
 <!-- Vendored, not linked. A deliverable is opened from disk at a client
      site, and a CDN reference turns "open this file" into "open this file, on a
      machine with internet, on a day the CDN is up". Both libraries are MIT. -->
@@ -102,6 +105,10 @@
   .graph-tools .hint{margin-left:auto;font-size:11px;color:var(--dim)}
   #language{margin-left:auto}
   button:disabled{opacity:.4;cursor:default}
+  .graph-expand{position:absolute;right:-13px;top:-14px;width:22px;height:22px;
+    padding:0;font-size:16px;line-height:20px;border-color:#778399;cursor:pointer;
+    user-select:none;background:#171b23;color:#dfe4ec}
+  .graph-expand:hover{background:#2c3b52;border-color:#fff}
   @media (max-width:800px){ main{flex-direction:column} aside{width:auto;height:44%;
     border-left:none;border-top:1px solid var(--line)} }
 </style>
@@ -150,7 +157,6 @@
 <footer><span id="status" style="display:flex;gap:16px;flex-wrap:wrap"></span><span id="accessNotice"></span></footer>
 
 <script>
-const BUNDLE = __BUNDLE__;
 let uiLanguage = BUNDLE.ui.language === 'auto' ? (navigator.language.startsWith('zh')?'zh':'en') : BUNDLE.ui.language;
 const t = (key, vars = {}, language = uiLanguage) => {
   const text = BUNDLE.ui.catalogs[language][key];
@@ -1060,7 +1066,7 @@ function showChecks(v) {
   if (state.projection === 'data' && BUNDLE.projection?.mode!=='source_projection') $('panel').insertAdjacentHTML('afterbegin',
     `<p class="muted">${t('数据投影：核对对象、列、主键和关联；业务指标在另一视图。')}</p>`);
   if(BUNDLE.projection?.mode==='source_projection')$('panel').insertAdjacentHTML('afterbegin',
-    `<p>${t('阶段一：只读原库投影，未定义业务口径。')}</p><p class="muted">${t('离线快照')} · ${esc(BUNDLE.projection.generated_at)}<br>${t('快照不随源库自动更新；NULL 保持为空，不推断为零或业务缺口。')}</p>`);
+    `<p>${t('查看数据库中的记录、字段和关联。')}</p><p class="muted">${t('离线快照')} · ${esc(BUNDLE.projection.generated_at)}<br>${t('快照不随源库自动更新；空值保持原样。')}</p>`);
 }
 
 function showMeasurements(v) {

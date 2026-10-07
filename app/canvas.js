@@ -187,9 +187,32 @@ async function drawCanvas(v, shown, edges, mine) {
       'text-align:center;white-space:pre-wrap;font-size:11px;line-height:16px';
     label.textContent=linesOf(n,state.expanded.has(n.id)).map(l=>l.parts.join('')).join('\n');
     label.onpointerdown=e=>e.stopPropagation();
-    label.onclick=e=>{e.stopPropagation();if (!getSelection()?.toString()) graphActivate(n);};
+    label.onclick=e=>{e.stopPropagation();if (!getSelection()?.toString()) select(n);};
+    const target=n.kind==='fields'?shown.get(n.parent):n;
+    const expandable=target?.kind==='instance' || (target?.kind==='type' && target.count &&
+      (BUNDLE.records?.[target.id] || !target.folded));
+    if(expandable) {
+      const open=target.kind==='type'?state.expanded.has(target.id):graphFields.has(target.id);
+      const button=document.createElement('button');button.className='graph-expand';
+      button.dataset.nodeAction=target.id;button.textContent=open?'×':'+';
+      button.title=t(target.kind==='type'?(open?'收起图上记录':'在图上展开记录'):
+        (open?'收起图上字段':'在图上展开字段'));
+      button.setAttribute('aria-label',button.title);button.setAttribute('aria-expanded',String(open));
+      button.onpointerdown=e=>e.stopPropagation();
+      button.onclick=e=>{e.stopPropagation();graphActivate(target);};
+      label.appendChild(button);
+    }
     layer.appendChild(label);
   }
+  // Selectable labels sit above Cytoscape's input surface. Forward only wheels
+  // on this layer using rendered coordinates so zoom also works over text.
+  layer.addEventListener('wheel',e=>{
+    e.preventDefault();e.stopPropagation();
+    const hostBox=host.getBoundingClientRect();
+    const delta=e.deltaY*(e.deltaMode===1?33:1);
+    cy.zoom({level:Math.max(cy.minZoom(),Math.min(cy.maxZoom(),cy.zoom()*Math.pow(10,-delta/250))),
+      renderedPosition:{x:e.clientX-hostBox.x,y:e.clientY-hostBox.y}});
+  },{passive:false});
   function labels() {
     for (const label of layer.children) {
       const n=cy.getElementById(label.dataset.nodeId),p=n.renderedPosition();
@@ -206,7 +229,7 @@ async function drawCanvas(v, shown, edges, mine) {
     if(labelFrame===null)labelFrame=requestAnimationFrame(()=>{labelFrame=null;labels();});
   };
   cy.on('pan zoom resize position bounds',scheduleLabels);
-  cy.on('tap','node',e=>graphActivate(shown.get(e.target.id())));
+  cy.on('tap','node',e=>select(shown.get(e.target.id())));
   cy.on('tap','edge',e=>{state.panel='relation';state.relation=e.target.data('meta');showRelation(state.relation);});
   cy.on('tap',e=>{if(e.target===cy){state.selected=null;updateCanvasSelection();}});
   if(saved) {cy.zoom(saved.zoom);cy.pan(saved.pan);} else refit();

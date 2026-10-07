@@ -100,6 +100,8 @@
     "查看全部记录": "Browse all records",
     "覆盖清单无遗漏（含明确排除）": "Coverage accounted for (including explicit exclusions)",
     "覆盖不完整": "Coverage incomplete",
+    "已核对源库清单；部分内容未进入记录图。": "Source inventory checked; some content is not included in the record graph.",
+    "源库中的定义": "Definition in the source database",
     "盲测题": "Blind questions",
     "题目来自原库；标准答案仅在裁判端。尚未完成隔离 LLM 答题，暂无得分。": "Questions come from the source database; answers stay with the judge. No isolated LLM run or score yet.",
     "同一来源主键的两个业务投影；各自筛选可能不同。": "Two business projections share the same source key; their filters may differ.",
@@ -127,6 +129,8 @@
     "收起图上字段": "Collapse graph fields",
     "在图上展开字段": "Expand fields in graph",
     "阶段一：只读原库投影，未定义业务口径。": "Phase one: read-only source projection, without business definitions.",
+    "查看数据库中的记录、字段和关联。": "Browse database records, fields and relationships.",
+    "快照不随源库自动更新；空值保持原样。": "This snapshot does not update automatically; empty values are preserved.",
     "快照不随源库自动更新；NULL 保持为空，不推断为零或业务缺口。": "Snapshots do not update automatically; NULL stays empty, without inferred zeros or business gaps."
   }
 }

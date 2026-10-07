@@ -11,7 +11,7 @@ def scan(dsn, base="."):
     with bind.connect(dsn, base) as conn:
         result = []
         for obj in conn.execute(
-            "SELECT name,type FROM sqlite_master WHERE type IN "
+            "SELECT name,type,sql FROM sqlite_master WHERE type IN "
             "('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY name"
         ):
             name = obj["name"]
@@ -21,6 +21,7 @@ def scan(dsn, base="."):
                 {
                     "name": name,
                     "kind": obj["type"],
+                    "definition": obj["sql"],
                     "columns": columns,
                     "foreign_keys": fks,
                     "count": conn.execute(f"SELECT count(*) FROM {quote(name)}").fetchone()[0],
@@ -126,6 +127,9 @@ def coverage(s):
                 "objects": objects,
                 "missing": missing,
                 "complete": not missing,
+                "record_complete": not missing and not any(
+                    o["excluded"] or o["excluded_columns"] for o in objects
+                ),
                 "required": raw.get("coverage") == "complete",
             }
         )

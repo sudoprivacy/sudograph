@@ -89,6 +89,8 @@ def _report_diff(d: diff_mod.Diff, *, as_json: bool) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="compiler", description="Compile a sudograph spec.")
     ap.add_argument("spec", help="path to a spec YAML file")
+    ap.add_argument("--mode", choices=["source_projection", "business"],
+                    help="require a workflow mode outside author-editable YAML")
     ap.add_argument("--view", action="store_true", help="print the view model as JSON")
     ap.add_argument(
         "--fold-over",
@@ -144,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        s = spec_mod.load(args.spec)
+        s = spec_mod.load(args.spec, expected_mode=args.mode)
     except bind_mod.SourceUnavailable as e:
         print(f"{e} — the spec is fine, the data is not here", file=sys.stderr)
         return 4

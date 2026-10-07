@@ -131,9 +131,11 @@ function attachBrowse(n) {
 function showCoverage() {
   state.panel='coverage';
   $('panel').innerHTML=(BUNDLE.coverage||[]).map(r=>`<h2>${esc(r.source)}</h2>`+
-    `<p>${t(r.complete?'覆盖清单无遗漏（含明确排除）':'覆盖不完整')}</p>`+
+    `<p>${t(!r.complete?'覆盖不完整':r.objects.some(o=>o.excluded || Object.keys(o.excluded_columns).length)
+      ?'已核对源库清单；部分内容未进入记录图。':'覆盖清单无遗漏（含明确排除）')}</p>`+
     r.objects.map(o=>`<details><summary>${esc(o.name)} · ${o.kind} · ${fmt(o.count)}</summary>`+
       `<p>${esc(o.types.map(tn=>typeLabel(tn)).join(' / '))}</p><p>${esc(bt(o.excluded||''))}</p>`+
+      (o.definition?`<details><summary>${t('源库中的定义')}</summary><div class="op">${esc(o.definition)}</div></details>`:'')+
       Object.entries(o.excluded_columns).map(([c,reason])=>`<p>${esc(c)}: ${esc(bt(reason))}</p>`).join('')+
       `<h3>${t('列映射')}</h3>`+o.columns.map(c=>`<div class="kv"><span>${esc(c.name)}</span><span>${esc(c.type)}${c.pk?' · PK '+c.pk:''}${c.notnull?' · NOT NULL':''}</span></div>`).join('')+
       `<p>${esc(o.missing_columns.join(', '))}</p>`+

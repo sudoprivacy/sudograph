@@ -237,7 +237,7 @@ class Spec:
         return {self.identify(type_name, r) for r in rows if isinstance(r, dict)}
 
 
-def load(path: str, *, scope: dict | None = None) -> Spec:
+def load(path: str, *, scope: dict | None = None, expected_mode: str | None = None) -> Spec:
     with open(path, encoding="utf-8") as fh:
         doc = yaml.safe_load(fh)
     if not isinstance(doc, dict):
@@ -247,6 +247,12 @@ def load(path: str, *, scope: dict | None = None) -> Spec:
         raise SpecError(f"unknown top-level keys: {sorted(unknown)}")
     if "ontology" not in doc or "types" not in doc:
         raise SpecError("the top level needs both 'ontology' and 'types'")
+    if expected_mode is not None:
+        if expected_mode not in ("business", "source_projection"):
+            raise SpecError("expected_mode must be business or source_projection")
+        if doc.get("mode", "business") != expected_mode:
+            raise SpecError(f"registered workflow requires mode: {expected_mode}; "
+                            "the author cannot change or omit that contract")
     s = Spec(
         name=doc["ontology"],
         types=doc["types"],

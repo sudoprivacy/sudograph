@@ -410,10 +410,23 @@ python -m compiler.project sqlite:////absolute/path/source.db projection.yaml --
 This source-first entry point writes `mode: source_projection`. Every load checks
 that contract against the database: declared primary keys (including composite
 keys), source columns, foreign keys and same-table primary-key projections only.
+For author-edited YAML, require the phase independently with
+`python -m compiler.cli projection.yaml --mode source_projection`.
+Operator-registered service views use `expected_mode: source_projection` outside
+the author's YAML; removing or changing the YAML mode then refuses at every
+graph, query, record-page and export request. The source-first command pins this
+contract automatically. A uniquely named source `Name`/`Label`/`Title` field may
+be selected for display; it never replaces the primary key.
 Formulas, inline records, workflow roles/gaps, business checks and alternative
 readings are refused. NULL remains NULL, with no inferred zero or business gap.
 Views without declared identity and binary payloads appear in the inventory with
 explicit exclusion reasons. Review that inventory before claiming full coverage.
+The inventory preserves source SQL definitions, including existing database
+views; they are not excluded because their SQL contains business calculations.
+`coverage.complete` means the inventory is accounted for; `record_complete`
+requires all content represented without exclusions. A source projection refuses
+exclusion of keyed source tables or scalar columns, so an author cannot hide
+supported source facts to manufacture a passing inventory.
 Unsupported composite references refuse generation instead of guessing a link.
 Display names and complete `translations.en` may be supplied by an agent;
 they describe source facts and are not authority for business meaning.

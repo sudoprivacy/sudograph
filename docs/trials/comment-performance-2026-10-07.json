@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-07",
+  "browser": "Chromium headless / ai-dev-browser / CDP CPU sampling",
+  "method": "same hosted share, same 9 unresolved comment threads; order expansion, record field expansion, six wheels",
+  "comments_disabled": false,
+  "records_removed": false,
+  "source_yaml_modified": false,
+  "before": {
+    "anchor_cpu_ms": 2212.346,
+    "gc_cpu_ms": 7406.756,
+    "body_characters": 7409561
+  },
+  "after": {
+    "anchor_cpu_ms": 43.237,
+    "gc_cpu_ms": 53.642,
+    "body_characters": 145692
+  },
+  "hosted_browser_acceptance": {
+    "name": "hosted-after",
+    "details_click_does_not_expand": true,
+    "buttons_expand_and_collapse": true,
+    "wheel_over_text_after_expansion": true,
+    "three_repeated_cycles_passed": true,
+    "interaction_wall_seconds": [
+      0.8778269000031287,
+      0.832847400000901,
+      0.8068635000017821,
+      0.8226664999965578,
+      0.808836500000325,
+      0.7893583999975817
+    ],
+    "orders_paging": true,
+    "locales": true,
+    "no_independent_leaf_overlap": true,
+    "body_text": 145769
+  },
+  "limitations": [
+    "CPU totals are cumulative samples, not per-interaction latency or hardware-independent guarantees",
+    "first graph landing wall time stays about 1.2s; heavy comment work used to run later",
+    "early old-debug-browser input timeouts were excluded from the A/B evidence",
+    "existing source views without declared identity and BLOB payloads are inventoried but not fully represented as records"
+  ]
+}

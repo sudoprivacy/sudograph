@@ -96,6 +96,7 @@ class View:
     spec: str
     basis: str | None = None
     at: dict | None = None
+    expected_mode: str | None = None
 
 
 CONTRACT = {
@@ -133,7 +134,7 @@ class Gateway:
         if definition is None:
             raise Denied("resource or operation unavailable")
         # The client cannot supply a file path, basis, source, SQL table or policy.
-        s = load(definition.spec, scope=definition.at)
+        s = load(definition.spec, scope=definition.at, expected_mode=definition.expected_mode)
         if operation == "page":
             allowed = {"type", "offset", "limit", "where"}
             if set(params) - allowed:
