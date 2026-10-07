@@ -120,6 +120,13 @@
     "布局引擎": "Layout engine",
     "仅显示此授权视图；其他范围可能不可见。": "Only this authorised view is shown; other scopes may be unavailable.",
     "公开演示快照": "Public demo snapshot",
-    "离线快照": "Offline snapshot"
+    "离线快照": "Offline snapshot",
+    "记录": "Record",
+    "收起图上记录": "Collapse graph records",
+    "在图上展开记录": "Expand records in graph",
+    "收起图上字段": "Collapse graph fields",
+    "在图上展开字段": "Expand fields in graph",
+    "阶段一：只读原库投影，未定义业务口径。": "Phase one: read-only source projection, without business definitions.",
+    "快照不随源库自动更新；NULL 保持为空，不推断为零或业务缺口。": "Snapshots do not update automatically; NULL stays empty, without inferred zeros or business gaps."
   }
 }

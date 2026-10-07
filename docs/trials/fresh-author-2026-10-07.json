@@ -1,0 +1,410 @@
+{
+  "date": "2026-10-07",
+  "task": "fresh agent independently authors phase-one source projection",
+  "isolation": {
+    "fresh_conversation": true,
+    "author_reference_graph": false,
+    "author_existing_yaml": false,
+    "author_prior_sessions": false,
+    "os_sandbox": false,
+    "author_inputs": [
+      "source.db",
+      "generic README, compiler, app, schema"
+    ]
+  },
+  "scope": "equivalent phase-one source facts; no requirement to recreate authored phase-two drafts",
+  "equivalence": {
+    "tables": 13,
+    "source_columns": 86,
+    "primary_keys": 13,
+    "source_foreign_keys": 13,
+    "exact_source_fact_coverage": true,
+    "native_renderer_exact_bytes": true
+  },
+  "display_differences": {
+    "baseline_types": 14,
+    "fresh_types": 13,
+    "reason": "baseline projects Orders as SalesOrder and Shipment; fresh author keeps one Orders type",
+    "labels_identical": false,
+    "pixel_identical": false
+  },
+  "full_value_audit": {
+    "passed": true,
+    "native_renderer_exact_match": true,
+    "native_renderer_template_exact_match": true,
+    "native_renderer_bundle_semantic_match": true,
+    "verified_at_utc": "2026-10-07T06:07:05.210082+00:00",
+    "runtime": {
+      "python": "3.14.6 (tags/v3.14.6:c63aec6, Jun 10 2026, 10:26:10) [MSC v.1944 64 bit (AMD64)]",
+      "PyYAML": "6.0.3",
+      "sqlglot": "30.21.0"
+    },
+    "source_sha256_before_and_after": "2f4f5c68dfcd33ba27373eae48c7a4869800c68095ee0f9f0da494f83382a877",
+    "html_sha256": "296458a3f169879ae173cbf6bc625c7be263529e7288bd7ef25dd7088b3a9754",
+    "html_bytes": 9305421,
+    "represented_tables": 13,
+    "represented_columns": 86,
+    "represented_primary_keys": 13,
+    "composite_primary_keys": 3,
+    "represented_foreign_keys": 13,
+    "exported_rows": 625890,
+    "scalar_values_compared": 3276955,
+    "nulls_preserved": 272,
+    "explicit_exclusions": {
+      "Alphabetical list of products": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Categories.Picture": "二进制载荷，文本投影不导出；已列入源库覆盖清单，其他字段继续完整导出。",
+      "Category Sales for 1997": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Current Product List": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Customer and Suppliers by City": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Employees.Photo": "二进制载荷，文本投影不导出；已列入源库覆盖清单，其他字段继续完整导出。",
+      "Invoices": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Order Details Extended": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Order Subtotals": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Orders Qry": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Product Sales for 1997": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "ProductDetails_V": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Products Above Average Price": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Products by Category": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Quarterly Orders": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Sales Totals by Amount": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Sales by Category": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Summary of Sales by Quarter": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。",
+      "Summary of Sales by Year": "源视图没有声明主键，阶段一不猜测记录身份；已列入源库覆盖清单。"
+    },
+    "excluded_views": 17,
+    "excluded_binary_columns": 2,
+    "ui_keys_per_locale": 128,
+    "business_display_translations_per_locale": {
+      "zh": 145,
+      "en": 145
+    },
+    "untranslated_required_business_text": [],
+    "network_linked_assets": [],
+    "tables": [
+      {
+        "table": "Categories",
+        "rows": 8,
+        "columns": 3,
+        "primary_key": [
+          "CategoryID"
+        ],
+        "refs": {},
+        "chunks": 1,
+        "scalar_values_compared": 24,
+        "nulls_preserved": 0,
+        "ordered_values_sha256": "ad9782050c13293a6da2691ec6de00e99f1346eb193188a7be0f6f161ecef47d",
+        "exact_match": true
+      },
+      {
+        "table": "CustomerCustomerDemo",
+        "rows": 0,
+        "columns": 2,
+        "primary_key": [
+          "CustomerID",
+          "CustomerTypeID"
+        ],
+        "refs": {
+          "CustomerID": "Customers",
+          "CustomerTypeID": "CustomerDemographics"
+        },
+        "chunks": 0,
+        "scalar_values_compared": 0,
+        "nulls_preserved": 0,
+        "ordered_values_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "exact_match": true
+      },
+      {
+        "table": "CustomerDemographics",
+        "rows": 0,
+        "columns": 2,
+        "primary_key": [
+          "CustomerTypeID"
+        ],
+        "refs": {},
+        "chunks": 0,
+        "scalar_values_compared": 0,
+        "nulls_preserved": 0,
+        "ordered_values_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "exact_match": true
+      },
+      {
+        "table": "Customers",
+        "rows": 93,
+        "columns": 11,
+        "primary_key": [
+          "CustomerID"
+        ],
+        "refs": {},
+        "chunks": 1,
+        "scalar_values_compared": 1023,
+        "nulls_preserved": 37,
+        "ordered_values_sha256": "69cdaaa7cf7eddd0c39dd129241d144656b413b707bbaa7c0b760b66f529838a",
+        "exact_match": true
+      },
+      {
+        "table": "EmployeeTerritories",
+        "rows": 49,
+        "columns": 2,
+        "primary_key": [
+          "EmployeeID",
+          "TerritoryID"
+        ],
+        "refs": {
+          "EmployeeID": "Employees",
+          "TerritoryID": "Territories"
+        },
+        "chunks": 1,
+        "scalar_values_compared": 98,
+        "nulls_preserved": 0,
+        "ordered_values_sha256": "f571a3a10243289c496d4fcb746b3767113ca7870d951289e89db45574f8e011",
+        "exact_match": true
+      },
+      {
+        "table": "Employees",
+        "rows": 9,
+        "columns": 17,
+        "primary_key": [
+          "EmployeeID"
+        ],
+        "refs": {
+          "ReportsTo": "Employees"
+        },
+        "chunks": 1,
+        "scalar_values_compared": 153,
+        "nulls_preserved": 1,
+        "ordered_values_sha256": "c24a6f21497acc59d4b90b08da920961eb4d29144cb2cbe443201d2d8fc7f554",
+        "exact_match": true
+      },
+      {
+        "table": "Order Details",
+        "rows": 609283,
+        "columns": 5,
+        "primary_key": [
+          "OrderID",
+          "ProductID"
+        ],
+        "refs": {
+          "OrderID": "Orders",
+          "ProductID": "Products"
+        },
+        "chunks": 610,
+        "scalar_values_compared": 3046415,
+        "nulls_preserved": 0,
+        "ordered_values_sha256": "72949a43c97e903d822acdf5d03b1a7608ce1662a9e64a05a47288dad1115a69",
+        "exact_match": true
+      },
+      {
+        "table": "Orders",
+        "rows": 16282,
+        "columns": 14,
+        "primary_key": [
+          "OrderID"
+        ],
+        "refs": {
+          "CustomerID": "Customers",
+          "EmployeeID": "Employees",
+          "ShipVia": "Shippers"
+        },
+        "chunks": 17,
+        "scalar_values_compared": 227948,
+        "nulls_preserved": 193,
+        "ordered_values_sha256": "937fbcfccc0329fb89a2ea453b159ed60ee5462e7185b0e938e1d66d3352c5c2",
+        "exact_match": true
+      },
+      {
+        "table": "Products",
+        "rows": 77,
+        "columns": 10,
+        "primary_key": [
+          "ProductID"
+        ],
+        "refs": {
+          "SupplierID": "Suppliers",
+          "CategoryID": "Categories"
+        },
+        "chunks": 1,
+        "scalar_values_compared": 770,
+        "nulls_preserved": 0,
+        "ordered_values_sha256": "46c1cb551577113ac52d9e008cb7d726bc4c8463b11ae06b340d37a0f3fa6b60",
+        "exact_match": true
+      },
+      {
+        "table": "Regions",
+        "rows": 4,
+        "columns": 2,
+        "primary_key": [
+          "RegionID"
+        ],
+        "refs": {},
+        "chunks": 1,
+        "scalar_values_compared": 8,
+        "nulls_preserved": 0,
+        "ordered_values_sha256": "6d188cedc833be4f8a4ea64516b12fce905bde99837afb84958d13f4d6a6ad8a",
+        "exact_match": true
+      },
+      {
+        "table": "Shippers",
+        "rows": 3,
+        "columns": 3,
+        "primary_key": [
+          "ShipperID"
+        ],
+        "refs": {},
+        "chunks": 1,
+        "scalar_values_compared": 9,
+        "nulls_preserved": 0,
+        "ordered_values_sha256": "2e6d928dbba205573ca82350ecf427daa62f55e405edb1e7b75eb0bd89b176d4",
+        "exact_match": true
+      },
+      {
+        "table": "Suppliers",
+        "rows": 29,
+        "columns": 12,
+        "primary_key": [
+          "SupplierID"
+        ],
+        "refs": {},
+        "chunks": 1,
+        "scalar_values_compared": 348,
+        "nulls_preserved": 41,
+        "ordered_values_sha256": "62cb7169636515ceb43a892fe8f7009c14619efc2aef2aa57f5d05a261836829",
+        "exact_match": true
+      },
+      {
+        "table": "Territories",
+        "rows": 53,
+        "columns": 3,
+        "primary_key": [
+          "TerritoryID"
+        ],
+        "refs": {
+          "RegionID": "Regions"
+        },
+        "chunks": 1,
+        "scalar_values_compared": 159,
+        "nulls_preserved": 0,
+        "ordered_values_sha256": "333838c95d45dd69c32d4e44263d970411c24af8cd7223c8cc30cbb3e2e58457",
+        "exact_match": true
+      }
+    ]
+  },
+  "browser": {
+    "mode": "Actual native projection.html; local headless Chromium; no output patch",
+    "html_sha256": "72cf589e6afe66f05369ca6acead7fee3199f80f06197e46881eb78201f25e65",
+    "browser_version": {
+      "protocolVersion": "1.3",
+      "product": "Chrome/154.0.8037.98",
+      "revision": "@b859317bf11f6be47f9b7799ec690a0a42a1fb33",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+      "jsVersion": "15.4.80.20"
+    },
+    "verified_at_utc": "2026-10-07T06:03:24.286Z",
+    "default_language": "zh",
+    "graph": {
+      "nodes": 13,
+      "edges": 13,
+      "title": "客户源数据投影（阶段一）",
+      "status": "ELK layered · Cytoscape 3.30.2 · 13 节点 · 13 边 · 13/13 检查通过"
+    },
+    "checks": [
+      {
+        "name": "Bounded graph record expansion",
+        "passed": true,
+        "evidence": {
+          "instances": 12,
+          "nodes": 25
+        }
+      },
+      {
+        "name": "Record fields expand on graph",
+        "passed": true,
+        "evidence": {
+          "fields": 1,
+          "nodes": 26
+        }
+      },
+      {
+        "name": "Order Details first page",
+        "passed": true,
+        "evidence": {
+          "visible": 100,
+          "text": "订单明细 · 609,283 行\n\n类型 → 分页记录 → 属性与关系\n\n上一页 1–100 下一页\n\n 跳页\n\n10248·11 10248·11\n10248·42 10248·42\n10248·72 10248·72\n10249·14 10249·14\n10249·51 10249·51\n10250·41 10250·41\n10250·51 10250·51\n10250·65 10250·65\n10251·22 10251·22\n10251·57 10251·57\n10251·65 10251·65\n10252·20 10252·20\n10252·33 10252·33\n10252·60 "
+        }
+      },
+      {
+        "name": "Order Details final page via jump control",
+        "passed": true,
+        "evidence": {
+          "visible": 83,
+          "text": "订单明细 · 609,283 行\n\n类型 → 分页记录 → 属性与关系\n\n上一页 609201–609283 下一页\n\n 跳页\n\n26528·36 26528·36\n26528·43 26528·43\n26528·45 26528·45\n26528·50 26528·50\n26528·52 26528·52\n26528·53 26528·53\n26528·59 26528·59\n26528·64 "
+        }
+      },
+      {
+        "name": "Forward relationship from line to order",
+        "passed": true,
+        "evidence": "订单 · 1 行\n\n类型 → 分页记录 → 属性与关系\n\n上一页 1–1 下一页\n\n 跳页\n\n10248 10248"
+      },
+      {
+        "name": "Inverse relationship from order to lines",
+        "passed": true,
+        "evidence": "订单明细 · 3 行\n\n类型 → 分页记录 → 属性与关系\n\n上一页 1–3 下一页\n\n 跳页\n\n10248·11 10248·11\n10248·42 10248·42\n10248·72 10248·72"
+      },
+      {
+        "name": "Empty table remains browsable",
+        "passed": true,
+        "evidence": "客户类别 · 0 行\n\n类型 → 分页记录 → 属性与关系\n\n上一页 0–0 下一页\n\n 跳页"
+      },
+      {
+        "name": "English UI and business title",
+        "passed": true,
+        "evidence": {
+          "title": "Customer source data projection (phase one)",
+          "coverageButton": "Source coverage"
+        }
+      },
+      {
+        "name": "Coverage column and primary key inventory",
+        "passed": true,
+        "evidence": {
+          "objects": 30
+        }
+      },
+      {
+        "name": "English exclusion reasons",
+        "passed": true,
+        "evidence": {
+          "view": true,
+          "binary": true
+        }
+      }
+    ],
+    "display_findings": [],
+    "coverage_english": {
+      "details": 30,
+      "text": "SOURCECoverage accounted for (including explicit exclusions)Alphabetical list of products · view · 69The source view declares no primary key. Phase one does not guess record identity; the view remains inventoried.Column mappingProductIDINTEGERProductNameTEXTSupplierIDINTEGERCategoryIDINTEGERQuantityPerUnitTEXTUnitPriceNUMERICUnitsInStockINTEGERUnitsOnOrderINTEGERReorderLevelINTEGERDiscontinuedTEXTCategoryNameTEXTProductID, ProductName, SupplierID, CategoryID, QuantityPerUnit, UnitPrice, UnitsInStock, UnitsOnOrder, ReorderLevel, Discontinued, CategoryName[]Categories · table · 8Product categoriesPicture: Binary payload is excluded from the text projection and explicitly inventoried; all other fields are exported.Column mappingCategoryIDINTEGER · PK 1CategoryNameTEXTDescriptionTEXTPictureBLOB[]Category Sales for 1997 · view · 0The source view declares no primary key. Phase one does not guess record identity; the view remains inventoried.Column mappingCategoryNameTEXTCategorySalesCategoryName, CategorySales[]Current Product List · view · 69The source view declares no primary key. Phase one does not guess record identity; the view remains inventoried.Column mappingProductIDINTEGERProductNameTEXTProductID, ProductName[]Customer and Suppliers by City · view · 122The source view declares no primary key. Phase one does not guess record identity; the view remains inventoried.Column mappingCityTEXTCompanyNameTEXTContactNameTEXTRelationshipCity, CompanyName, ContactName, Relationship[]CustomerCustomerDemo · table · 0Customer to customer type linksColumn mappingCustomerIDTEXT · PK 1 · NOT NULLCustomerTypeIDTEXT · PK 2 · NOT NULL[\n  {\n    \"id\": 0,\n    \"seq\": 0,\n    \"table\": \"CustomerDemographics\",\n    \"from\": \"CustomerTypeID\",\n    \"to\": \"CustomerTypeID\",\n    \"on_update\": \"NO ACTION\",\n    \"on_delete\": \"NO ACTION\",\n    \"match\": \"NONE\"\n  },\n  {\n    \"id\": 1,\n    \"seq\": 0,\n    \"table\": \"Customers\",\n    \"from\": \"CustomerID\",\n    \"to\": \"CustomerID\",\n    \"on_update\": \"NO ACTION\",\n    \"on_delete\": \"NO ACTION\",\n    \"match\": \"NONE\"\n  }\n]CustomerDemographics · table · 0Customer typesColumn mappingCustomerTypeIDTEXT · PK 1 · NOT NULLCustomerDescTEXT[]Customers · table · 93CustomersColumn mappingCustomerIDTEXT · PK 1CompanyNameTEXTContactNameTEXTContactTitleTEXTAddressTEXTCityTEXTRegionTEXTPostalCodeTEXTCountryTEXTPhoneTEXTFaxTEXT[]EmployeeTerritories · table · 49Employee to territory linksColumn mappingEmployeeIDINTEGER · PK 1 · NOT NULLTerritoryIDTEXT · PK 2 · NOT NULL[\n  {\n    \"id\": 0,\n    \"seq\": 0,\n    \"table\": \"Territories\",\n    \"from\": \"TerritoryID\",\n    \"to\": \"TerritoryID\",\n    \"on_update\": \"NO ACTION\",\n    \"on_delete\": \"NO ACTION\",\n    \"match\": \"NONE\"\n  },\n  {\n    \"id\": 1,\n    \"seq\": 0,\n    \"table\": \"Employees\",\n    \"from\": \"EmployeeID\",\n    \"to\": \"EmployeeID\",\n    \"on_update\": \"NO ACTION\",\n    \"on_delete\": \"NO ACTION\",\n    \"match\": \"NONE\"\n  }\n]Employees · table · 9EmployeesPhoto: Binary payload is excluded from the text projection and explicitly inventoried; all other fields are exported.Column mappingEmployeeIDINTEGER · PK 1LastNameTEXTFirstNameTEXTTitleTEXTTitleOfCourtesyTEXTBirthDateDATEHireDateDATEAddressTEXTCityTEXTRegionTEXTPostalCodeTEXTCountryTEXTHomePhoneTEXTExtensionTEXTPhotoBLOBNotesTEXTReportsToINTEGERPhotoPathTEXT[\n  {\n    \"id\": 0,\n    \"seq\": 0,\n    \"table\": \"Employees\",\n    \"from\": \"ReportsTo\",\n    \"to\": \"EmployeeID\",\n    \"on_update\": \"NO ACTION\",\n    \"on_delete\": \"NO ACTION\",\n    \"match\": \"NONE\"\n  }\n]Invoices · view · 609,283The source view declares no primary key. Phase one does not guess record identity; the view remains inventoried.Column mappingShipNameTEXTShipAddressTEXTShipCityTEXTShipRegionTEXTShipPostalCodeTEXTShipCountryTEXTCustomerIDTEXTCustomerNameTEXTAddressTEXTCityTEXTRegionTEXTPostalCodeTEXTCountryTEXTSalespersonOrderIDINTEGEROrderDateDATETIMERequiredDateDATETIMEShippedDateDATETIMEShipperNameTEXTProductIDINTEGERProductNameTEXTUnitPriceNUMERICQuantityINTEGERDiscountREALExtendedPriceFreightNUMERICShipName, ShipAddress, ShipCity, ShipRegion, ShipPostalCode, ShipCountry, CustomerID, CustomerName, Address, City, Region, PostalCode, Country, Salesperson, OrderID, OrderDate, RequiredDate, ShippedDate, ShipperName, ProductID, ProductName, UnitPrice, Quantity, Discount, ExtendedPrice, Freight[]Order Details · table · 609,283Order detailsColumn mappingOrderIDINTEGER · PK 1 · NOT NULLProductIDINTEGER · PK 2 · NOT NULLUnitPriceNUMERIC · NOT NULLQuantityINTEGER · NOT NULLDiscountREAL · NOT NULL[\n  {\n    \"id\": 0,\n    \"seq\": 0,\n    \"table\": \"Products\",\n    \"from\": \"ProductID\",\n    \"to\": \"ProductID\",\n    \"on_update\": \"NO ACTION\",\n    \"on_delete\": \"NO ACTION\",\n    \"match\": \"NONE\"\n  },\n  {\n    \"id\": 1,\n    \"seq\": 0,\n    \"table\": \"Orders\",\n    \"from\": \"OrderID\",\n    \"to\": \"OrderID\",\n    \"on_update\": \"NO ACTION\",\n    \"on_delete\": \"NO ACTION\",\n    \"match\": \"NONE\"\n  }\n]Order Details Extended · view · 609,283The source view declares no primary key. Phase one does not guess record identity; the view remains inventoried.",
+      "columnsVisible": true,
+      "viewExclusionTranslated": true,
+      "binaryExclusionTranslated": true
+    },
+    "runtime_errors": [],
+    "console_errors": [],
+    "network_requests": [
+      "file:///C:/Users/songym/AppData/Local/Temp/sudograph-fresh-author-20261007/projection.html"
+    ],
+    "external_network_requests": [],
+    "core_checks_passed": true
+  },
+  "generic_fixes_from_pickup": [
+    "translate exclusions and relation labels; expose complete source column/key metadata",
+    "render before atomic replacement; keep previous graph on generation failure",
+    "empty page range is 0–0",
+    "stable UI dictionary order across Python hash seeds"
+  ],
+  "limitations": [
+    "single source and one author trial, not a general success rate",
+    "no OS sandbox; author obeyed input boundary",
+    "views without declared identity and binary columns explicitly excluded",
+    "unsupported composite foreign-key references refuse; do not infer a relation",
+    "snapshot is not a live or transactionally consistent data service"
+  ]
+}

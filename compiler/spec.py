@@ -23,6 +23,7 @@ from . import bind as bind_mod
 from . import expr
 from .catalog import enforce
 from .dependencies import validate_names
+from .project import verify_projection
 
 OWNERS = ("source", "ontology")
 #: The kinds a node can be. Not a field anyone writes: the block a thing is
@@ -38,7 +39,7 @@ PROP_TYPES = ("string", "money", "number", "date", "enum", "ref", "bool")
 
 TOP_LEVEL = {
     "ontology", "dimensions", "bases", "bridges", "types", "raw",
-    "hooks", "instances", "nodes", "ops", "checks", "translations",
+    "hooks", "instances", "nodes", "ops", "checks", "translations", "mode",
 }
 
 #: Node keys that may be written per reading, as `<key>@<basis>`.
@@ -103,6 +104,7 @@ class Spec:
     #: rather than quietly working on none of them.
     unloaded: dict[str, int] = field(default_factory=dict)
     translations: dict[str, dict[str, str]] = field(default_factory=dict)
+    mode: str = "business"
 
     def owner_of(self, type_name: str, prop: str) -> str | None:
         t = self.types.get(type_name)
@@ -258,6 +260,7 @@ def load(path: str, *, scope: dict | None = None) -> Spec:
         bridges=doc.get("bridges") or {},
         dimensions=doc.get("dimensions") or [],
         translations=doc.get("translations") or {},
+        mode=doc.get("mode", "business"),
         source_base=os.path.dirname(os.path.abspath(path)),
     )
     for name, raw in s.raw.items():
@@ -266,6 +269,13 @@ def load(path: str, *, scope: dict | None = None) -> Spec:
     problems = check(s)
     if problems:
         raise SpecError("spec is invalid:\n  - " + "\n  - ".join(problems))
+    if s.mode not in ("business", "source_projection"):
+        raise SpecError("mode must be business or source_projection")
+    if s.mode == "source_projection":
+        try:
+            verify_projection(s)
+        except ValueError as e:
+            raise SpecError(str(e)) from e
 
     # A type that is a view over a table is unusable without the table, and a
     # compile over zero rows would answer every question with nothing rather
@@ -556,6 +566,9 @@ def check(s: Spec) -> list[str]:
         for definition in s.types.values():
             if isinstance(definition, dict):
                 required.update(definition.get('props') or {})
+        for definition in s.raw.values():
+            if isinstance(definition, dict):
+                required.update((definition.get('exclude') or {}).values())
         for locale,messages in s.translations.items():
             if not isinstance(messages,dict) or any(
                 not isinstance(k,str) or not isinstance(v,str) or not v.strip()
@@ -723,10 +736,14 @@ def check(s: Spec) -> list[str]:
             # impossible to recover later.
             out += _computed_prop_problems(s, tname, pname, p)
             numeric_and_nullable = p.get("nullable") and p.get("type") in ("money", "number")
-            if numeric_and_nullable and p.get("absent") not in ("gap", "zero"):
+            allowed_absence = ("none",) if s.mode == "source_projection" else ("gap", "zero")
+            if numeric_and_nullable and p.get("absent") not in allowed_absence:
                 out.append(
-                    f"{where}: a nullable {p['type']} must declare absent: "
-                    f"'gap' (not recorded yet) or 'zero' (determined to be none)"
+                    f"{where}: a nullable {p['type']} must declare absent: " + (
+                        "'none' in source_projection (preserve NULL without business meaning)"
+                        if s.mode == "source_projection" else
+                        "'gap' (not recorded yet) or 'zero' (determined to be none)"
+                    )
                 )
 
     for rname, r in s.raw.items():

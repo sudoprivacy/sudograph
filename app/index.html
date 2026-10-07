@@ -280,7 +280,7 @@ const KINDS = {
   hook:     { var:'--hook',  get name(){return t('缺口')}, get does(){return t('还差什么')} },
   derived:  { var:'--derived', get name(){return t('算出来的值')} },
   type:     { var:'--type',  get name(){return t('对象类型')}, get does(){return t('点开看每一行')} },
-  instance: { var:'--inst'                                                       },
+  instance: { var:'--inst', get name(){return t('记录')} },
 };
 const GRADE = { get partial(){return ['#6b5325',t('部分')]}, get missing(){return ['#6e3a2e',t('缺失')]} };
 const EDGES = {
@@ -321,6 +321,9 @@ const fillOf = n => {
 };
 
 function renderLegend() { $('legend').innerHTML =
+  BUNDLE.projection?.mode==='source_projection' ?
+    [KINDS.raw,KINDS.type].map(k=>`<span><i style="background:var(${k.var})"></i>${k.name}</span>`).join('')+
+    `<span><u style="border-top-color:var(--edge)"></u>${t('关系')}</span>` :
   `<span><i style="background:${
     (() => { const a = hex(css('--derived')), b = hex(css('--hook'));
       const ch = i => Math.round(a[i] + (b[i] - a[i]) * PROVISIONAL_MIX);
@@ -366,6 +369,8 @@ let scene = null;
 // a scoring fault on its side, since fixed. Kept for the reading, not for the
 // anchor.
 function linesOf(n, open, language = uiLanguage) {
+  if(n.kind==='fields')return Object.entries(n.props).map(([p,value])=>({cls:'',parts:[
+    bt(p,language)+': '+String(fmt(value)).slice(0,90)+(String(fmt(value)).length>90?'…':'')]}));
   const tr = key => t(key, {}, language);
   // An arrow promises that clicking opens something. A type whose rows were
   // never fetched — too many to hold — has nothing to open, so it shows its
@@ -379,7 +384,8 @@ function linesOf(n, open, language = uiLanguage) {
   // as a count that wore an arrow and did nothing when clicked.
   const n0 = x => x.toLocaleString('en-US');
   const mark = n.kind === 'type' && n.count
-    ? (n.unfetched ? `  · ${n0(n.count)} ${tr('行')}`
+    ? (BUNDLE.records?.[n.id] ? `  ${state.expanded.has(n.id)?'▾':'▸'}${n0(n.count)} ${tr('行')}`
+       : n.unfetched ? `  · ${n0(n.count)} ${tr('行')}`
        : n.folded  ? `  · ${n0(n.count)} ${tr('行')}`
        : `  ${open ? '▾' : '▸'}${n.count}`)
     : (n.kind === 'hook' && n.waiting_on) ? `  · ${n.waiting_on} ${tr('项')}` : null;
@@ -437,9 +443,18 @@ async function draw() {
     if (state.projection === 'data' && !['raw', 'type', 'instance'].includes(n.kind)) continue;
     if(state.projection==='data' && n.kind==='type' && !n.backing)continue;
     if(state.projection==='data' && n.kind==='instance' && !v.groups.find(g=>g.type===n.type)?.backing)continue;
-    if (n.kind === 'instance' && !state.expanded.has(n.type)) continue;
+    if (n.kind === 'instance' && (!state.expanded.has(n.type) || BUNDLE.records?.[n.type])) continue;
     shown.set(n.id, n);
   }
+  for(const tn of state.expanded) {
+    if(!shown.has(tn))continue;
+    const records=await graphRecords(tn);
+    if(mine!==drawSeq)return;
+    for(const n of records||[])shown.set(n.id,n);
+  }
+  for(const n of [...shown.values()])if(n.kind==='instance' && graphFields.has(n.id))
+    shown.set(n.id+'/fields',{id:n.id+'/fields',kind:'fields',parent:n.id,type:n.type,
+      label:bt('属性'),props:n.props});
   // A row that is not on the canvas is still inside its type, so an edge that
   // reached the row reaches the type instead of vanishing. Dropping it is how a
   // gap ended up pointing at nothing in the default view: the relation was in
@@ -466,6 +481,9 @@ async function draw() {
     .map(e=>JSON.stringify([e.from,e.to,e.via])));
   for (const e of v.edges) {
     if (e.rel === 'member') continue;
+    // Source-backed record references remain available in the field inspector.
+    // Drawing one edge for every page record obscures the type-level evidence.
+    if(e.rel==='link' && BUNDLE.records?.[byId.get(e.from)?.type])continue;
     const from = at(e.from), to = at(e.to);
     if (!shown.has(from) || !shown.has(to)) continue;
     // Collapsed records must not duplicate an existing type-level relationship.
@@ -483,6 +501,7 @@ async function draw() {
     for(const e of edges)if(e.from===state.focus||e.to===state.focus){near.add(e.from);near.add(e.to);}
     for(const id of [...near]){const n=shown.get(id);if(n?.type)near.add(n.type);}
     for(const [id,n] of shown)if(n.kind==='instance'&&near.has(n.type))near.add(id);
+    for(const [id,n] of shown)if(n.kind==='fields'&&near.has(n.parent))near.add(id);
     for(const id of shown.keys())if(!near.has(id))shown.delete(id);
     edges=edges.filter(e=>shown.has(e.from)&&shown.has(e.to));
   } else state.focus=null;
@@ -704,6 +723,7 @@ const anchors = (() => {
     const ids = new Set(v ? v.nodes.map(n => n.id) : []);
     for (const d of Object.values(BUNDLE.diffs || {}))
       for (const e of d.entries || []) ids.add(e.node);
+    for(const id of graphAnchorLocations.keys())ids.add(id);
     return ids;
   };
   const labelOf = id => {
@@ -740,7 +760,8 @@ const anchors = (() => {
   const wire = api => {
     if (wired) return;
     wired = true;
-    api.on('resync', ids => { for (const id of ids || []) tracked.add(id); report(); });
+    api.on('resync', async ids => {for(const id of ids||[])tracked.add(id);
+      await Promise.all((ids||[]).map(locateGraphAnchor));report();});
     api.on('hittest', rect => {
       const out = [];
       for (const id of known()) {
@@ -756,13 +777,20 @@ const anchors = (() => {
     });
   // A hidden anchor is revealed by the page, because only the page knows that
   // this id is a row inside a folded type, or lives under another reading.
-    api.on('reveal', ids => {
+    api.on('reveal', async ids => {
       let changed = false;
       if(state.focus){state.focus=null;changed=true;}
       if (state.projection === 'data') {
         state.projection = 'all'; $('projection').value = 'all'; changed = true;
       }
       for (const id of ids || []) {
+        const location=await locateGraphAnchor(id);
+        if(location) {
+          graphPages.set(location.type,Math.floor(location.offset/GRAPH_PAGE_SIZE)*GRAPH_PAGE_SIZE);
+          state.expanded.add(location.type);
+          if(location.fields)graphFields.add(location.identity);
+          changed=true;continue;
+        }
         const t = id.includes('/') ? id.split('/', 1)[0] : null;
         if (t && !state.expanded.has(t)) { state.expanded.add(t); changed = true; }
       }
@@ -906,7 +934,7 @@ function applyTransform() {
 
 function showNode(n) {
   const rows = [];
-  rows.push(`<h2>${KINDS[n.kind]?.name||n.kind}</h2><div style="font-size:15px;font-weight:600">${esc(bt(n.label))}</div>`);
+  rows.push(`<h2>${n.kind==='fields'?t('属性'):KINDS[n.kind]?.name||n.kind}</h2><div style="font-size:15px;font-weight:600">${esc(bt(n.label))}</div>`);
   if (n.value != null) rows.push(`<div class="val">${fmt(n.value)}</div>`);
   if (n.completeness)
     rows.push(`<p><span class="tag ${n.completeness}">${n.completeness}</span></p>`);
@@ -952,6 +980,15 @@ function showNode(n) {
   if (n.kind === 'type') rows.push(showGroup(n.id));
   $('panel').innerHTML = rows.join('');
   attachBrowse(n);
+  if(n.kind==='instance') {
+    const button=document.createElement('button');button.textContent=t(graphFields.has(n.id)?'收起图上字段':'在图上展开字段');
+    button.onclick=()=>graphActivate(n);$('panel').prepend(button);
+    const r=BUNDLE.records?.[n.type];
+    if(r)for(const [p,target] of Object.entries(r.refs))if(n.props[p]!=null) {
+      const b=document.createElement('button');b.textContent=t('查看关联')+' '+bt(p)+' → '+typeLabel(target);
+      b.onclick=()=>showRecords(target,0,{prop:BUNDLE.records[target].ids[0],value:n.props[p]});$('panel').appendChild(b);
+    }
+  }
 }
 
 /* Folding produces buckets and a top-N precisely so a folded group still answers
@@ -1020,8 +1057,10 @@ function showChecks(v) {
     : `<h2>${t('检查')}</h2><p class="muted">${t('{count} 条全部通过。点一个节点看它的来历。', {count: v.checks.length})}</p>`)
     + (noted.length ? `<h2>${t('通过，但有数')}</h2>` + noted.map(checkLine).join('') : '')
     + `<details><summary>${t('全部检查')}</summary>${v.checks.map(checkLine).join('')}</details>`;
-  if (state.projection === 'data') $('panel').insertAdjacentHTML('afterbegin',
+  if (state.projection === 'data' && BUNDLE.projection?.mode!=='source_projection') $('panel').insertAdjacentHTML('afterbegin',
     `<p class="muted">${t('数据投影：核对对象、列、主键和关联；业务指标在另一视图。')}</p>`);
+  if(BUNDLE.projection?.mode==='source_projection')$('panel').insertAdjacentHTML('afterbegin',
+    `<p>${t('阶段一：只读原库投影，未定义业务口径。')}</p><p class="muted">${t('离线快照')} · ${esc(BUNDLE.projection.generated_at)}<br>${t('快照不随源库自动更新；NULL 保持为空，不推断为零或业务缺口。')}</p>`);
 }
 
 function showMeasurements(v) {

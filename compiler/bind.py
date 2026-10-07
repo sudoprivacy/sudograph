@@ -74,9 +74,11 @@ def _path_of(dsn: str, base: str) -> str:
     database it reads travel together, so the spec says where the database is
     *from itself*, not from whichever directory the compiler was run in.
     """
-    if not dsn.startswith("sqlite:"):
+    if not dsn.startswith("sqlite:///"):
         raise BindingError(f"only sqlite dsns are supported yet, got {dsn!r}")
-    raw = dsn.split("sqlite://", 1)[1].lstrip("/")
+    # Remove the scheme's three slashes only: the fourth is the root of an
+    # absolute POSIX path. Stripping all slashes silently rebases /tmp to ./tmp.
+    raw = dsn[len("sqlite:///"):]
     return raw if os.path.isabs(raw) else os.path.normpath(os.path.join(base, raw))
 
 

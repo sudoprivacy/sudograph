@@ -389,8 +389,8 @@ whole graph; dense views still need zoom or **Focus neighbors** to read labels.
 Dragging a node moves its text and edges; positions persist across view and
 language switches in the current page session.
 
-The generated app selects Chinese or English from the browser automatically.
-Pass `--lang en` to pin the UI language. Every export embeds the catalogs; an
+The default language is Chinese (`--lang zh`). Pass `--lang en` to pin English,
+or `--lang auto` to follow the browser. Every export embeds the catalogs; an
 agent does not need to remember a translation step. Missing translation keys
 refuse generation. Add languages to
 `app/messages.json`, preserving every key and placeholder. For business text,
@@ -400,6 +400,34 @@ includes an English catalogue. Legacy specs without one retain the source
 business language; identities, expressions and diagnostic evidence are not
 automatically translated. View selectors are presentation controls, not
 permissions: the self-contained file contains all bundled views.
+
+For phase one, start from the database rather than a business example:
+
+```sh
+python -m compiler.project sqlite:////absolute/path/source.db projection.yaml --name "客户数据投影" --app projection.html --records
+```
+
+This source-first entry point writes `mode: source_projection`. Every load checks
+that contract against the database: declared primary keys (including composite
+keys), source columns, foreign keys and same-table primary-key projections only.
+Formulas, inline records, workflow roles/gaps, business checks and alternative
+readings are refused. NULL remains NULL, with no inferred zero or business gap.
+Views without declared identity and binary payloads appear in the inventory with
+explicit exclusion reasons. Review that inventory before claiming full coverage.
+Unsupported composite references refuse generation instead of guessing a link.
+Display names and complete `translations.en` may be supplied by an agent;
+they describe source facts and are not authority for business meaning.
+
+Phase two uses `mode: business` (the legacy default), with separately reviewed
+business expressions and decisions. A portable HTML is a read-only snapshot,
+not a second writable database and not a promise of live or transactionally
+consistent data. Regenerate it when the source changes. Never infer a revenue
+formula, workflow owner or business definition from a column name alone.
+Deliver the HTML produced by the compiler directly. If presentation is deficient,
+fix the shared template and regenerate; a private HTML patch is not a reproducible
+agent deliverable. Backed records expand in graph pages of twelve, with nested
+field cards and relationship navigation. Expanding or paging triggers a new
+layout; the type relationships remain visible without an edge fan per record.
 
 Server-side views instead authorise every graph, query, page and export request;
 registered row scope reaches reads before counts and aggregates. Export requires

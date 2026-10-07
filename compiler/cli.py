@@ -21,7 +21,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import tempfile
 
 from . import app as app_mod
 from . import bind as bind_mod
@@ -108,8 +110,9 @@ def main(argv: list[str] | None = None) -> int:
         "The spec is written once and fed different leaves",
     )
     ap.add_argument("--basis", help="compute under one declared basis")
-    ap.add_argument('--lang', choices=['auto', *app_mod.languages()], default='auto',
-                    help='graph interface language; business labels keep their original wording')
+    ap.add_argument('--lang', choices=['auto', *app_mod.languages()], default='zh',
+                    help='graph language (default zh); auto follows browser, '
+                         'en uses declared translations')
     ap.add_argument(
         "--app",
         metavar="OUT.html",
@@ -156,11 +159,21 @@ def main(argv: list[str] | None = None) -> int:
                 with open(args.questions, encoding='utf-8') as fh:
                     b['challenge'] = json.load(fh)
                 app_mod.blind.public_only(b['challenge'])
+            html = app_mod.render(b, language=args.lang)
         except ValueError as e:
             print(str(e), file=sys.stderr)
             return 2
-        with open(args.app, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(app_mod.render(b, language=args.lang))
+        target = os.path.abspath(args.app)
+        staging = None
+        try:
+            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', newline='\n',
+                                             dir=os.path.dirname(target), delete=False) as fh:
+                staging = fh.name
+                fh.write(html)
+            os.replace(staging, target)
+        finally:
+            if staging and os.path.exists(staging):
+                os.unlink(staging)
         print(f"{args.app}: {len(b['views'])} view(s), {len(b['diffs'])} bridge diff(s)")
         return 0
 

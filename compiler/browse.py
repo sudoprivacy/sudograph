@@ -76,7 +76,9 @@ def snapshot(s, *, chunk_size=1000):
             row = b.row(tn, joins)
             select = ",".join(row.property(p) for p in props)
             order = ",".join(row.property(p) for p in s.id_props(tn))
-            sql = f"SELECT {select} FROM {row.source()} {' '.join(joins)} ORDER BY {order}"
+            filters = row.filters()
+            tail = " WHERE " + " AND ".join(filters) if filters else ""
+            sql = f"SELECT {select} FROM {row.source()} {' '.join(joins)}{tail} ORDER BY {order}"
             with bind.connect(b.dsn, s.source_base) as conn:
                 cur = conn.execute(sql, b.params)
                 while rows := cur.fetchmany(chunk_size):

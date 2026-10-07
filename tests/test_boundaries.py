@@ -371,7 +371,8 @@ def test_blind_questions_come_from_raw_not_graph(shop, tmp_path):
 def test_renderer_automatic_language_and_refuses_missing_translation(shop, tmp_path):
     load, _, _ = shop
     b = app.bundle(load())
-    html = app.render(b)
+    assert '"language": "zh"' in app.render(b)
+    html = app.render(b, language='auto')
     assert '"language": "auto"' in html and "navigator.language" in html
     template = tmp_path / "bad.html"
     template.write_text(

@@ -82,6 +82,9 @@ def commands(readme: str) -> list[tuple[int, str, bool]]:
 
 
 def _redirected(argv: list[str], outdir: str) -> list[str]:
+    if len(argv) >= 5 and argv[2] == 'compiler.project':
+        argv = list(argv)
+        argv[4] = os.path.join(outdir, os.path.basename(argv[4]))
     done = []
     for i, a in enumerate(argv):
         if i and argv[i - 1] in _WRITES:

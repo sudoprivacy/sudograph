@@ -20,6 +20,7 @@ import itertools
 import json
 import os
 import re
+from datetime import UTC, datetime
 from typing import Any
 
 from . import blind, browse, catalog
@@ -100,6 +101,8 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5,
             diffs[f"{name or f'{before}->{after}'}|{_key(None, at)[1:]}"] = d.as_dict()
 
     return {
+        "projection": {"mode": s.mode, "generated_at": datetime.now(UTC).isoformat(),
+                       "source_read_only": True, "delivery": "snapshot"},
         "translations": s.translations,
         "coverage": catalog.enforce(s),
         "records": browse.snapshot(s) if records else {},
@@ -138,7 +141,7 @@ def languages() -> list[str]:
         return ['zh', *json.load(fh)]
 
 
-def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 'auto') -> str:
+def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 'zh') -> str:
     if 'challenge' in b:
         blind.public_only(b['challenge'])
     with open(os.path.join(_ROOT, 'app', 'messages.json'), encoding='utf-8') as fh:
@@ -149,7 +152,7 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
             raise ValueError(f"UI locale {lang} has missing or extra translation keys")
     if language not in ('auto', 'zh') and language not in catalogs:
         raise ValueError(f"unknown UI language {language!r}; available: {languages()}")
-    catalogs['zh'] = {k: k for k in keys}
+    catalogs['zh'] = {k: k for k in sorted(keys)}
     messages = catalogs.get(language, catalogs['zh'])
     b = {**b, 'ui': {'language': language, 'messages': messages, 'catalogs': catalogs}}
     with open(template_path, encoding="utf-8") as fh:

@@ -12,6 +12,7 @@ function updateCanvasSelection() {
     cy.elements().addClass('quiet');
     selected.closedNeighborhood().union(selected.descendants()).union(selected.ancestors())
       .removeClass('quiet').addClass('active');
+    for(const parent of selected.ancestors())parent.closedNeighborhood().removeClass('quiet').addClass('active');
   }
   cy.edges().toggleClass('named',state.edgeLabels);
   for(const label of $('cy').querySelectorAll('.canvas-label'))
@@ -72,16 +73,18 @@ async function drawCanvas(v, shown, edges, mine) {
     return {id:n.id,width:Math.max(...sizes.map(s=>s.w)),height:Math.max(...sizes.map(s=>s.h))+12,
       layoutOptions:{'elk.layered.layering.layerConstraint':(KINDS[n.kind]||{}).layer || 'NONE'}};
   };
-  const children=nodes.filter(n=>n.kind!=='instance').map(n=>{
-    const result=box(n), members=nodes.filter(row=>row.kind==='instance'&&row.type===n.id);
+  const nest=n=>{
+    const result=box(n), members=nodes.filter(row=>(n.kind==='type'&&row.kind==='instance'&&row.type===n.id) || row.parent===n.id);
     if(members.length) {
-      result.children=members.map(box);
+      result.children=members.map(nest);
       result.layoutOptions={...result.layoutOptions,'elk.algorithm':'layered',
         'elk.direction':direction,'elk.padding':'[top=60,left=40,bottom=40,right=40]',
-        'elk.spacing.nodeNode':'25','elk.layered.spacing.nodeNodeBetweenLayers':'40'};
+        'elk.spacing.nodeNode':'25','elk.layered.spacing.nodeNodeBetweenLayers':'40',
+        'elk.layered.layering.strategy':'COFFMAN_GRAHAM','elk.layered.layering.coffmanGraham.layerBound':'4'};
     }
     return result;
-  });
+  };
+  const children=nodes.filter(n=>!['instance','fields'].includes(n.kind)).map(nest);
   const laid = await elk.layout({id:'root', layoutOptions:{'elk.algorithm':'layered',
     'elk.edgeRouting':'ORTHOGONAL',
     'elk.direction':direction, 'elk.spacing.nodeNode':'55','elk.spacing.componentComponent':'75',
@@ -113,7 +116,7 @@ async function drawCanvas(v, shown, edges, mine) {
   cy = cytoscape({container:host, minZoom:.08,maxZoom:4,
     elements:[...nodes.map(n=> {const p=positions.get(n.id);return {data:{id:n.id,
       label:linesOf(n,false).map(l=>l.parts.join('')).join('\n'), color:fillOf(n),
-      w:p.width,h:p.height,...(n.kind==='instance'?{parent:n.type}:{})},
+      w:p.width,h:p.height,...(n.kind==='instance'?{parent:n.type}:n.parent?{parent:n.parent}:{})},
       position:saved?.positions[n.id] || {x:p.x+p.width/2,y:p.y+p.height/2}};}),
       ...edges.map((e,i)=>({data:{id:'edge-'+i,source:e.from,target:e.to,
         label:bt(e.via || ''),meta:e,loop:e.from===e.to,color:css(inferred(e)?EDGES.guessed.colour:edgeStyle(e.rel).colour),
@@ -179,12 +182,12 @@ async function drawCanvas(v, shown, edges, mine) {
   scene = layer;
   if (nodes.length <= 500) for (const n of nodes) {
     const label = document.createElement('div');
-    label.className='canvas-label'; label.dataset.nodeId=n.id;
+    label.className='canvas-label'; label.dataset.nodeId=n.id;label.id='node-label-'+n.id;
     label.style.cssText='position:absolute;pointer-events:auto;user-select:text;cursor:text;'+
       'text-align:center;white-space:pre-wrap;font-size:11px;line-height:16px';
-    label.textContent=linesOf(n,false).map(l=>l.parts.join('')).join('\n');
+    label.textContent=linesOf(n,state.expanded.has(n.id)).map(l=>l.parts.join('')).join('\n');
     label.onpointerdown=e=>e.stopPropagation();
-    label.onclick=e=>{e.stopPropagation();if (!getSelection()?.toString()) select(n);};
+    label.onclick=e=>{e.stopPropagation();if (!getSelection()?.toString()) graphActivate(n);};
     layer.appendChild(label);
   }
   function labels() {
@@ -203,7 +206,7 @@ async function drawCanvas(v, shown, edges, mine) {
     if(labelFrame===null)labelFrame=requestAnimationFrame(()=>{labelFrame=null;labels();});
   };
   cy.on('pan zoom resize position bounds',scheduleLabels);
-  cy.on('tap','node',e=>select(shown.get(e.target.id())));
+  cy.on('tap','node',e=>graphActivate(shown.get(e.target.id())));
   cy.on('tap','edge',e=>{state.panel='relation';state.relation=e.target.data('meta');showRelation(state.relation);});
   cy.on('tap',e=>{if(e.target===cy){state.selected=null;updateCanvasSelection();}});
   if(saved) {cy.zoom(saved.zoom);cy.pan(saved.pan);} else refit();

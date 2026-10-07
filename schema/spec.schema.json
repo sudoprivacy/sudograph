@@ -10,6 +10,11 @@
   ],
   "additionalProperties": false,
   "properties": {
+    "mode": {
+      "enum": ["business", "source_projection"],
+      "default": "business",
+      "description": "source_projection is phase one: declared table keys, columns and foreign keys only; checked against the source at every load. No formulas, inline facts, workflow gaps or business rules."
+    },
     "ontology": {
       "type": "string",
       "minLength": 1
