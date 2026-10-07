@@ -938,16 +938,16 @@ function showNode(n) {
   if (n.value != null) rows.push(`<div class="val">${fmt(n.value)}</div>`);
   if (n.completeness)
     rows.push(`<p><span class="tag ${n.completeness}">${n.completeness}</span></p>`);
-  if (n.op) rows.push(`<h2>${t('表达式')}</h2><div class="op">${n.op}</div>`);
+  if (n.op) rows.push(`<h2>${t('表达式')}</h2><div class="op">${esc(n.op)}</div>`);
   if (n.description) rows.push(`<p>${esc(bt(n.description))}</p>`);
   if (n.resolve_when) rows.push(`<h2>${t('解除条件')}</h2><p>${esc(bt(n.resolve_when))}</p>`);
   if (n.owner) rows.push(`<div class="kv"><span>${t('负责人')}</span><span>${esc(bt(n.owner))}</span></div>`);
-  if (n.connector) rows.push(`<h2>${t('取数')}</h2><div class="op">${n.connector}</div>`);
+  if (n.connector) rows.push(`<h2>${t('取数')}</h2><div class="op">${esc(n.connector)}</div>`);
   if (n.backing) {
-    rows.push(`<h2>${t('读自')}</h2><div class="op">${n.backing.table}</div>`);
-    rows.push(`<div class="kv"><span>${t('标识一行')}</span><span>${n.backing.key.join(', ')}</span></div>`);
+    rows.push(`<h2>${t('读自')}</h2><div class="op">${esc(n.backing.table)}</div>`);
+    rows.push(`<div class="kv"><span>${t('标识一行')}</span><span>${esc(n.backing.key.join(', '))}</span></div>`);
     if (n.backing.where)
-      rows.push(`<div class="kv"><span>${t('只取')}</span><span>${n.backing.where}</span></div>`);
+      rows.push(`<div class="kv"><span>${t('只取')}</span><span>${esc(n.backing.where)}</span></div>`);
     if (n.unfetched)
       rows.push(`<p class="muted">${t('{count} 行，没有取进来；它的合计由库直接算。', {count: n.unfetched.toLocaleString('en-US')})}</p>`);
   }
@@ -973,7 +973,7 @@ function showNode(n) {
     rows.push(`<h2>${t('属性')}</h2>` + Object.entries(n.props).map(([k, val]) =>
       `<div class="kv"><span>${esc(bt(k))} <span class="own ${owners[k] || ''}">${
         ops[k] ? t('算出') : owners[k] === 'source' ? t('上游') : owners[k] === 'ontology' ? t('本体') : ''
-      }</span></span><span>${fmt(val)}</span></div>` +
+      }</span></span><span>${esc(fmt(val))}</span></div>` +
       // A computed column shows its formula, exactly as a derived node does.
       (ops[k] ? `<div class="op">${ops[k]}</div>` : '')).join(''));
   }

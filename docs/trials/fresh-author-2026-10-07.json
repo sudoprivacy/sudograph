@@ -406,5 +406,32 @@
     "views without declared identity and binary columns explicitly excluded",
     "unsupported composite foreign-key references refuse; do not infer a relation",
     "snapshot is not a live or transactionally consistent data service"
-  ]
+  ],
+  "final_fresh_recheck": {
+    "fresh_conversation": true,
+    "inputs": [
+      "source.db",
+      "generic README/compiler/app/schema"
+    ],
+    "prior_yaml_graph_context": false,
+    "domain_hints_from_parent": false,
+    "infra_changes_during_author_run": false,
+    "native_compiler_errors": 0,
+    "mode": "source_projection",
+    "tables": 13,
+    "source_columns": 86,
+    "source_foreign_keys": 13,
+    "rows": 625890,
+    "scalar_values_compared": 3276955,
+    "source_unchanged": true,
+    "original_html_sha256": "22c986094807c8483e105dab2e9fb91e3f13753be2521b20d8f32f8033399ba4",
+    "display_keys_per_locale": 91,
+    "primary_agent_browser_passed": true,
+    "source_literal_rendering_passed": true,
+    "limitations": [
+      "author had no browser tooling; primary agent supplies real browser acceptance",
+      "author verification script initially included vendor t() calls; corrected its own scope without editing infra"
+    ],
+    "template_upgrade": "primary agent regenerated through shared renderer to display source text literally; no YAML or HTML-specific patch"
+  }
 }
