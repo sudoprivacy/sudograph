@@ -33,7 +33,7 @@
   "raw_database_mounted": false,
   "sqlite_driver_integrated": false,
   "date": "2026-10-07",
-  "nexus_commit": "9f06f98cc60b05bca90edf6226cd9ed8f7bb2ce2",
+  "nexus_commit": "0e67d32dd145c49665de906bdb2396dbad0d23a0",
   "gateway_commit": "49184c92d7830612ee546306968b693526f7f556",
   "revocation_kind": "operator-owned view grant removed; not an API-key-revocation experiment",
   "shared_instance_connected": false,
