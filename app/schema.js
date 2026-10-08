@@ -1,7 +1,7 @@
 // Source structure is compiler-owned. Presentation never manufactures identities.
 const schemaObjects=(BUNDLE.source_schema?.sources||[]).flatMap(s=>s.objects);
 const schemaNodes=new Map(schemaObjects.flatMap(o=>[o,...o.fields]).map(n=>[n.id,n]));
-const isSchema=()=>['schema','schema_objects'].includes(state.projection);
+const isSchema=()=>state.projection==='schema';
 const schemaObject=id=>schemaObjects.find(o=>o.id===id);
 function schemaGraph() {
   const edges=[];
@@ -10,18 +10,27 @@ function schemaGraph() {
     for(const fk of o.foreign_keys) {
       const target=others.find(n=>n.name===fk.table);
       const from=o.fields.find(f=>f.column===fk.from),to=target?.fields.find(f=>f.column===fk.to);
-      if(from && to)edges.push({from:from.id,to:to.id,from_object:o.id,to_object:target.id,
+      if(from && to)edges.push({id:'sg-relation/'+encodeURIComponent(JSON.stringify(['source_fk',from.id,to.id])),
+        from:from.id,to:to.id,from_object:o.id,to_object:target.id,
         rel:'source_fk',via:fk.from+' → '+fk.to,source_column:fk.from,target_key:[fk.to],
         declaration:fk,owner:'source'});
     }
     for(const name of o.dependencies) {
       const target=others.find(n=>n.name===name);
-      if(target)edges.push({from:o.id,to:target.id,from_object:o.id,to_object:target.id,
+      if(target)edges.push({id:'sg-relation/'+encodeURIComponent(JSON.stringify(['source_view',o.id,target.id])),
+        from:o.id,to:target.id,from_object:o.id,to_object:target.id,
         rel:'source_view',via:t('源视图依赖'),definition:o.definition,owner:'source'});
     }
   }
   const original=BUNDLE.views[`${state.basis??''}|${coordKey()}`];
   return {...original,nodes:[...schemaNodes.values()],edges,groups:[]};
+}
+function schemaRelationLabel(e,language=uiLanguage) {
+  const from=schemaObject(e.from_object),to=schemaObject(e.to_object);
+  if(e.rel==='source_view')return t('{from} 的源 SQL 引用了 {to}',
+    {from:bt(from.label,language),to:bt(to.label,language)},language);
+  const left=from.fields.find(f=>f.column===e.source_column),right=to.fields.find(f=>f.column===e.target_key[0]);
+  return bt(from.label,language)+'.'+bt(left.label,language)+' → '+bt(to.label,language)+'.'+bt(right.label,language);
 }
 function schemaLines(n,language=uiLanguage) {
   const tr=key=>t(key,{},language);
@@ -47,8 +56,8 @@ async function drawSchema(v,mine) {
     for(const field of o.fields)shown.set(field.id,field);
   const seen=new Set();
   let edges=v.edges.flatMap(e=>{
-    const from=state.projection==='schema'&&shown.has(e.from)?e.from:e.from_object;
-    const to=state.projection==='schema'&&shown.has(e.to)?e.to:e.to_object;
+    const from=shown.has(e.from)?e.from:e.from_object;
+    const to=shown.has(e.to)?e.to:e.to_object;
     if(!shown.has(from)||!shown.has(to))return [];
     const key=JSON.stringify([from,to,e.rel,e.rel==='source_fk'?e.declaration.id:'']);
     if(seen.has(key))return [];seen.add(key);return [{...e,from,to}];
@@ -85,7 +94,15 @@ async function revealSchema(id) {
   if(state.schemaKind!=='all'&&state.schemaKind!==obj.object_kind)state.schemaKind='all';
   $('schemaKind').value=state.schemaKind;
   state.focus=null;if(node.parent)state.schemaExpanded.add(node.parent);
-  state.selected=id;state.panel='node';await draw();schemaCamera(id);return true;
+  state.selected=id;state.selectedRelation=null;state.panel='node';await draw();schemaCamera(id);return true;
+}
+async function revealSchemaRelation(e) {
+  state.projection='schema';$('projection').value='schema';state.schemaKind='all';$('schemaKind').value='all';
+  state.schemaExpanded.add(e.from_object);state.schemaExpanded.add(e.to_object);
+  state.focus=null;state.selected=null;state.selectedRelation=canvasEdgeId(e);
+  state.panel='schema_relation';state.relation=e;await draw();
+  const objects=cy.getElementById(e.from_object).union(cy.getElementById(e.to_object));
+  cy.fit(objects.union(objects.descendants()),45);if(cy.zoom()>1.3){cy.zoom(1.3);cy.center(objects);}
 }
 function commentSchemaField(n) {
   const obj=schemaObject(n.parent);
@@ -114,13 +131,16 @@ function showSchemaNode(n) {
     if(obj.dependency_error)html+=`<p>${t('依赖解析未完成；保留源 SQL 定义。')}</p><div class="op">${esc(obj.dependency_error)}</div>`;
   }
   html+=`<details><summary>${t('源库中的定义')}</summary><div class="op">${esc(obj.definition)}</div></details>`+
-    `<details><summary>${t('稳定标识')}</summary><div class="op">${esc(n.id)}</div></details>`;
+    `<details><summary>${t(field?'这个字段的标识':obj.object_kind==='view'?'这个源视图的标识':'这张源表的标识')}</summary>`+
+    `<p>${t(field?'标识的是源字段，用于绑定字段评论、来源定位和业务规则引用。':'标识的是整个源对象，不是其中某条记录。')}</p>`+
+    `<p>${t('展示名、语言、布局和折叠变化不会改变标识；源库搬迁或源字段真正改名需要迁移引用。')}</p>`+
+    `<div class="op">${esc(n.id)}</div></details>`;
   $('panel').innerHTML=html;
   const controls=document.createElement('div');controls.className='schema-actions';
   function button(text,action){const b=document.createElement('button');b.textContent=t(text);b.onclick=action;controls.appendChild(b);}
   if(!field)button(state.schemaExpanded.has(obj.id)?'收起字段':'展开字段',()=>schemaActivate(obj));
   button('查看源记录',()=>showSourceRecords(obj.id,0,field?n.column:null));
-  if(field&&anchors.live)button('评论字段',()=>commentSchemaField(n));
+  if(field&&anchors.live) {button('评论字段',()=>commentSchemaField(n));controls.lastChild.classList.add('schema-comment');}
   if(field)button('查看关联字段',async()=>{
     const related=schemaGraph().edges.filter(e=>e.from===n.id||e.to===n.id);
     for(const e of related){state.schemaExpanded.add(e.from_object);state.schemaExpanded.add(e.to_object);}
@@ -133,17 +153,39 @@ function showSchemaNode(n) {
     button.onclick=()=>revealSchema(button.dataset.schemaField);
   const relations=schemaGraph().edges.filter(e=>field?(e.from===n.id||e.to===n.id):
     e.from_object===n.id||e.to_object===n.id);
-  for(const edge of relations){const b=document.createElement('button');b.textContent=edge.via;
-    b.onclick=()=>showSchemaRelation(edge);$('panel').appendChild(b);}
+  for(const rel of ['source_fk','source_view']) {
+    const matching=relations.filter(e=>e.rel===rel);if(!matching.length)continue;
+    const heading=document.createElement('h2');heading.textContent=t(rel==='source_fk'?'外键关联':'源 SQL 引用')+' ('+matching.length+')';
+    const note=document.createElement('p');note.className='muted';note.textContent=t(rel==='source_fk'?
+      '源库声明了字段之间的关联；点击一项查看两端和原始声明。':
+      '以下关联来自源视图的 SQL；这是查询来源，不代表业务规则或完整字段血缘。');
+    const list=document.createElement('div');list.className='schema-relation-list';
+    for(const edge of matching){const b=document.createElement('button');b.textContent=schemaRelationLabel(edge);
+      b.onclick=()=>showSchemaRelation(edge);list.appendChild(b);}
+    $('panel').append(heading,note,list);
+  }
 }
 function showSchemaRelation(e) {
-  state.panel='schema_relation';state.relation=e;
+  state.panel='schema_relation';state.relation=e;state.selected=null;state.selectedRelation=canvasEdgeId(e);updateCanvasSelection();
   const from=schemaObject(e.from_object),to=schemaObject(e.to_object);
-  $('panel').innerHTML=`<h2>${t(e.rel==='source_fk'?'源外键':'源视图依赖')}</h2>`+
-    `<p>${esc(from.name+(e.source_column?'.'+e.source_column:''))} → ${esc(to.name+(e.target_key?'.'+e.target_key.join(', '):''))}</p>`+
-    `<div class="op">${esc(e.definition||JSON.stringify(e.declaration,null,2))}</div>`;
-  for(const id of [e.from,e.to]) {const b=document.createElement('button');b.textContent=bt(schemaNodes.get(id)?.label||id);
-    b.onclick=()=>revealSchema(id);$('panel').appendChild(b);}
+  $('panel').innerHTML=`<h2>${t(e.rel==='source_fk'?'源外键':'源 SQL 引用')}</h2>`+
+    `<p>${esc(schemaRelationLabel(e))}</p>`+
+    `<p class="muted">${t(e.rel==='source_fk'?'源库声明了字段之间的关联；点击一项查看两端和原始声明。':
+      '以下关联来自源视图的 SQL；这是查询来源，不代表业务规则或完整字段血缘。')}</p>`;
+  for(const [obj,column] of [[from,e.source_column],[to,e.target_key?.[0]]]) {
+    const node=column?obj.fields.find(f=>f.column===column):obj;
+    const card=document.createElement('div');card.className='relation-endpoint';
+    const name=document.createElement('p');name.textContent=obj.name+(column?'.'+column:'');
+    name.onpointerdown=e=>e.stopPropagation();
+    name.onpointerup=e=>{e.stopPropagation();const selection=getSelection();if(selection?.toString()&&selection.rangeCount&&
+      name.contains(selection.getRangeAt(0).commonAncestorContainer)&&anchors.comment(node.id,bt(obj.label)+(column?'.'+bt(node.label):''),name.textContent,
+        name.getBoundingClientRect()))selection.removeAllRanges();};
+    const b=document.createElement('button');b.textContent=t(column?'查看字段':'在图上查看');
+    b.onclick=()=>revealSchema(node.id);card.append(name,b);$('panel').appendChild(card);
+  }
+  const inspect=document.createElement('button');inspect.textContent=t('在图上查看这条关联');inspect.onclick=()=>revealSchemaRelation(e);$('panel').appendChild(inspect);
+  const definition=document.createElement('details');definition.innerHTML=`<summary>${t(e.rel==='source_fk'?'源库中的声明':'源库中的定义')}</summary>`+
+    `<div class="op">${esc(e.definition||JSON.stringify(e.declaration,null,2))}</div>`;$('panel').appendChild(definition);
 }
 let sourceBrowseSeq=0;
 async function showSourceRecords(id,offset=0,column=null) {
@@ -179,7 +221,7 @@ async function showSourceRecords(id,offset=0,column=null) {
         const download=document.createElement('button');download.textContent=t('二进制')+' · '+fmt(value.size)+' B';
         download.onclick=()=>{const url=URL.createObjectURL(new Blob([Uint8Array.from(atob(value.$binary),c=>c.charCodeAt(0))]));
           const a=document.createElement('a');a.href=url;a.download=obj.name+'-'+name+'-'+(offset+ix+1)+'.bin';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
-        text.appendChild(download);text.title='SHA256 '+value.sha256;
+        download.dataset.binaryDownload='true';text.appendChild(download);text.title='SHA256 '+value.sha256;
       } else text.textContent=value===null?'NULL':String(value?.$integer??value?.$float??value);
       line.appendChild(text);item.appendChild(line);
     }

@@ -167,7 +167,8 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
     with open(template_path, encoding="utf-8") as fh:
         html = fh.read()
     for marker, filename in [('/*__CANVAS__*/', 'canvas.js'), ('/*__RECORDS__*/', 'records.js'),
-                             ('/*__SCHEMA__*/', 'schema.js')]:
+                             ('/*__SCHEMA__*/', 'schema.js'),
+                             ('/*__NAVIGATION__*/', 'navigation.js')]:
         with open(os.path.join(_ROOT, 'app', filename), encoding='utf-8') as fh:
             html = html.replace(marker, fh.read())
     used = set(re.findall(r"\bt\(['\"]([^'\"]+)['\"]", html))

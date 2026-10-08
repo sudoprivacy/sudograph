@@ -17,6 +17,13 @@
 .schema-field-list small {float:right;opacity:.65;}
 .schema-actions {display:flex;gap:6px;flex-wrap:wrap;margin:12px 0;align-items:center;}
 .schema-cell-label {border:0;background:transparent;padding:0;text-align:left;}
+.schema-relation-list {display:flex;flex-direction:column;gap:6px;}
+.schema-relation-list button {text-align:left;white-space:normal;}
+.relation-endpoint {border:1px solid var(--line);border-radius:5px;padding:9px;margin:8px 0;}
+.relation-endpoint p {margin:4px 0;user-select:text;}
+.canvas-edge-label {position:absolute;pointer-events:auto;user-select:text;cursor:text;
+  text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;line-height:16px;
+  padding:2px 4px;border-radius:3px;background:#11141a;color:#b6c3d8;}
 [hidden] {display:none!important;}
   :root{
     --bg:#11141a; --panel:#171b23; --line:#242a36; --ink:#dfe4ec; --dim:#8a93a6;
@@ -127,8 +134,7 @@
   <label><span data-ui="桥">桥</span> <select id="bridge"></select></label>
   <button id="bridgeBtn" data-ui="桥视图">桥视图</button>
   <label><span data-ui="查看">查看</span> <select id="projection">
-    <option value="schema" data-ui="字段关系">字段关系</option>
-    <option value="schema_objects" data-ui="对象关系">对象关系</option>
+    <option value="schema" data-ui="结构关系">结构关系</option>
     <option value="data" data-ui="数据关系">数据关系</option>
     <option value="all" data-ui="指标与规则">指标与规则</option>
   </select></label>
@@ -140,6 +146,7 @@
   <span id="legend"></span>
 </header>
 <div class="graph-tools">
+  <button id="navBack" data-ui="返回上一步" disabled>返回上一步</button>
   <button id="fit" data-ui="适应画布">适应画布</button>
   <button id="relayout" data-ui="重新排布">重新排布</button>
   <label><span data-ui="布局引擎">布局引擎</span><select id="layoutEngine">
@@ -167,7 +174,7 @@
   <div id="cy"></div>
   <aside id="panel"><p class="muted" data-ui="点一个节点看它的来历。">点一个节点看它的来历。</p></aside>
 </main>
-<footer><span id="status" style="display:flex;gap:16px;flex-wrap:wrap"></span><span id="accessNotice"></span></footer>
+<footer><span id="status" style="display:flex;gap:16px;flex-wrap:wrap"></span><span id="edgeLabelNotice"></span><span id="accessNotice"></span></footer>
 
 <script>
 let uiLanguage = BUNDLE.ui.language === 'auto' ? (navigator.language.startsWith('zh')?'zh':'en') : BUNDLE.ui.language;
@@ -199,7 +206,7 @@ const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '�
    so it belongs here; the figures still come only from the compiler. */
 const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
                 schemaExpanded:new Set(),schemaKind:'table',
-                expanded: new Set(), panel: 'checks', selected:null, focus:null,
+                expanded: new Set(), panel: 'checks', selected:null, selectedRelation:null, focus:null,
                 sources:false, edgeLabels:false, direction:'auto', layoutEngine:'auto',
                 projection: BUNDLE.source_schema ? 'schema' : Object.values(BUNDLE.views)[0].groups.some(g => g.backing) ? 'data' : 'all' };
 for(const option of $('projection').options)option.hidden=option.value.startsWith('schema')?!BUNDLE.source_schema:
@@ -254,6 +261,7 @@ for (const [dim, values] of Object.entries(BUNDLE.axes)) {
     o.textContent = v === null ? t('全部') : v;
     sel.appendChild(o);
   }
+  sel.dataset.axis=dim;
   sel.onchange = e => {
     if (e.target.value) state.at[dim] = e.target.value; else delete state.at[dim];
     draw();
@@ -433,15 +441,24 @@ function linesOf(n, open, language = uiLanguage) {
   ].filter(x => x != null);
 }
 
+const readerFont=getComputedStyle(document.body).fontFamily;
+const textMeter=document.createElement('canvas').getContext('2d');textMeter.font='11px '+readerFont;
+const measurementHost=document.createElement('div');
+measurementHost.style.cssText='position:fixed;left:-10000px;top:-10000px;width:300px;height:300px;contain:strict;visibility:hidden;pointer-events:none';
+// Shadow content is outside document text anchoring. Measuring labels must not
+// invalidate a host's text-comment index or appear as duplicate document text.
+const measurementBox=document.createElement('div');
+measurementBox.style.cssText='font-size:11px;line-height:16px;white-space:pre-wrap;overflow-wrap:anywhere';
+measurementBox.style.fontFamily=readerFont;
+measurementHost.attachShadow({mode:'closed'}).appendChild(measurementBox);document.body.appendChild(measurementHost);
+const textSizes=new Map();
 function measure(lines) {
-  // CJK is about one em per character, Latin about half. ELK only needs the
-  // extents, not perfection.
-  const widest = Math.max(...lines.map(l =>
-    [...l.parts.join('')].reduce((w, c) => w + (c.charCodeAt(0) > 0x2e80 ? 12 : 6.6), 0)));
-  const width=Math.min(Math.max(widest+24,72),260);
-  const rows=lines.reduce((count,l)=>count+Math.max(1,Math.ceil(
-    [...l.parts.join('')].reduce((w,c)=>w+(c.charCodeAt(0)>0x2e80?12:6.6),0)/(width-24))),0);
-  return {w:width,h:16+16*rows};
+  const text=lines.map(l=>l.parts.join('')).join('\n');if(textSizes.has(text))return textSizes.get(text);
+  const widest=Math.max(0,...text.split('\n').map(line=>textMeter.measureText(line).width));
+  const width=Math.min(Math.max(Math.ceil(widest)+24,72),260);
+  measurementBox.style.width=(width-20)+'px';measurementBox.textContent=text;
+  const size={w:width,h:16+Math.ceil(measurementBox.getBoundingClientRect().height)};
+  textSizes.set(text,size);if(textSizes.size>5000)textSizes.delete(textSizes.keys().next().value);return size;
 }
 
 /* One draw at a time, and only the newest survives. `draw` awaits the layout
@@ -451,6 +468,7 @@ function measure(lines) {
 /*__CANVAS__*/
 /*__RECORDS__*/
 /*__SCHEMA__*/
+/*__NAVIGATION__*/
 let drawSeq = 0;
 async function draw() {
   const mine = ++drawSeq;
@@ -753,11 +771,14 @@ const anchors = (() => {
     for(const id of graphAnchorLocations.keys())ids.add(id);
     for(const id of schemaNodes.keys())ids.add(id);
     for(const vv of Object.values(BUNDLE.views))for(const n of vv.nodes)ids.add(n.id);
+    for(const vv of Object.values(BUNDLE.views))for(const e of vv.edges)ids.add(canvasEdgeId(e));
+    if(BUNDLE.source_schema)for(const e of schemaGraph().edges)ids.add(canvasEdgeId(e));
     return ids;
   };
   const labelOf = id => {
     const n = schemaNodes.get(id)||(view()?.nodes || []).find(x => x.id === id);
-    return n ? bt(n.label) : id;
+    const edge=(view()?.edges||[]).find(e=>canvasEdgeId(e)===id);
+    return n ? bt(n.label) : edge ? (isSchema()?schemaRelationLabel(edge):bt(edge.via||edge.rel)) : id;
   };
   const rectOf = id => {
     if(cy)return canvasRect(id);
@@ -807,6 +828,7 @@ const anchors = (() => {
   // A hidden anchor is revealed by the page, because only the page knows that
   // this id is a row inside a folded type, or lives under another reading.
     api.on('reveal', async ids => {
+      navigationBegin();
       let changed = false;
       if(state.focus){state.focus=null;changed=true;}
       if (state.projection === 'data') {
@@ -814,6 +836,8 @@ const anchors = (() => {
       }
       for (const id of ids || []) {
         if(schemaNodes.has(id)){await revealSchema(id);changed=true;continue;}
+        const relation=BUNDLE.source_schema&&schemaGraph().edges.find(e=>canvasEdgeId(e)===id);
+        if(relation){await revealSchemaRelation(relation);changed=true;continue;}
         if(isSchema()){state.projection='data';$('projection').value='data';changed=true;}
         const location=await locateGraphAnchor(id);
         if(location) {
@@ -830,14 +854,15 @@ const anchors = (() => {
   };
 
   return { get live() { return !!host(); }, report,
-    comment(id,label,context) {
+    comment(id,label,context,rect=rectOf(id)) {
       const api=host();if(!api?.select)return false;wire(api);
-      return api.select({id,label,context},rectOf(id));
+      return api.select({id,label,context},rect);
     }
   };
 })();
 
 function select(n) {
+  state.selectedRelation=null;
   if(cy) {state.selected=n.id;state.panel='node';cy.elements().unselect();cy.getElementById(n.id).select();updateCanvasSelection();showNode(n);anchors.report();return;}
   for (const g of scene.querySelectorAll('g.node')) g.classList.remove('hit');
   const mark = id => scene
