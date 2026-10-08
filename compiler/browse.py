@@ -49,7 +49,7 @@ def page(s, tname, *, offset=0, limit=PAGE_SIZE, where=None, basis=None, at=None
     }
 
 
-def snapshot(s, *, chunk_size=1000):
+def snapshot(s, *, chunk_size=1000, only=None):
     """Stream source once, decode one chunk in the UI; never materialise a huge graph.
 
     A portable export contains all authorised records, not an access-control boundary.
@@ -57,6 +57,8 @@ def snapshot(s, *, chunk_size=1000):
     """
     result = {}
     for tn, t in s.types.items():
+        if only is not None and tn not in only:
+            continue
         props = list(t["props"])
         chunks = []
         keys = []

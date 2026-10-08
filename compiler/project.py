@@ -20,14 +20,16 @@ def draft(dsn: str, *, base=".", name="Source projection") -> dict:
         key = [c["name"] for c in sorted(obj["columns"], key=lambda c: c["pk"]) if c["pk"]]
         if obj["kind"] == "view" or not key:
             exclude[obj["name"]] = (
-                "No declared primary key; inventoried, not assigned a guessed identity."
+                "No declared primary key; source schema and snapshot preserved "
+                "without guessed row identity."
             )
             continue
         props = {}
         for col in obj["columns"]:
             if "BLOB" in col["type"].upper():
                 exclude[obj["name"] + "." + col["name"]] = (
-                    "Binary payload; not exported by the text projection."
+                    "Binary payload preserved losslessly in the source snapshot, "
+                    "outside scalar business properties."
                 )
                 continue
             affinity = col["type"].upper()

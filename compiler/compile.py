@@ -19,7 +19,7 @@ from decimal import Decimal
 from typing import Any
 
 from . import bind as bind_mod
-from . import expr
+from . import expr, source_schema
 from . import lineage as lin_mod
 from .dependencies import vertices
 from .query import link_resolver
@@ -905,6 +905,7 @@ def view_model(s: Spec, c: Compiled, *, fold_over: int = 20, top_n: int = 5) -> 
                 "id_prop": "·".join(s.id_props(tname)),
                 "display": t.get('display'),
                 "owners": {p: s.owner_of(tname, p) for p in props},
+                "field_ids": source_schema.bound_fields(s, tname),
                 "columns": {p: s.column_of(tname, p) for p, d in props.items() if 'op' not in d}
                            if s.backing_of(tname) else {},
                 # How a computed column got its value, so the panel can show the

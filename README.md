@@ -419,12 +419,16 @@ contract automatically. A uniquely named source `Name`/`Label`/`Title` field may
 be selected for display; it never replaces the primary key.
 Formulas, inline records, workflow roles/gaps, business checks and alternative
 readings are refused. NULL remains NULL, with no inferred zero or business gap.
-Views without declared identity and binary payloads appear in the inventory with
-explicit exclusion reasons. Review that inventory before claiming full coverage.
-The inventory preserves source SQL definitions, including existing database
-views; they are not excluded because their SQL contains business calculations.
-`coverage.complete` means the inventory is accounted for; `record_complete`
-requires all content represented without exclusions. A source projection refuses
+The compiler generates the complete source structure independently of business
+bindings, including views without declared row identity and binary fields. The
+default graph expands tables into fields. Inspect records separately; `--records`
+preserves every source table/view result, duplicate keyless rows, NULL and binary
+bytes. Keyless positions identify rows only within that snapshot. Existing source
+view SQL is preserved, including its calculations; no business formula is authored
+by the phase-one projection. `source_schema.schema_complete` reports structural
+coverage; `source_schema.record_complete` reports full source-record delivery.
+The legacy `coverage` report separately describes authored business bindings and
+their explicit exceptions. A source projection refuses
 exclusion of keyed source tables or scalar columns, so an author cannot hide
 supported source facts to manufacture a passing inventory.
 Unsupported composite references refuse generation instead of guessing a link.
@@ -438,7 +442,11 @@ consistent data. Regenerate it when the source changes. Never infer a revenue
 formula, workflow owner or business definition from a column name alone.
 Deliver the HTML produced by the compiler directly. If presentation is deficient,
 fix the shared template and regenerate; a private HTML patch is not a reproducible
-agent deliverable. Backed records expand in graph pages of twelve, with nested
+agent deliverable. Source object/field IDs are generated and checked by the
+compiler/renderer; aliases, labels, language and layout cannot replace them.
+Field comments target those IDs, and the same IDs accompany phase-two properties.
+Source fields expand directly; existing backed-record projections remain available
+in graph pages of twelve, with nested
 field cards and relationship navigation. Expanding or paging triggers a new
 layout; the type relationships remain visible without an edge fan per record.
 

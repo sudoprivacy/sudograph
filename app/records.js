@@ -1,6 +1,45 @@
 const decode = async value => JSON.parse(await new Response(
   new Blob([Uint8Array.from(atob(value),c=>c.charCodeAt(0))]).stream()
     .pipeThrough(new DecompressionStream('gzip'))).text());
+const sourceDictionaries=new Map(),sourceChunkCache=new Map(),sourceSegments=new Map();
+async function sourceColumn(r,ix,col) {
+  const id=r.chunks[ix][col],count=Math.min(r.chunk_size,r.count-ix*r.chunk_size);
+  if(sourceSegments.has(id))return sourceSegments.get(id);
+  const segment=BUNDLE.source_schema.segments[id];
+  if(!['u32le','byteplane','delta-byteplane'].includes(segment.codec))throw new Error('Unsupported source column codec');
+  const buffer=await new Response(new Blob([Uint8Array.from(atob(segment.data),c=>c.charCodeAt(0))])
+    .stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+  if(buffer.byteLength!==count*4)throw new Error('Invalid source column segment');
+  const bytes=new Uint8Array(buffer),data=new Uint32Array(count);
+  for(let row=0;row<count;row++) {
+    let value=0;
+    for(let byte=0;byte<4;byte++)value|=bytes[segment.codec==='u32le'?row*4+byte:byte*count+row]<<(byte*8);
+    data[row]=segment.codec==='delta-byteplane'&&row?(data[row-1]+(value>>>0))>>>0:value>>>0;
+  }
+  sourceSegments.set(id,data);if(sourceSegments.size>64)sourceSegments.delete(sourceSegments.keys().next().value);
+  return data;
+}
+async function sourceDictionary(r) {
+  if(!sourceDictionaries.has(r.source))sourceDictionaries.set(r.source,decode(BUNDLE.source_schema.dictionaries[r.source]));
+  return sourceDictionaries.get(r.source);
+}
+const sourceScalar=value=>value?.$integer??value?.$float??value;
+async function sourceChunk(id,ix) {
+  const key=id+'\0'+ix;if(sourceChunkCache.has(key))return sourceChunkCache.get(key);
+  const r=BUNDLE.source_schema.snapshots[id];if(!r.chunks[ix])return [];
+  const pool=await sourceDictionary(r);
+  const width=r.columns.length,count=Math.min(r.chunk_size,r.count-ix*r.chunk_size);
+  const rows=Array.from({length:count},()=>Array(width));
+  for(let col=0;col<width;col++) {
+    const data=await sourceColumn(r,ix,col);
+    for(let row=0;row<count;row++)rows[row][col]=pool[data[row]];
+  }
+  sourceChunkCache.set(key,rows);if(sourceChunkCache.size>8)sourceChunkCache.delete(sourceChunkCache.keys().next().value);
+  return rows;
+}
+const recordChunkCount=r=>r.source_object?BUNDLE.source_schema.snapshots[r.source_object].chunks.length:r.chunks.length;
+async function recordChunk(r,ix) {return r.source_object?(await sourceChunk(r.source_object,ix))
+  .map(row=>r.positions.map(p=>sourceScalar(row[p]))):decode(r.chunks[ix]);}
 let browseSeq = 0;
 const graphPages = new Map(), graphFields = new Set(), graphPageCache = new Map();
 const graphAnchorLocations = new Map(), graphIndexes = new Map();
@@ -13,7 +52,7 @@ async function graphRecords(tname) {
   if(graphPageCache.has(key))return graphPageCache.get(key);
   const start=Math.floor(offset/r.chunk_size), end=Math.floor((offset+GRAPH_PAGE_SIZE-1)/r.chunk_size);
   let rows=[];
-  for(let ix=start;ix<=end;ix++)if(r.chunks[ix])rows.push(...await decode(r.chunks[ix]));
+  for(let ix=start;ix<=end;ix++)if(ix<recordChunkCount(r))rows.push(...await recordChunk(r,ix));
   rows=rows.slice(offset%r.chunk_size,offset%r.chunk_size+GRAPH_PAGE_SIZE);
   const result=rows.map(row=>{
     const props=Object.fromEntries(r.columns.map((p,i)=>[p,row[i]]));
@@ -32,13 +71,21 @@ async function locateGraphAnchor(id) {
   if(graphAnchorLocations.has(id))return graphAnchorLocations.get(id);
   const tn=Object.keys(BUNDLE.records||{}).sort((a,b)=>b.length-a.length).find(t=>id.startsWith(t+'/'));
   if(!tn)return null;
-  if(!graphIndexes.has(tn))graphIndexes.set(tn,decode(BUNDLE.records[tn].index));
-  const index=await graphIndexes.get(tn), wanted=id.slice(tn.length+1);
+  const r=BUNDLE.records[tn],wanted=id.slice(tn.length+1);
+  if(!r.source_object&&!graphIndexes.has(tn))graphIndexes.set(tn,decode(r.index));
+  const index=r.source_object?null:await graphIndexes.get(tn);
   for(const fields of [false,true]) {
     if(fields && !wanted.endsWith('/fields'))continue;
     const identity=fields?wanted.slice(0,-7):wanted;
-    for(let chunk=0;chunk<index.length;chunk++) {
-      const ix=index[chunk].findIndex(key=>String(key)===identity);
+    const snapshot=r.source_object?BUNDLE.source_schema.snapshots[r.source_object]:null;
+    const pool=snapshot?await sourceDictionary(snapshot):null;
+    for(let chunk=0;chunk<recordChunkCount(r);chunk++) {
+      let ix;
+      if(snapshot) {
+        const columns=await Promise.all(r.ids.map(p=>sourceColumn(snapshot,chunk,r.positions[r.columns.indexOf(p)])));
+        ix=-1;
+        for(let row=0;row<columns[0].length;row++)if(columns.map(col=>sourceScalar(pool[col[row]])).join('·')===identity){ix=row;break;}
+      } else ix=index[chunk].findIndex(key=>String(key)===identity);
       if(ix<0)continue;
       const location={type:tn,offset:chunk*BUNDLE.records[tn].chunk_size+ix,identity:tn+'/'+identity,fields};
       graphAnchorLocations.set(id,location);return location;
@@ -77,15 +124,15 @@ async function showRecords(tname, offset=0, filter=null) {
   let data=[],total=g.count;
   if(filter) {
     // Relationship drill-down scans compressed chunks lazily; the live service uses SQL.
-    for(const chunk of r.chunks) {
+    for(let chunk=0;chunk<recordChunkCount(r);chunk++) {
       if(mine!==browseSeq)return;
-      const rows=await decode(chunk), ix=r.columns.indexOf(filter.prop);
+      const rows=await recordChunk(r,chunk), ix=r.columns.indexOf(filter.prop);
       data.push(...rows.filter(row=>String(row[ix])===String(filter.value)));
     }
     total=data.length; data=data.slice(offset,offset+size);
   } else {
     const chunk=Math.floor(offset/r.chunk_size);
-    data=r.chunks[chunk]? (await decode(r.chunks[chunk])).slice(offset%r.chunk_size,offset%r.chunk_size+size):[];
+    data=chunk<recordChunkCount(r)? (await recordChunk(r,chunk)).slice(offset%r.chunk_size,offset%r.chunk_size+size):[];
   }
   if(mine!==browseSeq)return;
   const id=row=>r.ids.map(p=>row[r.columns.indexOf(p)]).join('·');
@@ -129,14 +176,16 @@ function attachBrowse(n) {
   }
 }
 function showCoverage() {
+  if(BUNDLE.source_schema)return showSourceCoverage();
   state.panel='coverage';
   $('panel').innerHTML=(BUNDLE.coverage||[]).map(r=>`<h2>${esc(r.source)}</h2>`+
-    `<p>${t(!r.complete?'覆盖不完整':r.objects.some(o=>o.excluded || Object.keys(o.excluded_columns).length)
+    `<p>${t(BUNDLE.source_schema?.record_complete?'全部源对象与字段已呈现；记录来自只读快照。':!r.complete?'覆盖不完整':r.objects.some(o=>o.excluded || Object.keys(o.excluded_columns).length)
       ?'已核对源库清单；部分内容未进入记录图。':'覆盖清单无遗漏（含明确排除）')}</p>`+
     r.objects.map(o=>`<details><summary>${esc(o.name)} · ${o.kind} · ${fmt(o.count)}</summary>`+
-      `<p>${esc(o.types.map(tn=>typeLabel(tn)).join(' / '))}</p><p>${esc(bt(o.excluded||''))}</p>`+
+      `<p>${esc(o.types.map(tn=>typeLabel(tn)).join(' / '))}</p>`+
+      (!BUNDLE.source_schema?`<p>${esc(bt(o.excluded||''))}</p>`:'')+
       (o.definition?`<details><summary>${t('源库中的定义')}</summary><div class="op">${esc(o.definition)}</div></details>`:'')+
-      Object.entries(o.excluded_columns).map(([c,reason])=>`<p>${esc(c)}: ${esc(bt(reason))}</p>`).join('')+
+      (!BUNDLE.source_schema?Object.entries(o.excluded_columns).map(([c,reason])=>`<p>${esc(c)}: ${esc(bt(reason))}</p>`).join(''):'')+
       `<h3>${t('列映射')}</h3>`+o.columns.map(c=>`<div class="kv"><span>${esc(c.name)}</span><span>${esc(c.type)}${c.pk?' · PK '+c.pk:''}${c.notnull?' · NOT NULL':''}</span></div>`).join('')+
       `<p>${esc(o.missing_columns.join(', '))}</p>`+
       `<div class="op">${esc(JSON.stringify(o.foreign_keys,null,2))}</div></details>`).join('')+

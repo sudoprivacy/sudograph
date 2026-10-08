@@ -101,7 +101,7 @@ def connect(dsn: str, base: str = ".") -> sqlite3.Connection:
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> dict[str, str]:
-    rows = conn.execute(f'pragma table_info("{table}")').fetchall()
+    rows = conn.execute(f'pragma table_xinfo("{table}")').fetchall()
     return {r["name"]: (r["type"] or "").upper() for r in rows}
 
 

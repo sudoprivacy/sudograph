@@ -9,25 +9,30 @@ from .query import quote
 def scan(dsn, base="."):
     """Enumerate empty tables, views, columns, keys and foreign keys as well as rows."""
     with bind.connect(dsn, base) as conn:
-        result = []
-        for obj in conn.execute(
-            "SELECT name,type,sql FROM sqlite_master WHERE type IN "
-            "('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY name"
-        ):
-            name = obj["name"]
-            columns = [dict(r) for r in conn.execute(f"PRAGMA table_info({quote(name)})")]
-            fks = [dict(r) for r in conn.execute(f"PRAGMA foreign_key_list({quote(name)})")]
-            result.append(
-                {
-                    "name": name,
-                    "kind": obj["type"],
-                    "definition": obj["sql"],
-                    "columns": columns,
-                    "foreign_keys": fks,
-                    "count": conn.execute(f"SELECT count(*) FROM {quote(name)}").fetchone()[0],
-                }
-            )
-        return result
+        return inventory(conn)
+
+
+def inventory(conn):
+    """Read a catalogue on the caller's read transaction."""
+    result = []
+    for obj in conn.execute(
+        "SELECT name,type,sql FROM sqlite_master WHERE type IN "
+        "('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    ):
+        name = obj["name"]
+        columns = [dict(r) for r in conn.execute(f"PRAGMA table_xinfo({quote(name)})")]
+        fks = [dict(r) for r in conn.execute(f"PRAGMA foreign_key_list({quote(name)})")]
+        result.append(
+            {
+                "name": name,
+                "kind": obj["type"],
+                "definition": obj["sql"],
+                "columns": columns,
+                "foreign_keys": fks,
+                "count": conn.execute(f"SELECT count(*) FROM {quote(name)}").fetchone()[0],
+            }
+        )
+    return result
 
 
 def coverage(s):

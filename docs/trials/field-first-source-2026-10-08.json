@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-08",
+  "kind": "field-first-source-review",
+  "source_audit": {
+    "objects": 30,
+    "tables": 13,
+    "views": 17,
+    "fields": 204,
+    "rows": 1909973,
+    "values": 23841939,
+    "binary_values": 17,
+    "source_sha256": "2f4f5c68dfcd33ba27373eae48c7a4869800c68095ee0f9f0da494f83382a877",
+    "artifact_bytes": 11577584,
+    "encoding": "dictionary-u32le-segments/v1",
+    "schema_complete": true,
+    "record_complete": true
+  },
+  "browser": {
+    "hosted_url": "https://s.shareone.vip/s/sudograph-northwind",
+    "schema_objects": 30,
+    "schema_fields": 204,
+    "source_binary_browser": true,
+    "stable_field_comment_composer": true,
+    "drag_label_follows": true,
+    "wheel_dispatch_ms": [
+      170,
+      214,
+      175,
+      220
+    ],
+    "comment_posted": false,
+    "wheel_sample_note": "Driver dispatch plus an intentional 150 ms settle, not a frame-time benchmark."
+  },
+  "hosted_artifact_sha256": "27d8244cb87801ea2200074335c22d083cd590dd1c63ee73bf5bc82a87c2575e",
+  "hosted_artifact_bytes": 11596308,
+  "download_matches_native_artifact": true,
+  "full_verification": {
+    "steps_passed": 4,
+    "steps_total": 4,
+    "pytest_passed": 256,
+    "examples_checked": 5,
+    "readme_commands_run": 9,
+    "readme_placeholder_database_skipped": 1
+  },
+  "generic_fixtures": [
+    "Unrelated Teams/Events database",
+    "Duplicate keyless view rows and NULL",
+    "Binary bytes including script-like content",
+    "Integer/float distinction, unsafe integers, signed zero, infinities",
+    "Existing generated source column",
+    "Filtered alias record pages",
+    "Missing/replaced field ID and omitted field/segment rejection",
+    "Permission-limited Gateway excludes whole-source catalogue"
+  ],
+  "prior_fresh_author_regeneration": {
+    "source_relative_field_addresses_match": 204,
+    "lossless_source_snapshots_match": true,
+    "same_shared_renderer": true,
+    "new_agent_run": false,
+    "author_yaml_changed": false,
+    "copied_source_namespace": "Different physical connection path gives a different source ID; relocation needs identity migration.",
+    "url": "https://s.shareone.vip/s/sudograph-northwind-fresh-agent"
+  },
+  "limits": [
+    "Field business meanings are not accepted by machine checks.",
+    "Source view dependencies are object-level, not complete field lineage.",
+    "Snapshot positions are not business keys for keyless source rows.",
+    "One transaction per source catalogue/snapshot, not across sources or separately compiled business views.",
+    "Whole-source review is not automatically available in permission-limited Gateway views.",
+    "SQLite provides no source field descriptions in this sample; authored descriptions are pending confirmation.",
+    "This is a public static snapshot, not the deployed Nexus permission UI."
+  ]
+}

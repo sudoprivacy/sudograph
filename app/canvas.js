@@ -12,6 +12,8 @@ function updateCanvasSelection() {
     cy.elements().addClass('quiet');
     selected.closedNeighborhood().union(selected.descendants()).union(selected.ancestors())
       .removeClass('quiet').addClass('active');
+    if(isSchema())selected.closedNeighborhood().nodes().ancestors()
+      .union(selected.closedNeighborhood().nodes().ancestors().descendants()).removeClass('quiet');
     for(const parent of selected.ancestors())parent.closedNeighborhood().removeClass('quiet').addClass('active');
   }
   cy.edges().toggleClass('named',state.edgeLabels);
@@ -65,7 +67,7 @@ async function drawCanvas(v, shown, edges, mine) {
   if(resetCanvasLayout){canvasLayouts.delete(key);resetCanvasLayout=false;}
   const saved=canvasLayouts.get(key);
   const nodes = [...shown.values()];
-  const direction=state.direction==='auto'?(state.projection==='data'?'RIGHT':'DOWN'):state.direction;
+  const direction=state.direction==='auto'?(state.projection==='data'||isSchema()?'RIGHT':'DOWN'):state.direction;
   const box = n => {
     // Reserve enough space for every available language, including wrapped text.
     // A language switch then preserves both manual placement and route geometry.
@@ -84,7 +86,7 @@ async function drawCanvas(v, shown, edges, mine) {
     }
     return result;
   };
-  const children=nodes.filter(n=>!['instance','fields'].includes(n.kind)).map(nest);
+  const children=nodes.filter(n=>!n.parent&&!['instance','fields'].includes(n.kind)).map(nest);
   const laid = await elk.layout({id:'root', layoutOptions:{'elk.algorithm':'layered',
     'elk.edgeRouting':'ORTHOGONAL',
     'elk.direction':direction, 'elk.spacing.nodeNode':'55','elk.spacing.componentComponent':'75',
@@ -188,18 +190,23 @@ async function drawCanvas(v, shown, edges, mine) {
     label.textContent=linesOf(n,state.expanded.has(n.id)).map(l=>l.parts.join('')).join('\n');
     label.onpointerdown=e=>e.stopPropagation();
     label.onclick=e=>{e.stopPropagation();if (!getSelection()?.toString()) select(n);};
+    if(n.kind==='schema_field')label.onpointerup=()=>{
+      const selection=getSelection();
+      if(selection?.toString()&&selection.rangeCount&&label.contains(selection.getRangeAt(0).commonAncestorContainer)
+        &&commentSchemaField(n))selection.removeAllRanges();
+    };
     const target=n.kind==='fields'?shown.get(n.parent):n;
-    const expandable=target?.kind==='instance' || (target?.kind==='type' && target.count &&
+    const expandable=target?.kind==='schema_object' || target?.kind==='instance' || (target?.kind==='type' && target.count &&
       (BUNDLE.records?.[target.id] || !target.folded));
     if(expandable) {
-      const open=target.kind==='type'?state.expanded.has(target.id):graphFields.has(target.id);
+      const open=target.kind==='schema_object'?state.schemaExpanded.has(target.id):target.kind==='type'?state.expanded.has(target.id):graphFields.has(target.id);
       const button=document.createElement('button');button.className='graph-expand';
       button.dataset.nodeAction=target.id;button.textContent=open?'×':'+';
-      button.title=t(target.kind==='type'?(open?'收起图上记录':'在图上展开记录'):
+      button.title=t(target.kind==='schema_object'?(open?'收起字段':'展开字段'):target.kind==='type'?(open?'收起图上记录':'在图上展开记录'):
         (open?'收起图上字段':'在图上展开字段'));
       button.setAttribute('aria-label',button.title);button.setAttribute('aria-expanded',String(open));
       button.onpointerdown=e=>e.stopPropagation();
-      button.onclick=e=>{e.stopPropagation();graphActivate(target);};
+      button.onclick=e=>{e.stopPropagation();target.kind==='schema_object'?schemaActivate(target):graphActivate(target);};
       label.appendChild(button);
     }
     layer.appendChild(label);
@@ -230,7 +237,8 @@ async function drawCanvas(v, shown, edges, mine) {
   };
   cy.on('pan zoom resize position bounds',scheduleLabels);
   cy.on('tap','node',e=>select(shown.get(e.target.id())));
-  cy.on('tap','edge',e=>{state.panel='relation';state.relation=e.target.data('meta');showRelation(state.relation);});
+  cy.on('tap','edge',e=>{state.relation=e.target.data('meta');if(isSchema())showSchemaRelation(state.relation);
+    else {state.panel='relation';showRelation(state.relation);}});
   cy.on('tap',e=>{if(e.target===cy){state.selected=null;updateCanvasSelection();}});
   if(saved) {cy.zoom(saved.zoom);cy.pan(saved.pan);} else refit();
   updateCanvasSelection();
@@ -243,9 +251,11 @@ async function drawCanvas(v, shown, edges, mine) {
   else if(state.panel==='coverage') showCoverage();
   else if(state.panel==='challenge') showChallenge();
   else if(state.panel==='records') showRecords(...state.recordArgs);
+  else if(state.panel==='source_records')showSourceRecords(...state.sourceRecordArgs);
+  else if(state.panel==='schema_relation')showSchemaRelation(state.relation);
   else if(state.panel==='node' && shown.has(state.selected))showNode(shown.get(state.selected));
   else if(state.panel==='relation' && state.relation)showRelation(state.relation);
-  else showChecks(v);
+  else if(isSchema())showSchemaSummary();else showChecks(v);
 }
 
 function showRelation(e) {

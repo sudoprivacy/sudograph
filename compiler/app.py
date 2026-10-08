@@ -23,7 +23,7 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
-from . import blind, browse, catalog
+from . import blind, browse, catalog, source_schema
 from . import compile as compile_mod
 from . import diff as diff_mod
 from . import measure as measure_mod
@@ -100,12 +100,16 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5,
             d = diff_mod.diff(s, before, after, at=at, fold_over=fold_over, top_n=top_n)
             diffs[f"{name or f'{before}->{after}'}|{_key(None, at)[1:]}"] = d.as_dict()
 
+    source_model = source_schema.build(s, records=records)
+    exported = (source_schema.record_adapters(s, source_model) if source_model and records
+                else browse.snapshot(s) if records else {})
     return {
         "projection": {"mode": s.mode, "generated_at": datetime.now(UTC).isoformat(),
                        "source_read_only": True, "delivery": "snapshot"},
         "translations": s.translations,
         "coverage": catalog.enforce(s),
-        "records": browse.snapshot(s) if records else {},
+        "records": exported,
+        "source_schema": source_model,
         "ontology": s.name,
         "axes": axes,
         "bases": bases,
@@ -142,6 +146,11 @@ def languages() -> list[str]:
 
 
 def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 'zh') -> str:
+    if b.get('source_schema'):
+        source_schema.validate(b['source_schema'])
+    elif b.get('projection', {}).get('mode') == 'source_projection':
+        raise ValueError('source_projection requires a compiler-generated source schema; '
+                         'rebuild with compiler.cli')
     if 'challenge' in b:
         blind.public_only(b['challenge'])
     with open(os.path.join(_ROOT, 'app', 'messages.json'), encoding='utf-8') as fh:
@@ -157,7 +166,8 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
     b = {**b, 'ui': {'language': language, 'messages': messages, 'catalogs': catalogs}}
     with open(template_path, encoding="utf-8") as fh:
         html = fh.read()
-    for marker, filename in [('/*__CANVAS__*/', 'canvas.js'), ('/*__RECORDS__*/', 'records.js')]:
+    for marker, filename in [('/*__CANVAS__*/', 'canvas.js'), ('/*__RECORDS__*/', 'records.js'),
+                             ('/*__SCHEMA__*/', 'schema.js')]:
         with open(os.path.join(_ROOT, 'app', filename), encoding='utf-8') as fh:
             html = html.replace(marker, fh.read())
     used = set(re.findall(r"\bt\(['\"]([^'\"]+)['\"]", html))

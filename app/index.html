@@ -12,6 +12,12 @@
      machine with internet, on a day the CDN is up". Both libraries are MIT. -->
 <script>/*__VENDOR__*/</script>
 <style>
+.schema-field-list {display:flex;flex-direction:column;gap:5px;margin:12px 0;}
+.schema-field-list button {text-align:left;}
+.schema-field-list small {float:right;opacity:.65;}
+.schema-actions {display:flex;gap:6px;flex-wrap:wrap;margin:12px 0;align-items:center;}
+.schema-cell-label {border:0;background:transparent;padding:0;text-align:left;}
+[hidden] {display:none!important;}
   :root{
     --bg:#11141a; --panel:#171b23; --line:#242a36; --ink:#dfe4ec; --dim:#8a93a6;
     --raw:#3f7f68; --hook:#9a6a2f; --derived:#3a5f9e; --type:#4a4f5c; --inst:#2c313c;
@@ -121,6 +127,8 @@
   <label><span data-ui="桥">桥</span> <select id="bridge"></select></label>
   <button id="bridgeBtn" data-ui="桥视图">桥视图</button>
   <label><span data-ui="查看">查看</span> <select id="projection">
+    <option value="schema" data-ui="字段关系">字段关系</option>
+    <option value="schema_objects" data-ui="对象关系">对象关系</option>
     <option value="data" data-ui="数据关系">数据关系</option>
     <option value="all" data-ui="指标与规则">指标与规则</option>
   </select></label>
@@ -137,6 +145,11 @@
   <label><span data-ui="布局引擎">布局引擎</span><select id="layoutEngine">
     <option value="auto" data-ui="自动">自动</option>
     <option value="elk">ELK layered</option><option value="fcose">fCoSE</option>
+  </select></label>
+  <label id="schemaFilter" hidden><span data-ui="源对象">源对象</span> <select id="schemaKind">
+    <option value="table" data-ui="源表">源表</option>
+    <option value="view" data-ui="源视图">源视图</option>
+    <option value="all" data-ui="全部">全部</option>
   </select></label>
   <label><span data-ui="排布">排布</span><select id="direction">
     <option value="auto" data-ui="自动">自动</option>
@@ -185,11 +198,15 @@ const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '�
    away from a static diagram in the first place. Visibility is a view decision,
    so it belongs here; the figures still come only from the compiler. */
 const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
+                schemaExpanded:new Set(),schemaKind:'table',
                 expanded: new Set(), panel: 'checks', selected:null, focus:null,
                 sources:false, edgeLabels:false, direction:'auto', layoutEngine:'auto',
-                projection: Object.values(BUNDLE.views)[0].groups.some(g => g.backing) ? 'data' : 'all' };
+                projection: BUNDLE.source_schema ? 'schema' : Object.values(BUNDLE.views)[0].groups.some(g => g.backing) ? 'data' : 'all' };
+for(const option of $('projection').options)option.hidden=option.value.startsWith('schema')?!BUNDLE.source_schema:
+  option.value==='all'&&BUNDLE.projection?.mode==='source_projection';
 $('projection').value = state.projection;
-$('projection').onchange = e => { state.projection = e.target.value; draw(); };
+$('projection').onchange = e => { state.projection = e.target.value; state.focus=null;draw(); };
+$('schemaKind').onchange=e=>{state.schemaKind=e.target.value;state.focus=null;draw();};
 $('checksBtn').onclick = () => { state.panel = 'checks'; showChecks(view()); };
 $('coverageBtn').onclick = showCoverage;
 $('challengeBtn').hidden = !BUNDLE.challenge?.questions?.length;
@@ -265,7 +282,7 @@ if (!BUNDLE.bridges.length) {
 /* ── the compiler already decided everything; we only look it up ───── */
 const coordKey = () =>
   Object.keys(state.at).sort().map(k => `${k}=${state.at[k]}`).join(',');
-const view   = () => BUNDLE.views[`${state.basis ?? ''}|${coordKey()}`];
+const view   = () => isSchema() ? schemaGraph() : BUNDLE.views[`${state.basis ?? ''}|${coordKey()}`];
 const bridge = () => BUNDLE.diffs[`${state.bridge || defaultBridgeName()}|${coordKey()}`];
 function defaultBridgeName() {
   const b = BUNDLE.bridges[0];
@@ -375,6 +392,7 @@ let scene = null;
 // a scoring fault on its side, since fixed. Kept for the reading, not for the
 // anchor.
 function linesOf(n, open, language = uiLanguage) {
+  if(n.kind==='schema_object'||n.kind==='schema_field')return schemaLines(n,language);
   if(n.kind==='fields')return Object.entries(n.props).map(([p,value])=>({cls:'',parts:[
     bt(p,language)+': '+String(fmt(value)).slice(0,90)+(String(fmt(value)).length>90?'…':'')]}));
   const tr = key => t(key, {}, language);
@@ -432,11 +450,14 @@ function measure(lines) {
    second click doing nothing. */
 /*__CANVAS__*/
 /*__RECORDS__*/
+/*__SCHEMA__*/
 let drawSeq = 0;
 async function draw() {
   const mine = ++drawSeq;
   const v = view();
   if (!v) { $('status').textContent = 'no view for this combination'; return; }
+  if(isSchema())return drawSchema(v,mine);
+  $('schemaFilter').hidden=true;
   $('sources').checked=state.sources;
 
   const d = state.bridgeMode ? bridge() : null;
@@ -730,10 +751,12 @@ const anchors = (() => {
     for (const d of Object.values(BUNDLE.diffs || {}))
       for (const e of d.entries || []) ids.add(e.node);
     for(const id of graphAnchorLocations.keys())ids.add(id);
+    for(const id of schemaNodes.keys())ids.add(id);
+    for(const vv of Object.values(BUNDLE.views))for(const n of vv.nodes)ids.add(n.id);
     return ids;
   };
   const labelOf = id => {
-    const n = (view()?.nodes || []).find(x => x.id === id);
+    const n = schemaNodes.get(id)||(view()?.nodes || []).find(x => x.id === id);
     return n ? bt(n.label) : id;
   };
   const rectOf = id => {
@@ -790,6 +813,8 @@ const anchors = (() => {
         state.projection = 'all'; $('projection').value = 'all'; changed = true;
       }
       for (const id of ids || []) {
+        if(schemaNodes.has(id)){await revealSchema(id);changed=true;continue;}
+        if(isSchema()){state.projection='data';$('projection').value='data';changed=true;}
         const location=await locateGraphAnchor(id);
         if(location) {
           graphPages.set(location.type,Math.floor(location.offset/GRAPH_PAGE_SIZE)*GRAPH_PAGE_SIZE);
@@ -804,7 +829,12 @@ const anchors = (() => {
     });
   };
 
-  return { get live() { return !!host(); }, report };
+  return { get live() { return !!host(); }, report,
+    comment(id,label,context) {
+      const api=host();if(!api?.select)return false;wire(api);
+      return api.select({id,label,context},rectOf(id));
+    }
+  };
 })();
 
 function select(n) {
@@ -939,6 +969,7 @@ function applyTransform() {
 })();
 
 function showNode(n) {
+  if(n.kind==='schema_object'||n.kind==='schema_field')return showSchemaNode(n);
   const rows = [];
   rows.push(`<h2>${n.kind==='fields'?t('属性'):KINDS[n.kind]?.name||n.kind}</h2><div style="font-size:15px;font-weight:600">${esc(bt(n.label))}</div>`);
   if (n.value != null) rows.push(`<div class="val">${fmt(n.value)}</div>`);
@@ -1053,6 +1084,7 @@ const checkLine = c =>
   `</div>`;
 
 function showChecks(v) {
+  if(isSchema())return showSchemaSummary();
   const bad = v.checks.filter(c => !c.ok);
   // A passing check that is about something — rows missing a value, accounted
   // for — is still worth seeing. "Everything passed" and "21 orders have not
@@ -1121,6 +1153,11 @@ function showBridge(d) {
 }
 
 $('instBtn').onclick = () => {
+  if(isSchema()) {
+    const objects=schemaObjects.filter(o=>state.schemaKind==='all'||o.object_kind===state.schemaKind);
+    const closed=objects.some(o=>!state.schemaExpanded.has(o.id));
+    state.schemaExpanded=new Set(closed?objects.map(o=>o.id):[]);return draw();
+  }
   const all = view().nodes.filter(n => n.kind === 'type' && n.count).map(n => n.id);
   const anyClosed = all.some(t => !state.expanded.has(t));
   state.expanded = new Set(anyClosed ? all : []);

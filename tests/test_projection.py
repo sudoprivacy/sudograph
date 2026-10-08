@@ -49,7 +49,9 @@ def test_source_projection_preserves_null_composite_identity_and_read_only_sourc
     assert s.id_props("Items") == ["team", "seq"]
     assert s.links_of("Items") == {"team": "Teams"}
     b = app.bundle(s, records=True)
-    r = b["records"]["Items"]
+    # The general bounded exporter remains JSON; the portable graph reuses its
+    # compiler-owned source pages instead of embedding a duplicate data copy.
+    r = browse.snapshot(s)["Items"]
     rows = json.loads(gzip.decompress(base64.b64decode(r["chunks"][0])))
     assert rows[0][r["columns"].index("amount")] is None
     assert b["projection"]["mode"] == "source_projection"
