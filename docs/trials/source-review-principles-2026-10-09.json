@@ -1,0 +1,157 @@
+{
+  "date": "2026-10-09",
+  "kind": "source-review-principles-and-comment-fixes",
+  "hosted_url": "https://s.shareone.vip/s/sudograph-northwind",
+  "hosted_artifact_sha256": "c9edf3465a447e728444a201c794a8354d880ab8edb871aab486388502525c77",
+  "hosted_artifact_bytes": 11621875,
+  "download_matches_native_artifact": true,
+  "compiled_data_unchanged_excluding_ui_catalogue": true,
+  "source_db_sha256": "2f4f5c68dfcd33ba27373eae48c7a4869800c68095ee0f9f0da494f83382a877",
+  "source_schema_and_lossless_pages_unchanged": true,
+  "reader_browser": {
+    "url": "https://s.shareone.vip/s/sudograph-northwind",
+    "same_source_id_both_presentations": "sg-source/e22151e697c322748d7fa3fc3b0e48e5",
+    "sources_default_visible": true,
+    "source_visibility_control": true,
+    "empty_canvas_overview": true,
+    "empty_canvas_layout_runs": 0,
+    "selected_fk_captions": [
+      {
+        "id": "sg-relation/%5B%22source_fk%22%2C%22sg-source%2Fe22151e697c322748d7fa3fc3b0e48e5%2Fobject%2FCustomerCustomerDemo%2Ffield%2FCustomerTypeID%22%2C%22sg-source%2Fe22151e697c322748d7fa3fc3b0e48e5%2Fobject%2FCustomerDemographics%2Ffield%2FCustomerTypeID%22%5D",
+        "via": "CustomerTypeID → CustomerTypeID",
+        "visible": true
+      },
+      {
+        "id": "sg-relation/%5B%22source_fk%22%2C%22sg-source%2Fe22151e697c322748d7fa3fc3b0e48e5%2Fobject%2FCustomerCustomerDemo%2Ffield%2FCustomerID%22%2C%22sg-source%2Fe22151e697c322748d7fa3fc3b0e48e5%2Fobject%2FCustomers%2Ffield%2FCustomerID%22%5D",
+        "via": "CustomerID → CustomerID",
+        "visible": true
+      }
+    ],
+    "english_source_details": true,
+    "caption_geometry": {
+      "hits": [],
+      "labels": [
+        {
+          "text": "取自",
+          "width": "72px",
+          "height": 18.4293212890625
+        },
+        {
+          "text": "CustomerTypeID → CustomerTypeID",
+          "width": "151px",
+          "height": 33.17279052734375
+        },
+        {
+          "text": "CustomerID → CustomerID",
+          "width": "155px",
+          "height": 18.4293212890625
+        }
+      ]
+    },
+    "no_test_comments_posted": true
+  },
+  "navigation_browser": {
+    "url": "https://s.shareone.vip/s/sudograph-northwind",
+    "views": [
+      "schema",
+      "data"
+    ],
+    "header_and_label_geometry": {
+      "hits": [],
+      "labels": 26,
+      "parents": 2
+    },
+    "english_geometry": {
+      "hits": [],
+      "labels": 26,
+      "parents": 2
+    },
+    "fcose_geometry": {
+      "hits": [],
+      "labels": 14,
+      "parents": 2
+    },
+    "data_geometry": {
+      "hits": [],
+      "labels": 29,
+      "parents": 1
+    },
+    "back_relation_field": true,
+    "back_record_page": true,
+    "stable_field_ids": true,
+    "sql_reference_labels": [
+      "Invoices 的源 SQL 引用了 订单明细",
+      "Order Details Extended 的源 SQL 引用了 订单明细",
+      "Order Subtotals 的源 SQL 引用了 订单明细",
+      "Product Sales for 1997 的源 SQL 引用了 订单明细"
+    ],
+    "no_test_comments_posted": true
+  },
+  "native_comment_selection": {
+    "url": "https://s.shareone.vip/s/sudograph-northwind",
+    "selections": [
+      {
+        "kind": "object",
+        "id": "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products",
+        "label": "产品",
+        "native_text_drag": true,
+        "comment_composer": true,
+        "test_comment_posted": false
+      },
+      {
+        "kind": "source",
+        "id": "sg-source/e22151e697c322748d7fa3fc3b0e48e5",
+        "label": "Northwind 业务库（只读）",
+        "native_text_drag": true,
+        "comment_composer": true,
+        "test_comment_posted": false
+      }
+    ],
+    "measurement_host_light_dom_text": ""
+  },
+  "full_verification": {
+    "steps_passed": 4,
+    "steps_total": 4,
+    "pytest_passed": 256,
+    "examples_checked": 5,
+    "readme_commands_run": 9,
+    "placeholder_database_commands_skipped": 1
+  },
+  "verification_after_final_reader_changes": {
+    "related_pytest_passed": 21,
+    "browser_navigation_and_labels_passed": true,
+    "browser_source_and_empty_selection_passed": true,
+    "native_object_and_source_text_selection_passed": true
+  },
+  "prior_fresh_author_regeneration": {
+    "url": "https://s.shareone.vip/s/sudograph-northwind-fresh-agent",
+    "artifact_sha256": "f8b8941d7fc342ff750180a8cfe7d5e8e6efd24cb476c98cf32e017415b828f7",
+    "artifact_bytes": 11373569,
+    "download_matches_native": true,
+    "source_relative_field_addresses_match": 204,
+    "lossless_source_snapshots_match": true,
+    "same_shared_renderer": true,
+    "new_agent_run": false,
+    "author_yaml_changed": false,
+    "source_namespace_note": "Different physical connection path gives a different source ID; relocation needs identity migration."
+  },
+  "shareone_fr": {
+    "url": "https://github.com/sudoprivacy/shareone/issues/291",
+    "delivered_as": "GitHub issue",
+    "external_implementation": "pending"
+  },
+  "comment_threads_resolved": [
+    "1482ae7b-7918-4e8f-b0c8-831c7647b80d",
+    "f6d595fb-30e0-40e5-940d-fe67e8b18937",
+    "f7f05a7f-5c45-420e-9193-07573b4d7c84",
+    "59d4931b-dcc2-494e-9c46-75d725a1e37b"
+  ],
+  "limits": [
+    "An independent Codex CLI process is not a connected subagent or an available conversation handle.",
+    "This is a public static source snapshot; production Nexus login and authorised presentation discovery are not deployed.",
+    "On-canvas previews of a few full source rows, pinned phase-one baselines and versioned phase-two overlays remain designs.",
+    "Business item identities currently use spec keys; immutable lifecycle and migration enforcement are next-stage work.",
+    "Dense or manually overlapping layouts may still omit captions with an explicit notice; relationship details remain available.",
+    "Legacy text-only comments cannot be labelled known-but-hidden or silently relinked without identity evidence."
+  ]
+}

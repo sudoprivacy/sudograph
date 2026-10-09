@@ -85,16 +85,27 @@ Collapsed objects connect at their containers; expanding them exposes declared
 FK field endpoints in the same presentation. The formerly separate object/field
 menus duplicated the collapsed state and are consolidated. A source-object
 selector shows tables, views, or both. Existing record projections remain available.
+Compiler-owned source identities appear as data-source nodes in both phase-one
+presentations. They are shown by default and can be hidden with the source
+control; provenance edges derive from the source catalogue and checked field
+bindings, without a second mapping registry. Public source details report a
+snapshot's provenance and do not publish connection configuration or assert a
+live connection state.
 
 The renderer measures container headers across languages and reserves the same
 padding in ELK and Cytoscape. Bounded DOM edge labels remain selectable, with
 positions chosen to avoid node bodies, container headers and other edge labels.
 Placement is recomputed on selection/drag; pan/zoom only transforms the labels.
-If there is no clear position, the label stays available in relationship details
-and the all-labels control reports the omitted label count. This does not promise
-legibility for arbitrarily dense or manually overlapping layouts.
+Narrow gaps can use captions wrapped to a measured height. If there is no clear
+position, the label stays available in relationship details. The reader reports
+the omitted label count even when only selected relationships are named. This
+does not promise legibility for arbitrarily dense or manually overlapping layouts.
 The shared Back control restores presentation, selected node/relation, expansion,
 focus, record page, camera and panel scroll; language preference is kept.
+Clicking empty canvas clears selection and restores the overview panel without
+running layout again. Source-object and source-field text selections both use
+app-declared identities; legacy text-only comments cannot be safely relabelled as
+known hidden identities without a mapping or a confirmed migration.
 
 Source view SQL is preserved verbatim. SQLGlot identifies source dependencies
 with scope resolution; these object edges do not claim complete field lineage or
@@ -142,9 +153,13 @@ scope and generated field IDs; source-wide discovery remains unavailable.
 ## Server-side visibility
 
 Presentation and authorisation are different dimensions. Phase-two definitions,
-metrics and rules can add perspectives on the same source-field graph; adding a
-business rule does not require another selector entry or another copy of source
-facts. An authorised server view defines which objects, fields, records and
+metrics and rules should have separately named business presentations, while
+phase-one source presentations remain free of authored business definitions.
+Preserving the accepted source artifact/version is a baseline requirement; a
+menu choice alone does not preserve a historical snapshot. The combined reader
+and versioned overlays are next-stage design, not current Gateway capabilities.
+Adding a business rule does not require another selector entry or another copy
+of source facts. An authorised server view defines which objects, fields, records and
 definitions may be returned. The reader then chooses an available presentation
 of that authorised graph. Policy can also restrict which presentations are
 offered, but one presentation may still contain different data for two readers.

@@ -1,28 +1,66 @@
 # sudograph
 
-A business ontology as code: one YAML spec → compiler → graph.
+Infrastructure for business people and LLMs to build, check, and improve a shared
+understanding of a business. The long-term goal is that an LLM can understand the
+business accurately and completely enough to continue its work with the people
+who know it. A readable graph, checked YAML and SQL, and versioned feedback make
+that understanding inspectable and reusable. **Git is the history.**
 
-Objects, links, and permissioned ops. **Git is the history.**
+## Principles
 
-## Where the decisions live
+1. **Business people and LLMs iterate together.** The reviewer inspects sources,
+   fields, real records and proposed definitions; comments identify mistakes or
+   missing meaning; the agent revises the model and compiles it again. A business
+   question that the model cannot answer remains an explicit gap. Producing a
+   graph is one step in this loop, not the acceptance criterion.
+2. **Source facts keep their authority.** Databases and documents remain the SSOT
+   for their facts. The model stores references, definitions and decisions with
+   provenance. Portable snapshots are dated read-only evidence and must be
+   regenerated when the source changes; they are not another editable source.
+3. **Separate discovery from business interpretation.** Phase one exposes and
+   checks what the source actually contains. Phase two adds reviewed meanings,
+   rules and metrics that reference that foundation. A plausible column name or
+   LLM guess does not establish a business definition.
+4. **People need real records as well as field names.** Review should progress
+   from source objects to fields, a small set of real records, and full paginated
+   records. Keep values from the same row together and retain its declared key.
+   Examples help discover exceptions; they do not prove the whole dataset is
+   correct. Data volume must not determine the number of nodes on the canvas.
+5. **The compiler makes provable mistakes actionable.** Invalid columns, source
+   identities, references, expressions and incompatible calculations are refused
+   with a reason and a repair direction. Human review establishes business
+   meaning. Machine consistency checks cannot certify that meaning.
+6. **A fresh agent must succeed through the same interfaces.** Essential rules
+   belong in parsers, schemas, checked write paths and the shared renderer.
+   Improvements must survive regeneration without the previous conversation.
+   Never repair only a demo HTML or add a database-specific exception to pass it.
+7. **Identity supports references without copying facts.** Generate source,
+   object and field addresses from the source in phase one. Use declared keys for
+   rows; keyless positions are snapshot-local. Give separately reviewed business
+   definitions an identity when they are created, with versions of their content.
+   Do not assign a new permanent ID to every scalar value or hash a SQL statement
+   as a substitute for the identity of the thing it reads.
+8. **Presentations and access are separate.** A presentation selects how an
+   authorised graph is read. The server limits objects, fields, rows, definitions
+   and exports before returning them. Hiding a menu or a node in HTML is not an
+   access check.
 
-**All design decisions are recorded in [Sudo Cloud 架构与设计 §7](https://s.shareone.vip/s/sudo-cloud-plan). This repo does not restate them.**
-
-That section covers the harness elements, the SSOT rules, agent working
-discipline, the reversibility tiers, the three-layer split, read governance, the
-interaction surface, and the two measurement axes. If this README and that page
-disagree, the page wins. To change a decision, change the page and comment on the
-node there — not here.
-
-This README only covers how to use the repo.
+The broader architecture and its design history are in
+[Sudo Cloud 架构与设计 §7](https://s.shareone.vip/s/sudo-cloud-plan).
+This README is the repository entry point for the current working principles,
+workflow and implementation status; the code and [interface guide](docs/interfaces.md)
+specify the actual enforced contracts. Changes to the intended design should be
+recorded together, and differences between intended and implemented behaviour
+must remain explicit.
 
 Source coverage, paginated records, the authorised gateway, and raw-source
 question generation are documented in [the interface guide](docs/interfaces.md).
 
 ## Where this sits
 
-The spec is the only thing anyone writes. Everything to its left is read-only,
-everything to its right is generated from it.
+Sources are read-only. The compiler discovers their structure and validates
+source bindings. Agents author checked configuration and business definitions;
+the compiler and shared renderer generate the review artifact.
 
 ```mermaid
 flowchart LR
@@ -62,21 +100,22 @@ flowchart LR
   SPEC --> GRAPH
   SPEC --> CHECKS
   GRAPH -->|comment on a node| PEOPLE
-  PEOPLE -->|a comment is a defect report| SPEC
+  PEOPLE -->|corrections and definitions| AGENT
   AGENT -->|reads| SPEC
   AGENT -->|writes only through| OPS
   OPS --> SPEC
   OPS -.->|instruction, then confirmation| DB
 ```
 
-Four properties hold this together, and each is enforced rather than intended:
+Four boundaries organise the implementation:
 
 * **Source systems are read-only.** Connectors take; nothing writes back through
   them. A figure that appears in two independent systems is corroborated because
   they cannot have copied from us.
-* **Values are not in the spec.** The spec says where a figure comes from; the
-  number arrives at compile time. What is versioned in git is the reasoning, not
-  a snapshot of the data.
+* **Bound values come from the source.** The spec states where to read; values
+  arrive through the checked read path. Version definitions and reasoning in git.
+  Inline values in synthetic examples are fixtures; phase-one projections reject
+  authored records and formulas.
 * **Relationships are generated, never synchronised.** Anything stated twice can
   disagree with itself, so it is stated once and derived everywhere else.
 * **Ops are the only write path**, and a write states its intent. Landing a
@@ -93,12 +132,13 @@ this README defers to, at §7.14.
 
 ## The loop this exists to serve
 
-**model → use → iterate**, and all three are one job rather than a setup step
-followed by the real work.
+**discover → review → revise → compile → use → review again**. Business people
+and agents share this loop; each accepted correction should improve what the
+next agent can understand without relying on the previous conversation.
 
 | | |
 |---|---|
-| **model** | An agent arrives at an engagement with the client's source systems and nothing else. It writes the spec: what the objects are, which properties are upstream facts and which are decisions, where the gaps are. |
+| **model** | An agent starts from authorised sources, uses source discovery, and proposes business definitions with provenance and explicit unknowns. Reviewers correct the proposal against fields and real records. |
 | **use** | It answers business questions from the graph and takes business actions through ops. Figures are recomputed, never transcribed. |
 | **iterate** | Materials arrive, judgements change, the client asks something the model cannot yet answer. The spec changes through ops, and git carries what changed and why. |
 
@@ -119,6 +159,31 @@ How well the loop actually runs is measured, not asserted — the criteria are i
 [§7.7](https://s.shareone.vip/s/sudo-cloud-plan) (the two axes) and
 [§7.10](https://s.shareone.vip/s/sudo-cloud-plan) (the pilot's switch-over test).
 
+## Three stages, one continuing loop
+
+| Stage | Reviewer-facing name | What is established |
+|---|---|---|
+| 1 | **数据核对 · Data review** | Read-only source discovery: data sources, tables/views, fields, declared keys and relations, coverage and real records. The artifact is a **数据投影 · source projection**. |
+| 2 | **业务建模 · Business modelling** | People and agents establish meanings, business relationships, rules, metrics and unresolved questions, with evidence and versions. |
+| 3 | **业务应用 · Business use** | Agents answer business questions and perform authorised workflows using the reviewed model; failures and new evidence return to review. Source-system write-back remains a design, not a deployed capability. |
+
+These are stages of the workflow, not automatic names for three graph menus.
+Phase one currently provides the shared **结构关系 · Structure relationships**
+and **数据关系 · Data projection** presentations. They are infrastructure-defined
+capabilities; an agent does not invent a replacement viewer for each database.
+Availability follows the compiled content and authorised delivery scope.
+
+Phase two should add separately named business presentations while keeping
+phase-one source presentations free of authored business rules. Preserve the
+accepted phase-one artifact and its source/export version as a review baseline;
+business definitions reference its source identities. Several rules can belong
+to one presentation. A menu toggle alone does not preserve a historical snapshot.
+The current compiler separates `source_projection` and `business` modes and
+supplies shared field identities; a combined reader with a pinned phase-one
+baseline and versioned business overlays is a next-stage design, not shipped yet.
+Business items currently use spec keys. Enforcing immutable business identities
+and explicit migrations across versions is also next-stage work.
+
 ## Layout
 
 ```
@@ -132,6 +197,12 @@ compiler/
   lineage.py              lineage, provisionality, completeness — all derived
   history.py              edit timelines, pending proposals
   apply.py                the only path by which anything changes
+  project.py              source-first projection authoring
+  catalog.py              source inventory and coverage
+  source_schema.py        generated identities and lossless source snapshots
+  sql_parser.py           SQLGlot AST gate for the supported SQL subset
+  gateway.py              authority before graph/query/page/export reads
+app/                      shared reader, layout, records, navigation and i18n
 tools/check_examples.py   CI gate: every example loads, validates, and reconciles
 ```
 
@@ -353,22 +424,29 @@ columns automatically: a price is money too, so totals need explicit expressions
 python -m compiler.cli examples/weiwai-real.yaml --app weiwai.html
 ```
 
-One self-contained HTML file: selectable SVG + ELK inlined, no network request at
+One self-contained HTML file: Cytoscape interaction and ELK/fCoSE layout inlined,
+selectable DOM labels, with SVG as a fallback. No renderer network request at
 load, opens from disk. An audit deliverable gets read at a client site, and a CDN
 reference turns "open this file" into "open this file, on a machine with
 internet, on a day the CDN is up".
 
-**The renderer holds no logic.** That rule only survives if the compiler sends
-everything the app could need, so it sends *everything*: every reading, every
-slice, and the diff across every declared bridge, all computed here. The app
-picks; it cannot compute a figure, because it never has the spec. A renderer that
-recomputes is a second implementation of the ontology, and the two will disagree
-on the day it matters most.
+**Business calculations stay in the compiler/query layer.** The renderer handles
+layout, language, selection, folding, navigation and decoding record pages. It
+does not reinterpret definitions or recompute business figures. Portable exports
+contain their authorised data; live delivery must enforce access before sending
+any data. The renderer cannot turn an unrestricted file into a restricted one.
 
 What it shows:
 
-- a data projection for source bindings, identities, columns and declared refs;
-  switch to metrics and rules when reviewing business definitions
+- phase-one structure relationships: collapsed source objects connect at their
+  containers; expansion exposes fields and declared FK endpoints. Original
+  source-view SQL and object dependencies remain inspectable
+- phase-one data relationships and paginated records. Both presentations can
+  show the same source identity and its provenance edges; sources are visible by
+  default in a source projection and can be folded out with the source control
+- source-field and source-object text selection binds comments to generated IDs;
+  historical text-only comments retain their older matching semantics
+- business metrics and rules when reviewing a business-mode model
 - generated measurement questions, answers, execution traces and unmeasured
   metrics, under **Measurements**; the score does not certify business meaning
 - a reading selector and one selector per dimension — the coordinates of the view
@@ -388,6 +466,13 @@ offers fCoSE with relative placement constraints for comparison. Fit shows the
 whole graph; dense views still need zoom or **Focus neighbors** to read labels.
 Dragging a node moves its text and edges; positions persist across view and
 language switches in the current page session.
+The layout belongs to the shared renderer, using graph structure and measured
+labels, not an agent's handwritten coordinates. It does not claim business
+ordering or importance from a field's position. Relationship captions avoid
+nodes and headers; if there is no clear placement the omission is reported and
+the relation remains inspectable. Clicking empty canvas restores the overview
+without another layout run. Back restores the previous selection, presentation,
+expansion, record page and camera.
 
 The default language is Chinese (`--lang zh`). Pass `--lang en` to pin English,
 or `--lang auto` to follow the browser. Every export embeds the catalogs; an
@@ -421,7 +506,9 @@ Formulas, inline records, workflow roles/gaps, business checks and alternative
 readings are refused. NULL remains NULL, with no inferred zero or business gap.
 The compiler generates the complete source structure independently of business
 bindings, including views without declared row identity and binary fields. The
-default graph expands tables into fields. Inspect records separately; `--records`
+default graph starts with source objects; expand a table/view to inspect fields.
+Table and field inspectors already provide real paginated records; a further
+on-canvas preview of a few complete rows is proposed, not implemented yet. `--records`
 preserves every source table/view result, duplicate keyless rows, NULL and binary
 bytes. Keyless positions identify rows only within that snapshot. Existing source
 view SQL is preserved, including its calculations; no business formula is authored

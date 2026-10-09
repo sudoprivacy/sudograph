@@ -1,11 +1,13 @@
 // Source structure is compiler-owned. Presentation never manufactures identities.
 const schemaObjects=(BUNDLE.source_schema?.sources||[]).flatMap(s=>s.objects);
-const schemaNodes=new Map(schemaObjects.flatMap(o=>[o,...o.fields]).map(n=>[n.id,n]));
+const schemaSources=(BUNDLE.source_schema?.sources||[]).map(s=>({...s,kind:'schema_source'}));
+const schemaNodes=new Map([...schemaSources,...schemaObjects.flatMap(o=>[o,...o.fields])].map(n=>[n.id,n]));
 const isSchema=()=>state.projection==='schema';
 const schemaObject=id=>schemaObjects.find(o=>o.id===id);
 function schemaGraph() {
   const edges=[];
   for(const o of schemaObjects) {
+    edges.push(sourceSupplyEdge(o.source,o.id,o.id));
     const others=schemaObjects.filter(n=>n.source===o.source);
     for(const fk of o.foreign_keys) {
       const target=others.find(n=>n.name===fk.table);
@@ -25,7 +27,19 @@ function schemaGraph() {
   const original=BUNDLE.views[`${state.basis??''}|${coordKey()}`];
   return {...original,nodes:[...schemaNodes.values()],edges,groups:[]};
 }
+function sourceSupplyEdge(source,target,object) {
+  return {id:'sg-relation/'+encodeURIComponent(JSON.stringify(['source_supplies',source,object])),
+    from:source,to:target,to_object:object,rel:'source_supplies',via:t('取自'),owner:'source'};
+}
+function sourceDataEdges(v) {
+  return (v.groups||[]).flatMap(g=>{
+    const field=Object.values(g.field_ids||{})[0];if(!field)return [];
+    const object=field.split('/field/')[0],source=object.split('/object/')[0];
+    return schemaSources.some(s=>s.id===source)?[sourceSupplyEdge(source,g.type,object)]:[];
+  });
+}
 function schemaRelationLabel(e,language=uiLanguage) {
+  if(e.rel==='source_supplies')return bt(schemaObject(e.to_object).label,language)+' '+t('取自',{},language)+' '+bt(schemaNodes.get(e.from).label,language);
   const from=schemaObject(e.from_object),to=schemaObject(e.to_object);
   if(e.rel==='source_view')return t('{from} 的源 SQL 引用了 {to}',
     {from:bt(from.label,language),to:bt(to.label,language)},language);
@@ -34,6 +48,7 @@ function schemaRelationLabel(e,language=uiLanguage) {
 }
 function schemaLines(n,language=uiLanguage) {
   const tr=key=>t(key,{},language);
+  if(n.kind==='schema_source')return [{cls:'',parts:[bt(n.label,language)]},{cls:'sub',parts:[tr('数据源')+' · '+tr('只读')]}];
   if(n.kind==='schema_object')return [
     {cls:'',parts:[bt(n.label,language)]},
     {cls:'sub',parts:[n.name+' · '+tr(n.object_kind==='view'?'源视图':'源表')]},
@@ -46,16 +61,19 @@ function schemaLines(n,language=uiLanguage) {
 }
 async function drawSchema(v,mine) {
   $('schemaFilter').hidden=false;
+  $('sources').checked=state.sources;
   for(const option of $('schemaKind').options) {
     const count=schemaObjects.filter(o=>option.value==='all'||o.object_kind===option.value).length;
     option.textContent=t(option.value==='table'?'源表':option.value==='view'?'源视图':'全部')+' ('+count+')';
   }
   const objects=schemaObjects.filter(o=>state.schemaKind==='all'||o.object_kind===state.schemaKind);
   let shown=new Map(objects.map(o=>[o.id,o]));
+  if(state.sources)for(const source of schemaSources)shown.set(source.id,source);
   for(const o of objects)if(state.schemaExpanded.has(o.id))
     for(const field of o.fields)shown.set(field.id,field);
   const seen=new Set();
   let edges=v.edges.flatMap(e=>{
+    if(e.rel==='source_supplies')return shown.has(e.from)&&shown.has(e.to)?[e]:[];
     const from=shown.has(e.from)?e.from:e.from_object;
     const to=shown.has(e.to)?e.to:e.to_object;
     if(!shown.has(from)||!shown.has(to))return [];
@@ -89,6 +107,10 @@ async function schemaActivate(n) {
 }
 async function revealSchema(id) {
   const node=schemaNodes.get(id);if(!node)return false;
+  if(node.kind==='schema_source') {
+    state.sources=true;$('sources').checked=true;state.selected=id;state.selectedRelation=null;state.focus=null;state.panel='node';
+    await draw();schemaCamera(id);return true;
+  }
   const obj=node.parent?schemaObject(node.parent):node;
   state.projection='schema';$('projection').value='schema';
   if(state.schemaKind!=='all'&&state.schemaKind!==obj.object_kind)state.schemaKind='all';
@@ -97,6 +119,10 @@ async function revealSchema(id) {
   state.selected=id;state.selectedRelation=null;state.panel='node';await draw();schemaCamera(id);return true;
 }
 async function revealSchemaRelation(e) {
+  if(e.rel==='source_supplies') {
+    state.sources=true;$('sources').checked=true;await revealSchema(e.to_object);
+    state.selected=null;state.selectedRelation=canvasEdgeId(e);showSchemaRelation(e);return;
+  }
   state.projection='schema';$('projection').value='schema';state.schemaKind='all';$('schemaKind').value='all';
   state.schemaExpanded.add(e.from_object);state.schemaExpanded.add(e.to_object);
   state.focus=null;state.selected=null;state.selectedRelation=canvasEdgeId(e);
@@ -104,11 +130,21 @@ async function revealSchemaRelation(e) {
   const objects=cy.getElementById(e.from_object).union(cy.getElementById(e.to_object));
   cy.fit(objects.union(objects.descendants()),45);if(cy.zoom()>1.3){cy.zoom(1.3);cy.center(objects);}
 }
-function commentSchemaField(n) {
-  const obj=schemaObject(n.parent);
-  return anchors.comment(n.id,bt(obj.label)+'.'+bt(n.label),obj.name+'.'+n.column);
+function commentSchemaNode(n) {
+  const obj=n.parent?schemaObject(n.parent):null;
+  return anchors.comment(n.id,obj?bt(obj.label)+'.'+bt(n.label):bt(n.label),obj?obj.name+'.'+n.column:n.name||bt(n.label));
+}
+function commentSchemaField(n) {return commentSchemaNode(n);}
+function showSchemaSource(n) {
+  state.panel='node';
+  $('panel').innerHTML=`<h2>${t('取数来源')}</h2><p>${esc(bt(n.label))}</p>`+
+    `<p>${t('源对象通过只读连接从这个数据源取得；连接配置留在受控环境中。')}</p>`+
+    `<p>${n.objects.filter(o=>o.object_kind==='table').length} ${t('源表')} · ${n.objects.filter(o=>o.object_kind==='view').length} ${t('源视图')} · ${n.objects.reduce((count,o)=>count+o.fields.length,0)} ${t('字段')}</p>`+
+    `<p class="muted">${t('这里是导出时的来源快照，不是实时连接状态。')}</p>`+
+    `<details><summary>${t('这个数据源的标识')}</summary><div class="op">${esc(n.id)}</div></details>`;
 }
 function showSchemaNode(n) {
+  if(n.kind==='schema_source')return showSchemaSource(n);
   const obj=n.parent?schemaObject(n.parent):n;
   const field=n.kind==='schema_field';
   const kv=(key,value)=>`<div class="kv"><span>${esc(t(key))}</span><span>${esc(value)}</span></div>`;
@@ -139,6 +175,7 @@ function showSchemaNode(n) {
   const controls=document.createElement('div');controls.className='schema-actions';
   function button(text,action){const b=document.createElement('button');b.textContent=t(text);b.onclick=action;controls.appendChild(b);}
   if(!field)button(state.schemaExpanded.has(obj.id)?'收起字段':'展开字段',()=>schemaActivate(obj));
+  button('查看数据源',()=>revealSchema(obj.source));
   button('查看源记录',()=>showSourceRecords(obj.id,0,field?n.column:null));
   if(field&&anchors.live) {button('评论字段',()=>commentSchemaField(n));controls.lastChild.classList.add('schema-comment');}
   if(field)button('查看关联字段',async()=>{
@@ -167,6 +204,14 @@ function showSchemaNode(n) {
 }
 function showSchemaRelation(e) {
   state.panel='schema_relation';state.relation=e;state.selected=null;state.selectedRelation=canvasEdgeId(e);updateCanvasSelection();
+  if(e.rel==='source_supplies') {
+    $('panel').innerHTML=`<h2>${t('取数来源')}</h2><p>${esc(schemaRelationLabel(e))}</p>`+
+      `<p>${t('源对象通过只读连接从这个数据源取得；连接配置留在受控环境中。')}</p>`;
+    for(const [id,text] of [[e.from,'查看数据源'],[e.to_object,'在图上查看']]) {
+      const b=document.createElement('button');b.textContent=t(text);b.onclick=()=>revealSchema(id);$('panel').appendChild(b);
+    }
+    return;
+  }
   const from=schemaObject(e.from_object),to=schemaObject(e.to_object);
   $('panel').innerHTML=`<h2>${t(e.rel==='source_fk'?'源外键':'源 SQL 引用')}</h2>`+
     `<p>${esc(schemaRelationLabel(e))}</p>`+

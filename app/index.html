@@ -207,7 +207,7 @@ const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '�
 const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
                 schemaExpanded:new Set(),schemaKind:'table',
                 expanded: new Set(), panel: 'checks', selected:null, selectedRelation:null, focus:null,
-                sources:false, edgeLabels:false, direction:'auto', layoutEngine:'auto',
+                sources:BUNDLE.projection?.mode==='source_projection', edgeLabels:false, direction:'auto', layoutEngine:'auto',
                 projection: BUNDLE.source_schema ? 'schema' : Object.values(BUNDLE.views)[0].groups.some(g => g.backing) ? 'data' : 'all' };
 for(const option of $('projection').options)option.hidden=option.value.startsWith('schema')?!BUNDLE.source_schema:
   option.value==='all'&&BUNDLE.projection?.mode==='source_projection';
@@ -343,7 +343,7 @@ const hex = c => {
   return m ? [1, 2, 3].map(i => parseInt(m[i], 16)) : null;
 };
 const fillOf = n => {
-  const base = css((KINDS[n.kind] || KINDS.type).var);
+  const base = css((KINDS[n.kind] || (n.kind==='schema_source'?KINDS.raw:KINDS.type)).var);
   if (n.kind === 'hook' || !(n.provisional_because || []).length) return base;
   const a = hex(base), b = hex(css('--hook'));
   if (!a || !b) return base;
@@ -400,7 +400,7 @@ let scene = null;
 // a scoring fault on its side, since fixed. Kept for the reading, not for the
 // anchor.
 function linesOf(n, open, language = uiLanguage) {
-  if(n.kind==='schema_object'||n.kind==='schema_field')return schemaLines(n,language);
+  if(n.kind.startsWith('schema_'))return schemaLines(n,language);
   if(n.kind==='fields')return Object.entries(n.props).map(([p,value])=>({cls:'',parts:[
     bt(p,language)+': '+String(fmt(value)).slice(0,90)+(String(fmt(value)).length>90?'…':'')]}));
   const tr = key => t(key, {}, language);
@@ -452,13 +452,14 @@ measurementBox.style.cssText='font-size:11px;line-height:16px;white-space:pre-wr
 measurementBox.style.fontFamily=readerFont;
 measurementHost.attachShadow({mode:'closed'}).appendChild(measurementBox);document.body.appendChild(measurementHost);
 const textSizes=new Map();
-function measure(lines) {
-  const text=lines.map(l=>l.parts.join('')).join('\n');if(textSizes.has(text))return textSizes.get(text);
+function measure(lines,maxWidth=260) {
+  const text=lines.map(l=>l.parts.join('')).join('\n'),key=maxWidth+'\0'+text;
+  if(textSizes.has(key))return textSizes.get(key);
   const widest=Math.max(0,...text.split('\n').map(line=>textMeter.measureText(line).width));
-  const width=Math.min(Math.max(Math.ceil(widest)+24,72),260);
+  const width=Math.min(Math.max(Math.ceil(widest)+24,72),maxWidth);
   measurementBox.style.width=(width-20)+'px';measurementBox.textContent=text;
   const size={w:width,h:16+Math.ceil(measurementBox.getBoundingClientRect().height)};
-  textSizes.set(text,size);if(textSizes.size>5000)textSizes.delete(textSizes.keys().next().value);return size;
+  textSizes.set(key,size);if(textSizes.size>5000)textSizes.delete(textSizes.keys().next().value);return size;
 }
 
 /* One draw at a time, and only the newest survives. `draw` awaits the layout
@@ -484,6 +485,7 @@ async function draw() {
 
   const shown = new Map();
   for (const n of v.nodes) {
+    if(BUNDLE.source_schema&&n.kind==='raw')continue;
     if(n.kind==='raw' && !state.sources && n.value==null)continue;
     if (state.projection === 'data' && !['raw', 'type', 'instance'].includes(n.kind)) continue;
     if(state.projection==='data' && n.kind==='type' && !n.backing)continue;
@@ -491,6 +493,7 @@ async function draw() {
     if (n.kind === 'instance' && (!state.expanded.has(n.type) || BUNDLE.records?.[n.type])) continue;
     shown.set(n.id, n);
   }
+  if(state.sources)for(const source of schemaSources)shown.set(source.id,source);
   for(const tn of state.expanded) {
     if(!shown.has(tn))continue;
     const records=await graphRecords(tn);
@@ -541,6 +544,7 @@ async function draw() {
     edges.push(from === e.from && to === e.to ? e : { ...e, from, to, folded: true });
   }
 
+  for(const e of sourceDataEdges(v))if(shown.has(e.from)&&shown.has(e.to))edges.push(e);
   if(state.focus && shown.has(state.focus)) {
     const near=new Set([state.focus]);
     for(const e of edges)if(e.from===state.focus||e.to===state.focus){near.add(e.from);near.add(e.to);}
@@ -777,7 +781,7 @@ const anchors = (() => {
   };
   const labelOf = id => {
     const n = schemaNodes.get(id)||(view()?.nodes || []).find(x => x.id === id);
-    const edge=(view()?.edges||[]).find(e=>canvasEdgeId(e)===id);
+    const edge=[...(view()?.edges||[]),...sourceDataEdges(view()||{})].find(e=>canvasEdgeId(e)===id);
     return n ? bt(n.label) : edge ? (isSchema()?schemaRelationLabel(edge):bt(edge.via||edge.rel)) : id;
   };
   const rectOf = id => {
@@ -831,7 +835,7 @@ const anchors = (() => {
       navigationBegin();
       let changed = false;
       if(state.focus){state.focus=null;changed=true;}
-      if (state.projection === 'data') {
+      if (state.projection === 'data' && !BUNDLE.source_schema) {
         state.projection = 'all'; $('projection').value = 'all'; changed = true;
       }
       for (const id of ids || []) {
@@ -861,6 +865,12 @@ const anchors = (() => {
   };
 })();
 
+function clearReaderSelection() {
+  state.selected=null;state.selectedRelation=null;delete state.relation;state.panel='checks';
+  sourceBrowseSeq++;updateCanvasSelection();
+  if(state.bridgeMode)showBridge(bridge());else if(isSchema())showSchemaSummary();else showChecks(view());
+  anchors.report();
+}
 function select(n) {
   state.selectedRelation=null;
   if(cy) {state.selected=n.id;state.panel='node';cy.elements().unselect();cy.getElementById(n.id).select();updateCanvasSelection();showNode(n);anchors.report();return;}
@@ -994,7 +1004,7 @@ function applyTransform() {
 })();
 
 function showNode(n) {
-  if(n.kind==='schema_object'||n.kind==='schema_field')return showSchemaNode(n);
+  if(n.kind.startsWith('schema_'))return showSchemaNode(n);
   const rows = [];
   rows.push(`<h2>${n.kind==='fields'?t('属性'):KINDS[n.kind]?.name||n.kind}</h2><div style="font-size:15px;font-weight:600">${esc(bt(n.label))}</div>`);
   if (n.value != null) rows.push(`<div class="val">${fmt(n.value)}</div>`);

@@ -1,5 +1,13 @@
 {
   "en": {
+    "取自": "from",
+    "数据源": "Data source",
+    "只读": "Read only",
+    "取数来源": "Source provenance",
+    "源对象通过只读连接从这个数据源取得；连接配置留在受控环境中。": "Source objects are read through this data source. Connection configuration stays in the controlled environment.",
+    "这里是导出时的来源快照，不是实时连接状态。": "This is source provenance at export time, not live connection status.",
+    "这个数据源的标识": "Identity of this data source",
+    "查看数据源": "Inspect data source",
     "结构关系": "Structure relationships",
     "返回上一步": "Back",
     "这个字段的标识": "Identity of this source field",

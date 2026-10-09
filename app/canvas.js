@@ -89,7 +89,7 @@ async function drawCanvas(v, shown, edges, mine) {
     // A language switch then preserves both manual placement and route geometry.
     const size=dimensions.get(n.id);
     return {id:n.id,width:size.w,height:size.h+12,
-      layoutOptions:{'elk.layered.layering.layerConstraint':(KINDS[n.kind]||{}).layer || 'NONE'}};
+      layoutOptions:{'elk.layered.layering.layerConstraint':(n.kind==='schema_source'?KINDS.raw:KINDS[n.kind]||{}).layer || 'NONE'}};
   };
   const nest=n=>{
     const result=box(n), members=nodes.filter(row=>(n.kind==='type'&&row.kind==='instance'&&row.type===n.id) || row.parent===n.id);
@@ -209,10 +209,10 @@ async function drawCanvas(v, shown, edges, mine) {
     label.textContent=linesOf(n,state.expanded.has(n.id)).map(l=>l.parts.join('')).join('\n');
     label.onpointerdown=e=>e.stopPropagation();
     label.onclick=e=>{e.stopPropagation();if (!getSelection()?.toString()) select(n);};
-    if(n.kind==='schema_field')label.onpointerup=()=>{
+    if(n.kind.startsWith('schema_'))label.onpointerup=()=>{
       const selection=getSelection();
       if(selection?.toString()&&selection.rangeCount&&label.contains(selection.getRangeAt(0).commonAncestorContainer)
-        &&commentSchemaField(n))selection.removeAllRanges();
+        &&commentSchemaNode(n))selection.removeAllRanges();
     };
     const target=n.kind==='fields'?shown.get(n.parent):n;
     const expandable=target?.kind==='schema_object' || target?.kind==='instance' || (target?.kind==='type' && target.count &&
@@ -242,7 +242,8 @@ async function drawCanvas(v, shown, edges, mine) {
     });
     const placed=[];edgeLabelPositions.clear();
     let visible=0,wanted=0;
-    const priority=edge=>edge.data('anchorId')===state.selectedRelation?2:edge.hasClass('active')||edge.selected()?1:0;
+    const priority=edge=>(edge.data('anchorId')===state.selectedRelation?3:edge.hasClass('active')||edge.selected()?2:0)-
+      (edge.data('meta').rel==='source_supplies'?.5:0);
     for(const edge of cy.edges().toArray().sort((a,b)=>priority(b)-priority(a))) {
       const id=edge.id(),show=edge.hasClass('active')||edge.selected()||state.edgeLabels;
       let label=edgeLabelElements.get(id);
@@ -251,27 +252,36 @@ async function drawCanvas(v, shown, edges, mine) {
       if(!label) {
         const meta=edge.data('meta');label=document.createElement('div');label.className='canvas-edge-label';
         label.id='edge-label-'+edge.data('anchorId');label.dataset.edgeId=id;
-        label.textContent=edge.data('label');label.title=isSchema()?schemaRelationLabel(meta):edge.data('label');
+        label.textContent=edge.data('label');label.title=isSchema()||meta.rel==='source_supplies'?schemaRelationLabel(meta):edge.data('label');
         label.onpointerdown=e=>e.stopPropagation();
         label.onclick=e=>{e.stopPropagation();if(!getSelection()?.toString()){
-          state.relation=meta;isSchema()?showSchemaRelation(meta):showRelation(meta);}};
+          state.relation=meta;isSchema()||meta.rel==='source_supplies'?showSchemaRelation(meta):showRelation(meta);}};
         label.onpointerup=()=>{const selection=getSelection();if(selection?.toString()&&selection.rangeCount&&
           label.contains(selection.getRangeAt(0).commonAncestorContainer)&&
           anchors.comment(edge.data('anchorId'),label.title,meta.via||meta.rel))selection.removeAllRanges();};
         edgeLabelElements.set(id,label);layer.appendChild(label);
       }
-      const measured=measure([{parts:[label.textContent]}]),w=measured.w,h=measured.h-12;
+      const lines=[{parts:[label.textContent]}],natural=measure(lines);
       const mid=edge.midpoint(),a=edge.sourceEndpoint(),b=edge.targetEndpoint();
-      const points=[mid,...(edge.segmentPoints()||[]),a&&b?{x:(a.x+b.x)/2,y:(a.y+b.y)/2}:null].filter(Boolean);
+      const route=[a,...(edge.segmentPoints()||[]),b].filter(Boolean);
+      const samples=route.slice(1).flatMap((p,i)=>[.25,.5,.75].map(t=>({x:route[i].x+(p.x-route[i].x)*t,y:route[i].y+(p.y-route[i].y)*t})));
+      const points=[mid,...samples,...route.slice(1,-1)].filter(Boolean);
       let best=null;
-      search:for(const p of points)for(const [dx,dy] of [[0,-h/2-7],[0,h/2+7],[0,-h-16],[0,h+16],[-w/2-12,0],[w/2+12,0]]) {
-        const box={x:p.x+dx-w/2,y:p.y+dy-h/2,w,h};
-        if(!obstacles.some(o=>intersects(box,o))&&!placed.some(o=>intersects(box,o))) {best=box;break search;}
+      // Prefer a single-line caption. Short routes can instead use a wrapped
+      // caption with its measured height; never overlap a node to force it in.
+      const widths=[...new Set([natural.w,Math.max(72,Math.ceil(natural.w*.75)),
+        Math.max(72,Math.ceil(natural.w*.5)),72])];
+      search:for(const width of widths) {
+        const measured=measure(lines,width),w=measured.w,h=measured.h-12;
+        for(const p of points)for(const [dx,dy] of [[0,-h/2-7],[0,h/2+7],[0,-h-16],[0,h+16],[-w/2-12,0],[w/2+12,0]]) {
+          const box={x:p.x+dx-w/2,y:p.y+dy-h/2,w,h};
+          if(!obstacles.some(o=>intersects(box,o))&&!placed.some(o=>intersects(box,o))) {best=box;break search;}
+        }
       }
       label.hidden=!best;
-      if(best){placed.push(best);edgeLabelPositions.set(id,best);label.style.width=w+'px';visible++;}
+      if(best){placed.push(best);edgeLabelPositions.set(id,best);label.style.width=best.w+'px';visible++;}
     }
-    const notice=state.edgeLabels&&visible<wanted?
+    const notice=visible<wanted?
       t('{shown}/{total} 个关系名称已显示；其余可点线查看。',{shown:visible,total:wanted}):'';
     if($('edgeLabelNotice').textContent!==notice)$('edgeLabelNotice').textContent=notice;
     edgePositionsDirty=false;scheduleLabels();
@@ -309,9 +319,9 @@ async function drawCanvas(v, shown, edges, mine) {
   cy.on('pan zoom resize bounds',scheduleLabels);
   cy.on('position',()=>{edgePositionsDirty=true;scheduleLabels();});
   cy.on('tap','node',e=>{navigationBegin();select(shown.get(e.target.id()));});
-  cy.on('tap','edge',e=>{navigationBegin();state.relation=e.target.data('meta');if(isSchema())showSchemaRelation(state.relation);
+  cy.on('tap','edge',e=>{navigationBegin();state.relation=e.target.data('meta');if(isSchema()||state.relation.rel==='source_supplies')showSchemaRelation(state.relation);
     else {state.panel='relation';showRelation(state.relation);}});
-  cy.on('tap',e=>{if(e.target===cy){state.selected=null;state.selectedRelation=null;updateCanvasSelection();}});
+  cy.on('tap',e=>{if(e.target===cy){navigationBegin();clearReaderSelection();}});
   if(saved) {cy.zoom(saved.zoom);cy.pan(saved.pan);} else refit();
   updateCanvasSelection();
   labels();
