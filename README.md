@@ -38,12 +38,20 @@ that understanding inspectable and reusable. **Git is the history.**
    object and field addresses from the source in phase one. Use declared keys for
    rows; keyless positions are snapshot-local. Give separately reviewed business
    definitions an identity when they are created, with versions of their content.
+   Keep one canonical definition per identity; views, permissions and comments
+   reference it. Reuse an existing identity rather than allocating one per view
+   or compile. Duplicate definitions and conflicting uses of an identity must
+   fail. Definitions with different business meanings remain separate even when
+   they reference the same source field.
    Do not assign a new permanent ID to every scalar value or hash a SQL statement
    as a substitute for the identity of the thing it reads.
-8. **Presentations and access are separate.** A presentation selects how an
-   authorised graph is read. The server limits objects, fields, rows, definitions
-   and exports before returning them. Hiding a menu or a node in HTML is not an
-   access check.
+8. **Views share projection machinery; authority stays on the server.** Use
+   **视图 / View** for a named projection of the shared model. Reuse its identities,
+   definition references, selection and visibility machinery for business
+   perspectives and authorised scopes. Server policy decides the effective
+   objects, fields, rows, definitions and exports before returning them. The
+   reader renders that authorised result; hiding a menu or node cannot grant
+   or revoke access.
 
 The broader architecture and its design history are in
 [Sudo Cloud 架构与设计 §7](https://s.shareone.vip/s/sudo-cloud-plan).
@@ -183,6 +191,18 @@ supplies shared field identities; a combined reader with a pinned phase-one
 baseline and versioned business overlays is a next-stage design, not shipped yet.
 Business items currently use spec keys. Enforcing immutable business identities
 and explicit migrations across versions is also next-stage work.
+Loading already refuses duplicate YAML keys with both source locations and
+refuses a graph identity reused across `raw`, `hooks`, `types` and `nodes`.
+Different view references and repeated field names in different objects remain
+valid; the loader does not guess semantic equivalence from names or expressions.
+
+The reader's selector is named **视图 / View** in the shared template. A graph
+view, a database **源视图 / Source view**, and a server **授权视图 / Authorised view**
+need these qualifiers when ambiguous. The target is a shared View definition
+whose references and selection feed both authorised delivery and presentation;
+its access policy is managed by the operator. The current Gateway registry and
+reader selectors still have separate descriptors. A unified, versioned View
+registry belongs to the next stage; changing the label does not deploy it.
 
 ## Layout
 

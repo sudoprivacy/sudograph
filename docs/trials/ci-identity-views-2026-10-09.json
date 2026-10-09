@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-09",
+  "kind": "ci-acquisition-audit-and-identity-enforcement",
+  "historical_ci": {
+    "commit": "6b0431bf0cf27de0536c9b6c86929937271b53e7",
+    "run_url": "https://github.com/sudoprivacy/sudograph/actions/runs/37642293060",
+    "initial_attempt": 1,
+    "initial_job": 112864143155,
+    "initial_failure_annotation": {
+      "path": ".github",
+      "blob_href": "https://github.com/sudoprivacy/sudograph/blob/6b0431bf0cf27de0536c9b6c86929937271b53e7/.github",
+      "start_line": 1,
+      "start_column": null,
+      "end_line": 1,
+      "end_column": null,
+      "annotation_level": "failure",
+      "title": "",
+      "message": "The job was not started because it repeatedly failed to be acquired (5 attempts).",
+      "raw_details": ""
+    },
+    "test_steps_started_in_failed_attempt": 0,
+    "classification": "GitHub hosted runner acquisition failure",
+    "verification_attempt": 2,
+    "verification_conclusion": "success",
+    "pytest_passed": 247,
+    "pytest_skipped": 1,
+    "verification_steps_passed": 4,
+    "test_retry_or_failure_suppression_added": false
+  },
+  "identity_enforcement": {
+    "duplicate_explicit_yaml_keys": "refused with both locations",
+    "duplicate_yaml_merge_keys": "refused",
+    "yaml_merge_defaults": "preserved",
+    "unsafe_yaml_tags": "refused",
+    "cross_block_graph_identity_conflicts": "refused",
+    "same_property_names_in_different_types": "allowed",
+    "checked_entrances": [
+      "spec.load",
+      "compiler.cli",
+      "Gateway graph/page/query/export",
+      "tools.check_examples"
+    ],
+    "new_regression_cases_passed": 13
+  },
+  "local_verification": {
+    "full_steps_passed": 4,
+    "full_steps_total": 4,
+    "initial_full_pytest_passed": 268,
+    "final_identity_regression_cases_passed": 13,
+    "examples_checked": 5,
+    "readme_commands_run": 9,
+    "placeholder_database_commands_skipped": 1
+  },
+  "view_naming": {
+    "zh": "视图",
+    "en": "View",
+    "shared_template": true,
+    "reuse_target": "canonical definitions, identity references and selection shared by server projection and renderer; server policy restricts delivery",
+    "unified_versioned_registry": "next-stage work"
+  },
+  "public_artifact": {
+    "url": "https://s.shareone.vip/s/sudograph-northwind",
+    "sha256": "9d0e4d6d9607fe1e2207a441fcd04a29d08daf1ea18aa068cc0f9c3ba57db121",
+    "bytes": 11621933,
+    "download_matches_native": true,
+    "compiled_data_unchanged_excluding_ui": true
+  },
+  "prior_fresh_author_regeneration": {
+    "url": "https://s.shareone.vip/s/sudograph-northwind-fresh-agent",
+    "sha256": "00a622e3539b9ac55cbbf02748e85ba3d4d47fbc16fd50fc61169c183cdb32ff",
+    "bytes": 11373627,
+    "download_matches_native": true,
+    "new_agent_run": false
+  },
+  "limits": [
+    "This individual CI failure gives no evidence of a flaky test; it does not prove all tests can never flake.",
+    "Repeated test retries are not configured; a failed gate fails verification.",
+    "Immutable business identity lifecycle/migrations and the unified versioned View registry remain next-stage work.",
+    "Different names or identical expressions do not prove two business definitions have the same meaning.",
+    "The public ShareOne snapshot is not a deployed per-user permission service."
+  ]
+}

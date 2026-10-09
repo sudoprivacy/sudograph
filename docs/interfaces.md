@@ -28,7 +28,7 @@ selection. The ShareOne application-anchor protocol supplies canvas node bounds.
 Source rows are paged separately: a large database does not imply placing all its
 rows on one canvas. No million-node rendering performance claim has been made.
 
-Both views start with source connectors folded out of the canvas and
+Business-mode views start with source connectors folded out of the canvas and
 edge labels shown around a selected node. Source provenance remains in each
 type's details; `Show sources` restores its nodes and edges. `Focus neighbors`
 shows one hop around a selected object; `Full graph` restores the overview.
@@ -133,6 +133,17 @@ do not participate. Source relocation or physical object/column renaming require
 an identity migration. Bound phase-two and authorised properties receive the
 same IDs in `groups[].field_ids`.
 
+Identity names are definitions, not per-view allocations. Loading rejects
+duplicate explicit YAML keys, including nested properties, with both locations;
+YAML merge defaults remain supported. Graph identities cannot be reused across
+`raw`, `hooks`, `types` and `nodes`. References and the same property name under
+different types are valid. New business definitions should be looked up in the
+canonical identity index and created only when no definition exists; reuse the
+identity across views, comments, policy and versions. Changing a definition must
+create a content version, not another identity. Immutable lifecycle/migrations
+are next-stage work; current spec keys and collision checks cannot determine
+whether two differently named business meanings are actually the same concept.
+
 Rendering refuses a phase-one bundle without this contract, duplicate IDs,
 substituted field IDs or missing field inventory/record chunks. YAML cannot
 substitute a source-schema manifest. Field comments use ShareOne's `app_declared`
@@ -152,7 +163,18 @@ scope and generated field IDs; source-wide discovery remains unavailable.
 
 ## Server-side visibility
 
-Presentation and authorisation are different dimensions. Phase-two definitions,
+Use **视图 / View** for a named projection of the shared model. Reuse source and
+business identities, definition references, graph selection, pagination, focus
+and anchor mechanics across presentation and authorised scopes. The target
+View definition supplies both the renderer and server projection; policy grants
+refer to that same view identity. Its effective selection is restricted on the
+server by the caller's policy before records, counts, aggregates or graph objects
+are sent. The existing Gateway registry and reader selectors still have separate
+descriptors; a unified, versioned registry is next-stage work. Distinguish
+**graph view**, database **source view**, and server **authorised view** when
+needed. The shared reader selector says **视图 / View**, not **Show**.
+
+Presentation and authorisation are different dimensions of that system. Phase-two definitions,
 metrics and rules should have separately named business presentations, while
 phase-one source presentations remain free of authored business definitions.
 Preserving the accepted source artifact/version is a baseline requirement; a

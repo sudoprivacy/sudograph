@@ -53,6 +53,47 @@ class SpecError(ValueError):
     pass
 
 
+class _UniqueSafeLoader(yaml.SafeLoader):
+    """Keep explicit definitions unique, while preserving YAML merge defaults."""
+
+    def flatten_mapping(self, node):
+        checked = self.__dict__.setdefault('_checked_mappings', set())
+        if node not in checked:
+            checked.add(node)
+            seen = {}
+            for key_node, _ in node.value:
+                if key_node.tag == 'tag:yaml.org,2002:merge':
+                    key = '<<'
+                else:
+                    if key_node.tag == 'tag:yaml.org,2002:value':
+                        key_node.tag = 'tag:yaml.org,2002:str'
+                    key = self.construct_object(key_node)
+                try:
+                    hash(key)
+                except TypeError as e:
+                    raise yaml.constructor.ConstructorError(
+                        'while checking a mapping', node.start_mark,
+                        'mapping keys must be scalar identities', key_node.start_mark,
+                    ) from e
+                if key in seen:
+                    raise yaml.constructor.ConstructorError(
+                        f'first definition of {key!r}', seen[key],
+                        f'duplicate key {key!r}; keep one definition and reference it',
+                        key_node.start_mark,
+                    )
+                seen[key] = key_node.start_mark
+        super().flatten_mapping(node)
+
+
+def read_document(path: str) -> Any:
+    """The checked YAML entrance used by authoring and the example gate."""
+    try:
+        with open(path, encoding='utf-8') as fh:
+            return yaml.load(fh, Loader=_UniqueSafeLoader)
+    except yaml.YAMLError as e:
+        raise SpecError(f'{path}: invalid YAML: {e}') from e
+
+
 @dataclass
 class Spec:
     name: str
@@ -238,8 +279,7 @@ class Spec:
 
 
 def load(path: str, *, scope: dict | None = None, expected_mode: str | None = None) -> Spec:
-    with open(path, encoding="utf-8") as fh:
-        doc = yaml.safe_load(fh)
+    doc = read_document(path)
     if not isinstance(doc, dict):
         raise SpecError(f"{path}: the top level must be a mapping")
     unknown = set(doc) - TOP_LEVEL
@@ -556,6 +596,19 @@ def check(s: Spec) -> list[str]:
     round trip per mistake.
     """
     out: list[str] = []
+
+    # Scalar and object graph identities share a namespace. A dictionary in
+    # each block alone cannot prevent a raw/type/node from reusing another ID.
+    identities = {}
+    for block in ('raw', 'hooks', 'types', 'nodes'):
+        for identity in getattr(s, block):
+            if identity in identities:
+                out.append(
+                    f'identity {identity!r} is declared in both {identities[identity]} '
+                    f'and {block}; keep one definition and reference its identity'
+                )
+            else:
+                identities[identity] = block
 
     if not isinstance(s.translations, dict):
         out.append("translations must map locale names to source-text translations")

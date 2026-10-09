@@ -46,8 +46,11 @@ def main() -> int:
     skipped: list[str] = []
     for path in paths:
         name = os.path.relpath(path, ROOT)
-        with open(path, encoding="utf-8") as fh:
-            doc = yaml.safe_load(fh)
+        try:
+            doc = spec_mod.read_document(path)
+        except spec_mod.SpecError as e:
+            failures.append(f"{name}: {e}")
+            continue
         for e in sorted(validator.iter_errors(doc), key=lambda e: list(e.path)):
             failures.append(f"{name}: schema: {'/'.join(str(p) for p in e.path)}: {e.message}")
 
