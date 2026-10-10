@@ -1,0 +1,28 @@
+{
+  "status": "formal_review_pending",
+  "target_url": "https://s.shareone.vip/s/sudograph-northwind",
+  "target_share_id": "aSoJi9Ny94gwxXFc",
+  "candidate_commit": "f6daf34eaa6decf3b264276ad72f41aac4ec5dcf",
+  "candidate_remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/f6daf34eaa6decf3b264276ad72f41aac4ec5dcf/examples/northwind/business/review.html",
+  "candidate_filename": "northwind.html",
+  "candidate_bytes": 11649692,
+  "candidate_sha256": "6516219c90929cb44913c2c63ae37ef23e0b9f567d0ad62fe9d6941127be4230",
+  "review_id": "dfea5fb6-ee42-4186-b70e-246c783ef2a4",
+  "review_approved": null,
+  "rejection": {
+    "http_status": 409,
+    "error_code": "CONTENT_REVIEW_REQUIRED",
+    "reason": "完整内容超过自动审核预算，需要人工复核；尚未作出内容违规判断。",
+    "retryable": false
+  },
+  "current_review_page_updated": false,
+  "current_review_page_bytes_unchanged": true,
+  "comments_preserved": true,
+  "comments_embedded_in_candidate": false,
+  "phase_one_source_views_and_records_unchanged": true,
+  "review_candidate_download_matches_bytes": true,
+  "public_phase_one_remote_url_verified": true,
+  "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38062032214",
+  "ci_conclusion": "success",
+  "next_step": "A root reviewer must decide the existing content review. On approval, publish the exact candidate to the original share and verify its download, remote binding, browser and comments."
+}

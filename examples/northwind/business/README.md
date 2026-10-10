@@ -12,6 +12,10 @@ definition checks run in CI; [preview.json](preview.json) records the file hashe
 and review boundaries. Include [the upstream MIT licence](LICENSE.northwind.txt)
 when distributing the standalone Northwind preview.
 
+[publication.json](publication.json) records the actual ShareOne publication
+state. The original review share is unchanged while formal review of this new
+candidate is pending. The approved public phase-one baseline remains separate.
+
 The pilot has seven definitions and two business views:
 
 - Three supplied observations: the upstream README's business context, the source
