@@ -10,7 +10,7 @@ https://s.shareone.vip/s/sudograph-northwind, thread
 
 The owner sometimes sees “Anchor unavailable” after switching presentations or
 changing the inspected node. This thread's stored `highlighter_data` is a legacy
-text anchor for “辖区”; it does not contain a stable source-object identity. A
+text anchor for the localised Territory label; it has no stable source-object identity. A
 separate field comment on Products.ProductName uses `app_declared` and its
 compiler-owned ID. These cases need different explanations.
 

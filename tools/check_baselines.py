@@ -17,7 +17,7 @@ import struct
 import sys
 from pathlib import Path
 
-from compiler import source_schema
+from compiler import html_export, source_schema
 
 ROOT = Path(__file__).resolve().parents[1]
 FORMAT = "sudograph-phase-one-baseline/v1"
@@ -29,7 +29,7 @@ def digest(path: Path) -> str:
 
 
 def bundle(path: Path) -> dict:
-    text = path.read_text(encoding="utf-8")
+    text = html_export.unpack(path.read_text(encoding="utf-8"))
     marker = "const BUNDLE = "
     if marker not in text:
         raise ValueError("artifact has no native compiler bundle")
@@ -169,6 +169,11 @@ def check(path: Path, *, source: Path | None = None) -> dict:
     if manifest["artifact"] not in locked:
         raise ValueError("artifact is not locked by baseline manifest")
     b = bundle(parent / manifest["artifact"])
+    if (
+        "renderer" in manifest
+        and b.get("ui", {}).get("language") != manifest["renderer"]["language"]
+    ):
+        raise ValueError("export language differs from baseline declaration")
     if b["projection"]["mode"] != "source_projection" or not b["projection"]["source_read_only"]:
         raise ValueError("baseline must be a read-only phase-one projection")
     if b["projection"]["generated_at"] != manifest["projection_generated_at"]:

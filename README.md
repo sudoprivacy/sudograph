@@ -46,7 +46,7 @@ that understanding inspectable and reusable. **Git is the history.**
    Do not assign a new permanent ID to every scalar value or hash a SQL statement
    as a substitute for the identity of the thing it reads.
 8. **Views share projection machinery; authority stays on the server.** Use
-   **视图 / View** for a named projection of the shared model. Reuse its identities,
+   **View** for a named projection of the shared model. Reuse its identities,
    definition references, selection and visibility machinery for business
    perspectives and authorised scopes. Server policy decides the effective
    objects, fields, rows, definitions and exports before returning them. The
@@ -54,7 +54,7 @@ that understanding inspectable and reusable. **Git is the history.**
    or revoke access.
 
 The broader architecture and its design history are in
-[Sudo Cloud 架构与设计 §7](https://s.shareone.vip/s/sudo-cloud-plan).
+[Sudo Cloud architecture and design, section 7](https://s.shareone.vip/s/sudo-cloud-plan).
 This README is the repository entry point for the current working principles,
 workflow and implementation status; the code and [interface guide](docs/interfaces.md)
 specify the actual enforced contracts. Changes to the intended design should be
@@ -181,13 +181,13 @@ How well the loop actually runs is measured, not asserted — the criteria are i
 
 | Stage | Reviewer-facing name | What is established |
 |---|---|---|
-| 1 | **数据核对 · Data review** | Read-only source discovery: data sources, tables/views, fields, declared keys and relations, coverage and real records. The artifact is a **数据投影 · source projection**. |
-| 2 | **业务建模 · Business modelling** | People and agents establish meanings, business relationships, rules, metrics and unresolved questions, with evidence and versions. |
-| 3 | **业务应用 · Business use** | Agents answer business questions and perform authorised workflows using the reviewed model; failures and new evidence return to review. Source-system write-back remains a design, not a deployed capability. |
+| 1 | **Data review** | Read-only source discovery: data sources, tables/views, fields, declared keys and relations, coverage and real records. The artifact is a **source projection**. |
+| 2 | **Business modelling** | People and agents establish meanings, business relationships, rules, metrics and unresolved questions, with evidence and versions. |
+| 3 | **Business use** | Agents answer business questions and perform authorised workflows using the reviewed model; failures and new evidence return to review. Source-system write-back remains a design, not a deployed capability. |
 
 These are stages of the workflow, not automatic names for three graph menus.
-Phase one currently provides the shared **结构关系 · Structure relationships**
-and **数据关系 · Data projection** presentations. They are infrastructure-defined
+Phase one currently provides the shared **Structure relationships**
+and **Data projection** presentations. They are infrastructure-defined
 capabilities; an agent does not invent a replacement viewer for each database.
 Availability follows the compiled content and authorised delivery scope.
 
@@ -206,8 +206,8 @@ refuses a graph identity reused across `raw`, `hooks`, `types` and `nodes`.
 Different view references and repeated field names in different objects remain
 valid; the loader does not guess semantic equivalence from names or expressions.
 
-The reader's selector is named **视图 / View** in the shared template. A graph
-view, a database **源视图 / Source view**, and a server **授权视图 / Authorised view**
+The reader's selector is named **View** in the shared template. A graph
+view, a database **Source view**, and a server **Authorised view**
 need these qualifiers when ambiguous. The target is a shared View definition
 whose references and selection feed both authorised delivery and presentation;
 its access policy is managed by the operator. The current Gateway registry and
@@ -238,7 +238,13 @@ tools/check_examples.py   CI gate: every example loads, validates, and reconcile
 
 ## Language
 
-Field names are English because they are the contract. Values keep the
+Public documentation, explanatory comments and commit messages use English;
+public example pages start in English. Internal customer review can start in
+Chinese. Locale catalogues and original machine evidence retain their languages.
+Frozen evidence is not rewritten to translate a presentation; generate a new
+presentation through the shared renderer. See [AGENTS.md](AGENTS.md).
+
+Schema keywords are English because they are the contract. Values keep the
 customer's own business vocabulary, because translating business terms loses
 them. So `owner: source` and `resolve_when:` are English; `委外合同` and
 `可资本化` are not.
@@ -519,7 +525,7 @@ permissions: the self-contained file contains all bundled views.
 For phase one, start from the database rather than a business example:
 
 ```sh
-python -m compiler.project sqlite:////absolute/path/source.db projection.yaml --name "客户数据投影" --app projection.html --records
+python -m compiler.project sqlite:////absolute/path/source.db projection.yaml --name "Source projection" --app projection.html --records
 ```
 
 This source-first entry point writes `mode: source_projection`. Every load checks
@@ -553,7 +559,9 @@ Display names and complete `translations.en` may be supplied by an agent;
 they describe source facts and are not authority for business meaning.
 
 Phase two uses `mode: business` (the legacy default), with separately reviewed
-business expressions and decisions. A portable HTML is a read-only snapshot,
+business expressions and decisions. The [Northwind draft provenance](examples/northwind-business.provenance.md)
+identifies source computations and added agent assumptions; the old business
+fixture is not approved policy. A portable HTML is a read-only snapshot,
 not a second writable database and not a promise of live or transactionally
 consistent data. Regenerate it when the source changes. Never infer a revenue
 formula, workflow owner or business definition from a column name alone.
@@ -604,6 +612,11 @@ That record travels with the spec into git, so there is no second place where
 
 Requires Python 3.11+. Install the pinned runtime dependencies with
 `pip install -r requirements.txt` (PyYAML and SQLGlot).
+
+For a complete public English export, use `--lang en --pack-html` with `--app`.
+The shared renderer losslessly packages the entire native HTML; unpacking changes
+neither source coverage nor business calculations. The baseline checker supports
+plain and packed exports. Internal exports still default to Chinese.
 
 ```bash
 python -m compiler.cli examples/weiwai-capitalisation.yaml        # values + checks

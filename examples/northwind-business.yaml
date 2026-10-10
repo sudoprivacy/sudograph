@@ -1,3 +1,5 @@
+# Unreviewed agent-authored capability fixture, not approved Northwind policy.
+# See northwind-business.provenance.md for source evidence and added assumptions.
 ontology: Northwind 分销
 raw:
   R-NORTHWIND:

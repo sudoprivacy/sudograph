@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="__LANGUAGE__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SudoGraph</title>
+</head>
+<body>
+<p id="export-loading">Opening the graph…</p>
+<noscript>This export requires JavaScript.</noscript>
+<script>
+const SG_PACKED_HTML = __PACKED_HTML__;
+(async () => {
+  try {
+    const bytes = Uint8Array.from(atob(SG_PACKED_HTML.data), c => c.charCodeAt(0));
+    const raw = await new Response(new Blob([bytes]).stream()
+      .pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    if (raw.byteLength !== SG_PACKED_HTML.bytes) throw new Error('Incomplete export');
+    const native = new TextDecoder('utf-8', {fatal: true}).decode(raw);
+    document.open();
+    document.write(native);
+    document.close();
+  } catch (error) {
+    document.body.textContent = 'Could not open this export: ' + String(error);
+  }
+})();
+</script>
+</body>
+</html>

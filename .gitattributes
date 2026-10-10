@@ -2,3 +2,6 @@
 /examples/northwind-phase-one/2026-10-10/* -text whitespace=cr-at-eol
 # Generated bundles contain vendor code and the full compressed source snapshot.
 /examples/northwind-phase-one/2026-10-10/index.html -diff linguist-generated=true
+# The public English presentation derives from the frozen source snapshot.
+/examples/northwind-phase-one/public/* -text whitespace=cr-at-eol
+/examples/northwind-phase-one/public/index.html -diff linguist-generated=true

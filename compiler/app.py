@@ -23,7 +23,7 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
-from . import blind, browse, catalog, source_schema
+from . import blind, browse, catalog, html_export, source_schema
 from . import compile as compile_mod
 from . import diff as diff_mod
 from . import measure as measure_mod
@@ -145,7 +145,8 @@ def languages() -> list[str]:
         return ['zh', *json.load(fh)]
 
 
-def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 'zh') -> str:
+def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 'zh',
+           packed: bool = False) -> str:
     if b.get('source_schema'):
         source_schema.validate(b['source_schema'])
     elif b.get('projection', {}).get('mode') == 'source_projection':
@@ -189,4 +190,5 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
     # `</script>` inside the JSON would end the tag early; escaping the slash is
     # the standard way and leaves the value identical after JSON.parse.
     payload = json.dumps(b, ensure_ascii=False).replace("</", "<\\/")
-    return html.replace("__BUNDLE__", payload)
+    native = html.replace("__BUNDLE__", payload)
+    return html_export.pack(native, language=language) if packed else native

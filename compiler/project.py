@@ -179,7 +179,12 @@ def main(argv=None):
     ap.add_argument("--name", default="Source projection")
     ap.add_argument("--app", help="also compile the validated projection to a graph HTML")
     ap.add_argument("--records", action="store_true", help="include complete record pages")
+    ap.add_argument("--lang", choices=("zh", "en", "auto"), default="zh",
+                    help="export language; use en for public examples")
+    ap.add_argument("--pack-html", action="store_true", help="losslessly compress native HTML")
     args = ap.parse_args(argv)
+    if args.pack_html and not args.app:
+        ap.error("--pack-html requires --app")
     output = Path(args.output).resolve()
     from . import cli, spec  # noqa: PLC0415 — spec validates through this module
 
@@ -201,7 +206,8 @@ def main(argv=None):
     print(f"Validated source projection: {output}")
     if args.app:
         return cli.main([str(output), "--mode", "source_projection", "--app", args.app,
-                         *(["--records"] if args.records else [])])
+                         "--lang", args.lang, *(["--records"] if args.records else []),
+                         *(["--pack-html"] if args.pack_html else [])])
     return 0
 
 

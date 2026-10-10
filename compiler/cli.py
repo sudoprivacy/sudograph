@@ -123,6 +123,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument('--records', action='store_true',
                     help='include complete, compressed record pages in a portable export')
+    ap.add_argument('--pack-html', action='store_true',
+                    help='losslessly compress the entire native HTML for portable delivery')
     ap.add_argument('--questions', help='include public blind questions; private oracles refuse')
     ap.add_argument(
         "--diff",
@@ -139,6 +141,8 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     args = ap.parse_args(argv)
+    if args.pack_html and not args.app:
+        ap.error('--pack-html requires --app')
     try:
         at = _coords(args.at)
     except ValueError as e:
@@ -161,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
                 with open(args.questions, encoding='utf-8') as fh:
                     b['challenge'] = json.load(fh)
                 app_mod.blind.public_only(b['challenge'])
-            html = app_mod.render(b, language=args.lang)
+            html = app_mod.render(b, language=args.lang, packed=args.pack_html)
         except ValueError as e:
             print(str(e), file=sys.stderr)
             return 2

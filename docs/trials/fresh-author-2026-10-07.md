@@ -1,29 +1,70 @@
-# 无上下文作者接手阶段一投影
+# Fresh-agent phase-one projection trial
 
-当前示例：https://s.shareone.vip/s/sudograph-northwind
+This records the 2026-10-07 workflow, not a fresh trial of the current version.
+The current public artifact and coverage baseline are documented in
+[the phase-one example](../../examples/northwind-phase-one/README.md).
 
-独立作者交付：https://s.shareone.vip/s/sudograph-northwind-fresh-agent
+The independent author started with a new conversation and received the SQLite
+file and generic README/compiler/app/schema interfaces. It did not receive the
+previous YAML, published graph, discussions or business definitions. Inputs and
+conversation were isolated; operating-system access was not sandboxed. This
+trial establishes this source and handover, not a success rate for all databases.
 
-独立作者使用新会话，仅收到 SQLite 文件与通用 README/compiler/app/schema，没有收到旧 YAML、已发布图、以前的讨论或业务口径。隔离的是输入与会话，不是操作系统权限。本次只证明这个数据源和这次接手，不宣称所有数据库的普遍成功率。
+The author discovered `compiler.project` and generated complete bound-record
+HTML through native `compiler.cli`, without changing compiler/app/schema or
+post-processing HTML. The source remained read-only with an unchanged SHA-256.
+Final HTML matched the shared renderer's output for the same bundle.
 
-作者从通用入口发现并使用 `compiler.project`，再用原生 `compiler.cli` 生成包含全部记录的 HTML。没有改 compiler/app/schema，没有后处理 HTML。源库只读，前后 SHA256 一致；最终 HTML 与当前通用 renderer 对同一 bundle 的输出字节一致。
-
-| 比较项 | 当前阶段一图 | 独立作者 |
+| Comparison | Existing phase-one graph | Independent author |
 | --- | ---: | ---: |
-| 源表 | 13 | 13 |
-| 非二进制源字段 | 86 | 86 |
-| 已声明主键 | 13 | 13 |
-| 已声明外键 | 13 | 13 |
-| 图中类型 | 14 | 13 |
+| Source tables | 13 | 13 |
+| Non-binary bound source fields | 86 | 86 |
+| Declared primary keys | 13 | 13 |
+| Declared foreign keys | 13 | 13 |
+| Authored graph types | 14 | 13 |
 
-类型数量差异来自当前图把 Orders 拆成“销售订单”“发货”两个同源主键投影；作者保持一个 Orders 类型。两份图的源表、字段、主键和外键集合完全相同。命名、对象拆分、布局可以不同，不把像素相同当作事实正确的标准。
+The type difference comes from the existing model's two projections of `Orders`,
+labelled Sales order and Shipment; the author kept one Orders type. Both cover
+the same source table, field, primary-key and foreign-key sets. Names, object
+aliases and layout can differ; pixel identity is not evidence of accuracy.
 
-独立作者逐值核对 625,890 行、3,276,955 个标量值和 272 个 NULL，全部与源库一致。17 个无声明身份的视图及 2 个 BLOB 字段明确排除，并保留完整清单；“覆盖无遗漏”表示绑定或明确排除，不能称为所有视图/二进制内容都已导出。原生图支持中文默认、English 切换、完整分页与关联浏览，实际浏览器完成十项行为检查。主代理另外通过 ai-dev-browser 在两个发布链接做真实点击：员工九条、订单十二条/页、下一页、记录字段展开和语言切换均通过。
+The author compared 625,890 rows, 3,276,955 scalar values and 272 NULLs against
+the source. All matched. At that version, 17 views without declared row identity
+and two BLOB fields were explicitly excluded from business bindings and retained
+in the inventory. Inventory accounted for is not the same as every view/binary
+payload delivered. The later full-source reader preserves these too; see the
+current baseline for its separate 30-object/204-field evidence.
 
-首次接手并非一次无摩擦完成。作者暴露的通用缺陷已修入 infra：覆盖排除说明/关联名称没有经过翻译目录、完整源列/主键未显示、渲染失败截空旧 HTML、空表范围为 1–0、Python hash 顺序令原生输出键序不稳定。修复后作者重跑原生生成，未获得旧图或业务答案。仓库完整检查另补齐新源入口的缺库退出协议、输出目录独立性与 POSIX 绝对 DSN，均有非 Northwind 测试。
+The native graph supported a Chinese default, an English switch, complete paging
+and relationship browsing. Ten browser behaviours were checked. The root agent
+also used ai-dev-browser for real clicks on both deliveries: nine Employees,
+twelve Orders per page, next-page navigation, record-field expansion and locale
+switching passed.
 
-现在 `mode: source_projection` 在每次载入时拒绝手填记录、未绑定的角色、业务公式、业务缺口及没有源证据的关联。原先示例中的净销售额、品类汇总及负责人属于人工业务草案，保留在 `examples/northwind-business.yaml`，不出现在本轮阶段一图中。阶段一 HTML 是只读快照，不写回源库，不自动更新，也不宣称跨多个读取连接的事务一致性。
+The first handover exposed generic defects: untranslated coverage exceptions and
+relationship labels, missing complete columns/keys, truncation of old HTML on
+render failure, empty-table ranges of 1–0, and hash-dependent output ordering.
+These were fixed in shared infrastructure before regeneration, without supplying
+the old graph or business answers. Further non-Northwind tests cover missing-
+source exit codes, independent output directories and POSIX absolute DSNs.
 
-完整机器证据见同目录 `fresh-author-2026-10-07.json`。作者的原始报告、源值核对脚本、YAML、HTML 和原始截图保留在本机临时独立交付目录，未将数据库或大体积 HTML 纳入 Git。
+Every `source_projection` load now rejects inline copied records, unbound roles,
+business formulas/gaps and unsupported source relationships. Earlier net-sales,
+category-aggregate and workflow-owner proposals remain in the separate
+`examples/northwind-business.yaml` capability fixture. They are unreviewed agent
+drafts. Phase-one HTML is read-only; it writes nothing back and does not claim
+live updates or cross-connection transactional consistency.
 
-第二轮全新接手复验：使用最终通用代码的新会话，未收到第一轮 YAML/图/讨论，首轮原生编译无错误，独立完成同样的 13 表、86 字段、13 外键及全量源值/身份核对。两种展示目录各 91 项。没有在作者执行中更新 infra 或给领域答案；作者只纠正自己的终端编码和核查脚本误报。作者没有浏览器工具，真实点击验收由主代理补齐。后续字段面板的原值转义统一通过共享模板重生成，未修改任何交付 YAML 或做图专属补丁。
+Detailed machine evidence is in `fresh-author-2026-10-07.json`. Original author
+reports, comparison scripts, YAML, HTML and screenshots were retained locally.
+The database was not committed; a later phase-one freeze added native HTML.
+
+A second independent recheck used the then-final generic code without the first
+author's YAML, graph or discussions. Its first native compilation succeeded and
+independently checked 13 tables, 86 scalar fields, 13 foreign keys and all bound
+source values/identities. Both presentation directories had 91 items. Infra was
+not changed during the recheck and no domain answers were supplied. The author
+corrected terminal encoding and false alarms in its comparison script. It had no
+browser tool; the root agent supplied real-click acceptance. Later raw-value
+escaping fixes were regenerated through the shared template without YAML changes
+or graph-specific patches.

@@ -68,6 +68,15 @@ YAML with `compiler.cli --mode source_projection` or a registered view's
 `examples/northwind.yaml` uses this source contract. Draft interpretations are
 kept separately in `examples/northwind-business.yaml`; they are not confirmed
 business policy. A display selector never selects a workflow contract.
+The [draft provenance](../examples/northwind-business.provenance.md) separates
+stored upstream formulas from the agent's rounding, scope and workflow proposals.
+
+For public delivery, `compiler.cli --app graph.html --records --lang en --pack-html`
+and corresponding `compiler.project` flags generate an English presentation with
+lossless gzip packaging of the whole native HTML. The reader unpacks locally
+before rendering; it does not fetch source data or recalculate metrics. Native
+contracts are validated before packaging. `compiler.html_export.unpack` and the
+baseline checker inspect the same model and records as a plain export.
 
 Node text selects details; explicit `+`/`×` controls expand/collapse records or
 fields. Wheels over selectable labels use the same zoom rule as the canvas.
@@ -163,7 +172,7 @@ scope and generated field IDs; source-wide discovery remains unavailable.
 
 ## Server-side visibility
 
-Use **视图 / View** for a named projection of the shared model. Reuse source and
+Use **View** for a named projection of the shared model. Reuse source and
 business identities, definition references, graph selection, pagination, focus
 and anchor mechanics across presentation and authorised scopes. The target
 View definition supplies both the renderer and server projection; policy grants
@@ -172,7 +181,7 @@ server by the caller's policy before records, counts, aggregates or graph object
 are sent. The existing Gateway registry and reader selectors still have separate
 descriptors; a unified, versioned registry is next-stage work. Distinguish
 **graph view**, database **source view**, and server **authorised view** when
-needed. The shared reader selector says **视图 / View**, not **Show**.
+needed. The shared reader selector says **View**, not **Show**.
 
 Presentation and authorisation are different dimensions of that system. Phase-two definitions,
 metrics and rules should have separately named business presentations, while

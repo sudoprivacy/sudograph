@@ -9,3 +9,4 @@ node_modules/
 # are the sources. `--app` writes wherever you point it.
 /app/*.html
 !/app/index.html
+!/app/packed.html
