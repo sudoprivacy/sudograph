@@ -8,9 +8,15 @@ Historical review comments are not copied into public artifacts or shares.
 The [frozen native HTML](2026-10-10/index.html) is direct compiler/shared-renderer
 output. Download it and open it in a browser. Its original Chinese default and
 byte hashes remain historical evidence. The public English presentation is
-generated separately from the same frozen bundle, with all source identities,
+generated separately as [public/index.html](public/index.html) from the same
+frozen bundle, with all source identities,
 fields and records intact. See [publication.json](publication.json) for the
 deployed presentation and the publication mechanism actually used.
+
+The [public manifest](public/baseline.json) pins its own renderer revision,
+English default, packaging and file hashes while retaining the original source
+extraction timestamp. The public presentation was compared to every typed value
+in the pinned source database, including binary payloads.
 
 This is an **internal phase-one review baseline**. Structure and data completeness
 have been checked; business meaning still requires human review. It does not
@@ -92,6 +98,7 @@ available, rerun the complete read-only audit:
 
 ```sh
 python -m tools.check_baselines examples/northwind-phase-one/2026-10-10/baseline.json --source ../northwind-SQLite3/dist/northwind.db
+python -m tools.check_baselines examples/northwind-phase-one/public/baseline.json --source ../northwind-SQLite3/dist/northwind.db
 ```
 
 The checker has no Northwind table/column exceptions. Tests use unrelated
