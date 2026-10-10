@@ -1,0 +1,61 @@
+{
+  "format": "sudograph-phase-one-baseline/v1",
+  "frozen_at": "2026-10-10T07:29:08.691038+00:00",
+  "status": "public-native-presentation-of-internal-review-baseline",
+  "artifact": "index.html",
+  "projection_generated_at": "2026-10-08T10:29:34.263342+00:00",
+  "renderer": {
+    "repository": "https://github.com/sudoprivacy/sudograph",
+    "commit": "10fd052790c8b4989ff9e21ff921a77b8f623a0c",
+    "language": "en",
+    "line_endings": "LF",
+    "packaging": "native-html"
+  },
+  "source": {
+    "repository": "https://github.com/jpwhite3/northwind-SQLite3",
+    "commit": "4f56e7f5906dfd23b25244c5bfe8fb5da6402efd",
+    "file": "dist/northwind.db",
+    "sha256": "2f4f5c68dfcd33ba27373eae48c7a4869800c68095ee0f9f0da494f83382a877",
+    "bytes": 24702976,
+    "license": "LICENSE.northwind.txt",
+    "acquisition": "Use the populated upstream SQLite file unchanged and read-only; no local CSV import or make populate."
+  },
+  "generation": {
+    "kind": "unpack-reviewed-frozen-presentation",
+    "baseline_manifest": "../../2026-10-10/baseline.json",
+    "input_artifact": "../../public/index.html",
+    "input_commit": "e847ce70392db55f2ce7919aa4b3960203418d6c",
+    "input_sha256": "9764f2c78b0e38edde30be06cc4646e803270ba0e721df999d963e1e98df076a",
+    "method": "Bounded gzip/base64 decode of the pinned artifact, strict UTF-8 and length/hash checks; output exactly reconstructs from the pinned renderer sources.",
+    "source_rescanned": false,
+    "non_ui_model_matches_original": true,
+    "native_bytes": 11603808
+  },
+  "coverage": {
+    "objects": 30,
+    "tables": 13,
+    "views": 17,
+    "fields": 204,
+    "table_rows": 625890,
+    "result_rows": 1909973,
+    "values": 23841939
+  },
+  "privacy": {
+    "historical_review_comments_included": false,
+    "host_injection_included": false,
+    "public_example_uses_a_separate_share": true,
+    "internal_review_share_settings_not_changed": true
+  },
+  "files": [
+    {
+      "path": "index.html",
+      "bytes": 11603808,
+      "sha256": "4322ee2beecffd23539dc3325627817a3ad7df10e4920f5f8ebb3f68ceac8a6c"
+    },
+    {
+      "path": "LICENSE.northwind.txt",
+      "bytes": 1096,
+      "sha256": "adc273d87b5bc47dd4b231ee14aec8ad778207be1f32212c227043c6ed94ce7f"
+    }
+  ]
+}
