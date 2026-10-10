@@ -23,7 +23,8 @@
       "http_status": 400,
       "error_code": "BAD_REQUEST",
       "retryable": false,
-      "reason": "??????????????: ???????????base64?????????????????????",
+      "reason": "远程内容违规，拒绝修改。原因: 包含可能执行恶意脚本的base64编码数据，且数据量巨大，存在潜在安全风险。",
+      "reason_translation": "Remote content was rejected because its large base64-encoded payload could execute malicious scripts and pose a security risk.",
       "next_step": "Human review by ShareOne; no alternative publication was attempted after rejection."
     }
   },
