@@ -5,6 +5,9 @@
 # The public English presentation derives from the frozen source snapshot.
 /examples/northwind-phase-one/public/* -text whitespace=cr-at-eol
 /examples/northwind-phase-one/public/index.html -diff linguist-generated=true
+# Native presentations retain their frozen UTF-8 bytes on every platform.
+/examples/northwind-phase-one/native/** -text whitespace=cr-at-eol
+/examples/northwind-phase-one/native/**/index.html -diff linguist-generated=true
 # Phase-two previews are checked against the pinned source and overlay contract.
 /examples/northwind/business/index.html -text -diff linguist-generated=true
 /examples/northwind/business/pilot.yaml -text whitespace=cr-at-eol
