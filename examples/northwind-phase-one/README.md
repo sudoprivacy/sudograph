@@ -1,30 +1,33 @@
 # Northwind phase-one baseline
 
 [Public example](https://s.shareone.vip/s/sudograph-northwind-phase-one-baseline)
-uses a separate share with comments disabled. It currently serves the original
-Chinese-default baseline. An English presentation is available in this repository;
-ShareOne's automatic review rejected the packed remote-url update, so that
-deployment awaits human review. Internal customer review keeps its Chinese
-default and the shared language switch.
+uses a separate share with comments disabled. It serves the complete English
+[native HTML presentation](native/2026-10-10/index.html), bound to a fixed GitHub
+commit after ShareOne's formal content review. Internal customer review keeps
+its Chinese default and the shared language switch.
 Historical review comments are not copied into public artifacts or shares.
 
 The [frozen native HTML](2026-10-10/index.html) is direct compiler/shared-renderer
 output. Download it and open it in a browser. Its original Chinese default and
-byte hashes remain historical evidence. The public English presentation is
-generated separately as [public/index.html](public/index.html) from the same
-frozen bundle, with all source identities,
-fields and records intact. See [publication.json](publication.json) for the
+byte hashes remain historical evidence. The deployed native presentation uses
+the same frozen bundle, with all source identities, fields and records intact.
+See [publication.json](publication.json) for the
 deployed presentation and the publication mechanism actually used.
 
-The [public manifest](public/baseline.json) pins its own renderer revision,
-English default, packaging and file hashes while retaining the original source
+The [native manifest](native/2026-10-10/baseline.json) pins its renderer revision,
+English default and file hashes while retaining the original source
 extraction timestamp. The public presentation was compared to every typed value
 in the pinned source database, including binary payloads.
 
-The packed file is below ShareOne's remote fetch size limit, but its encoded HTML
-was rejected as a potential script risk. Size acceptance and content approval
-are separate requirements. The original share was left unchanged and verified
-byte-for-byte after the rejection. No alternative publication path was attempted.
+The earlier [packed presentation](public/index.html) was rejected by automatic
+review. Its loader also removes ShareOne's injected listeners by rewriting the
+document. The rejection and unchanged original bytes remain recorded in the
+publication ledger. Following the authorized hosting fix, ShareOne supports
+remote UTF-8 sources up to 16 MiB and formal review of complete files. Review
+submission and approval preserved the original page; the normal owner update
+then bound the exact approved native bytes to the existing link. Production
+download, refresh, desktop/mobile rendering, record paging and foreign-key
+inspection passed. Comments remain disabled.
 
 This is an **internal phase-one review baseline**. Structure and data completeness
 have been checked; business meaning still requires human review. It does not
