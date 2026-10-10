@@ -34,6 +34,7 @@ def base(tmp_path):
                 "label": "Source total",
                 "statement": "The source sums amount.",
                 "origin": "provided",
+                "contributor": "source",
                 "version": 1,
                 "targets": [obj["id"]],
                 "evidence": [{"kind": "source_sql", "ref": obj["id"], "quote": "SUM(amount)"}],
@@ -43,6 +44,7 @@ def base(tmp_path):
                 "label": "Refunds",
                 "statement": "Should refunds reduce this amount?",
                 "origin": "inferred",
+                "contributor": "model",
                 "version": 1,
                 "targets": [obj["id"]],
             },
@@ -62,6 +64,8 @@ def test_separate_view_preserves_every_source_value_and_reuses_definition_identi
     business.validate(overlay)
     assert model == old and overlay["source_schema"] == old["source_schema"]
     assert overlay["views"] == old["views"] and overlay["records"] == old["records"]
+    for key in ("source_schema", "views", "records"):
+        assert overlay[key] is model[key]
     views = overlay["business"]["views"]
     assert views["questions"]["definitions"][0] == views["meaning"]["definitions"][1]
     assert len(overlay["business"]["definitions"]) == 2
@@ -75,6 +79,9 @@ def test_separate_view_preserves_every_source_value_and_reuses_definition_identi
     [
         ("origin", None, "origin"),
         ("origin", "confirmed", "origin"),
+        ("contributor", "model", "contributor"),
+        ("contributor", None, "contributor"),
+        ("contributor", "business_user", "supplied document quote"),
         ("targets", ["invented/field"], "source ID"),
         ("version", 0, "positive integer"),
         ("evidence", [], "provided claims"),
@@ -141,14 +148,33 @@ def test_document_evidence_quotes_and_digest_are_checked(base):
         }
     }
     item = doc["definitions"]["observed-total"]
+    item["contributor"] = "business_user"
     item["evidence"] = [{"kind": "document", "ref": "instructions", "quote": "every Friday"}]
-    business.build(doc, model)
+    compiled = business.build(doc, model)["business"]
+    for view in compiled["views"].values():
+        for edge in view["edges"]:
+            definition = compiled["definitions"][edge["to"]]
+            for key in ("origin", "contributor", "review_status"):
+                assert edge[key] == definition[key]
+    assert {n["contributor"] for n in compiled["definitions"].values()} == {
+        "business_user", "model"
+    }
     item["evidence"][0]["quote"] = "every Monday"
     with pytest.raises(ValueError, match="quote is absent"):
         business.build(doc, model)
     item["evidence"][0]["quote"] = "every Friday"
     doc["documents"]["instructions"]["text"] += " edited"
     with pytest.raises(ValueError, match="SHA-256"):
+        business.build(doc, model)
+
+
+def test_missing_contributor_and_obsolete_contract_cannot_skip_enforcement(base):
+    model, doc = base
+    del doc["definitions"]["observed-total"]["contributor"]
+    with pytest.raises(ValueError, match=r"requires.*contributor"):
+        business.build(doc, model)
+    doc["format"] = "sudograph-business-overlay/v1"
+    with pytest.raises(ValueError, match="use format"):
         business.build(doc, model)
 
 

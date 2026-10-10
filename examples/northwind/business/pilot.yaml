@@ -1,4 +1,4 @@
-format: sudograph-business-overlay/v1
+format: sudograph-business-overlay/v2
 namespace: northwind-sales-review
 baseline:
   manifest: ../../northwind-phase-one/2026-10-10/baseline.json
@@ -32,7 +32,8 @@ definitions:
     statement: The supplied README describes Northwind as a small-business ERP tutorial covering customers, orders,
       inventory, purchasing, suppliers, shipping and employees.
     origin: provided
-    version: 1
+    contributor: source
+    version: 2
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders
     evidence:
@@ -45,7 +46,8 @@ definitions:
     statement: The source view calculates ExtendedPrice from line UnitPrice, Quantity and Discount, including /100
       * 100. This observation preserves the source computation; it does not approve a revenue definition.
     origin: provided
-    version: 1
+    contributor: source
+    version: 2
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Quantity
@@ -64,7 +66,8 @@ definitions:
     statement: Sales by Category groups by category and product and filters OrderDate to 1997. That scope is already
       part of the phase-one source view.
     origin: provided
-    version: 1
+    contributor: source
+    version: 2
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/CategoryID
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/ProductSales
@@ -85,7 +88,8 @@ definitions:
     statement: For the business question, should we reuse the source 1997 report or define another reporting period
       and category-level grain? The source view alone does not choose the new business scope.
     origin: inferred
-    version: 1
+    contributor: model
+    version: 2
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/ProductSales
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/CategoryID
@@ -95,7 +99,8 @@ definitions:
     statement: The product and order-line UnitPrice may represent a catalogue price and a transaction price. This
       is a model hypothesis; confirm meanings and use real rows to check differences before choosing one.
     origin: inferred
-    version: 1
+    contributor: model
+    version: 2
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/UnitPrice
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
@@ -105,7 +110,8 @@ definitions:
     statement: Should amounts be rounded per line or only after aggregation, at what precision and with which rule?
       Source SQL contains no explicit rounding policy. No new rounding rule is applied in this pilot.
     origin: inferred
-    version: 1
+    contributor: model
+    version: 2
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice
   tax-freight-question:
@@ -115,7 +121,8 @@ definitions:
       freight, whether UnitPrice already includes tax and which currency applies. These meanings are not established
       by the expression.
     origin: inferred
-    version: 1
+    contributor: model
+    version: 2
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/Freight
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice

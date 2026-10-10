@@ -72,10 +72,15 @@ The [draft provenance](../examples/northwind/business/provenance.md) separates
 stored upstream formulas from the agent's rounding, scope and workflow proposals.
 
 `compiler.business` is the checked phase-two overlay entrance. Its
-`sudograph-business-overlay/v1` document pins a frozen phase-one manifest,
+`sudograph-business-overlay/v2` document pins a frozen phase-one manifest,
 declares a namespace and canonical definitions, and references those definitions
 from named business views. Every definition has an explicit origin (`provided`
-or `inferred`), source targets and a version. Provided claims require a checked
+or `inferred`), a contributor category, source targets and a version. Provided
+definitions require `contributor: source` or `business_user`; inferred definitions
+require `contributor: model`. Business-user input needs a supplied document quote.
+Missing or contradictory attribution is refused, including direct rendering.
+Evidence edges inherit the definition's attribution and review state; they are
+references, not new source foreign keys. Provided claims require a checked
 SQL/document quotation. Source SQL definitions/results themselves remain phase
 one, including calculations. Origin does not represent business approval.
 
@@ -85,6 +90,12 @@ time. Definitions have one identity across views/languages; a registry refuses
 edits without new versions. An operator must own the registry in a service.
 The current overlay records statements and questions, not executable metrics or
 human confirmations. It is not yet a registered authenticated Gateway resource.
+
+Supplied definitions reuse the source green, and source objects/fields keep the
+phase-one grey. Model questions reuse the warm gap colour. Orange outlines mark
+all unreviewed definitions, including supplied ones. Contributor labels separate
+source material from business-user input without inventing a new colour scheme.
+Attribution is checked metadata, not proof of who authenticated a document.
 
 For public delivery, `compiler.cli --app graph.html --records --lang en --pack-html`
 and corresponding `compiler.project` flags generate an English presentation with

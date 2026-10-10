@@ -213,6 +213,11 @@
     "业务定义的标识": "Business definition identity",
     "源 SQL 和结果仍属于阶段一；这里核对业务含义和新的假设。": "Source SQL and results remain in phase one. Review business meanings and new hypotheses here.",
     "点击定义查看出处，沿源字段核对真实记录。": "Select a definition to inspect its evidence and follow source fields to real records.",
-    "本版只记录定义与问题；口径确认后再实现指标计算。": "This version records definitions and questions. Metric execution follows review of the business definition."
+    "本版只记录定义与问题；口径确认后再实现指标计算。": "This version records definitions and questions. Metric execution follows review of the business definition.",
+    "模型推演 · 待确认": "Model deduction · unreviewed",
+    "源资料": "Source material",
+    "业务人员提供": "Business-user input",
+    "提供者类别": "Contributor category",
+    "这条线引用源对象或字段；不是源库外键，也不是新的计算公式。": "This edge references a source object or field. It is not a source foreign key or a new calculation."
   }
 }

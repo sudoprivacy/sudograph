@@ -1,8 +1,10 @@
 // Origins describe evidence. Confirmation is a separate, operator-owned decision.
 const BUSINESS_ORIGINS={
-  provided:{colour:'#357769',get name(){return t('资料提供')}},
-  inferred:{colour:'#7153a2',get name(){return t('模型推演')}},
+  provided:{get colour(){return css(KINDS.raw.var)},get name(){return t('资料提供')}},
+  inferred:{get colour(){return css(KINDS.hook.var)},get name(){return t('模型推演 · 待确认')}},
 };
+const BUSINESS_CONTRIBUTORS={source:'源资料',business_user:'业务人员提供',model:'模型推演'};
+const businessContributor=(n,language=uiLanguage)=>t(BUSINESS_CONTRIBUTORS[n.contributor],{},language);
 const businessNodes=new Map(Object.entries(BUNDLE.business?.definitions||{}));
 const isBusiness=()=>state.projection.startsWith('business:');
 for(const [key,v] of Object.entries(BUNDLE.business?.views||{})) {
@@ -31,7 +33,7 @@ function businessGraph() {
 }
 function businessLines(n,language) {
   return [{cls:'',parts:[bt(n.label,language)]},
-    {cls:'sub',parts:[t(n.origin==='provided'?'资料提供':'模型推演',{},language)+' · v'+n.version]},
+    {cls:'sub',parts:[businessContributor(n,language)+' · v'+n.version]},
     {cls:'sub',parts:[t('待业务确认',{},language)]}];
 }
 async function drawBusiness(v,mine) {
@@ -54,6 +56,7 @@ function showBusinessNode(n) {
   state.panel='node';
   $('panel').innerHTML=`<h2>${t('业务定义草案')}</h2><strong>${esc(bt(n.label))}</strong>`+
     `<p>${esc(bt(n.statement))}</p><div class="kv"><span>${t('信息来源')}</span><span>${t(n.origin==='provided'?'资料提供':'模型推演')}</span></div>`+
+    `<div class="kv"><span>${t('提供者类别')}</span><span>${businessContributor(n)}</span></div>`+
     `<div class="kv"><span>${t('确认状态')}</span><span>${t('待业务确认')}</span></div>`+
     `<p class="muted">${t('来源不代表已确认')} · v${n.version}</p>`;
   const controls=document.createElement('div');controls.className='schema-actions';
@@ -83,6 +86,20 @@ function showBusinessNode(n) {
   }
   const identity=document.createElement('details');identity.innerHTML=`<summary>${t('业务定义的标识')}</summary><div class="op">${esc(n.id)}</div>`;
   $('panel').appendChild(identity);
+}
+function showBusinessRelation(e) {
+  const target=schemaNodes.get(e.from),definition=businessNodes.get(e.to);
+  const sourceName=(target.parent?schemaNodes.get(target.parent).name+'.':'')+(target.column||target.name);
+  $('panel').innerHTML=`<h2>${t('依据或核对目标')}</h2><p>${esc(sourceName)} → ${esc(bt(definition.label))}</p>`+
+    `<div class="kv"><span>${t('提供者类别')}</span><span>${businessContributor(e)}</span></div>`+
+    `<p>${t('待业务确认')} · ${t('来源不代表已确认')}</p>`+
+    `<p class="muted">${t('这条线引用源对象或字段；不是源库外键，也不是新的计算公式。')}</p>`;
+  const controls=document.createElement('div');controls.className='schema-actions';
+  for(const [label,action] of [[sourceName,()=>revealSchema(e.from)],
+    [bt(definition.label),()=>revealBusiness(e.to)]]) {
+    const button=document.createElement('button');button.textContent=label;button.onclick=action;controls.appendChild(button);
+  }
+  $('panel').appendChild(controls);
 }
 function showBusinessSummary() {
   state.panel='checks';

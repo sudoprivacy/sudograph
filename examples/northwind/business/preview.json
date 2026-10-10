@@ -2,10 +2,10 @@
   "status": "unreviewed-business-pilot",
   "language": "en",
   "artifact": "index.html",
-  "artifact_bytes": 11645685,
-  "artifact_sha256": "cc7394b892e5133120c9396ee16b3b2f44317b6c2abbdacb7795830df7e8d05c",
+  "artifact_bytes": 11650603,
+  "artifact_sha256": "9dd0ccc6ff30af19f7267f99d982077b68f3425be663e04f551e81007b2caced",
   "overlay": "pilot.yaml",
-  "overlay_sha256": "003018de2b66b71f7c02c78de3935826d186de87fc3d4d38e5dd0c6e5a133f10",
+  "overlay_sha256": "8a8e97b60da5828b4fceb2cd45dbc06b6bdea37a8333bdb508580ec390f48722",
   "registry": "pilot.registry.json",
   "canonical_definitions": 7,
   "origins": {
@@ -16,5 +16,35 @@
   "phase_one_source_unchanged": true,
   "live_shareone_deployment": false,
   "reproduce": "python -m compiler.business examples/northwind/business/pilot.yaml --app examples/northwind/business/index.html --lang en",
-  "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources."
+  "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
+  "customer_review": {
+    "artifact": "review.html",
+    "bytes": 11649692,
+    "sha256": "6516219c90929cb44913c2c63ae37ef23e0b9f567d0ad62fe9d6941127be4230",
+    "language": "zh"
+  },
+  "contributors": {
+    "source": 3,
+    "model": 4,
+    "business_user": 0
+  },
+  "source_objects_shared_by_identity": true,
+  "colour_contract": {
+    "provided": "--raw",
+    "inferred_pending": "--hook",
+    "source_objects_and_fields": "--type",
+    "unreviewed_outline": "--hook"
+  },
+  "validation": {
+    "verification_gates_passed": 5,
+    "tests_passed": 298,
+    "browser_tool": "ai-dev-browser",
+    "source_field_to_real_records": true,
+    "source_node_references_shared_in_renderer": true,
+    "business_definition_and_reference_edge_attribution": true,
+    "language_switch_preserves_identities": true,
+    "canonical_definition_ids_preserved": 7,
+    "phase_one_source_and_views_equal_to_original_review": true,
+    "comments_in_artifact": false
+  }
 }

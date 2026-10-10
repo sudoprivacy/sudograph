@@ -105,7 +105,9 @@ def main() -> int:
     for path in sorted(Path(EXAMPLES).rglob("*.yaml")):
         try:
             doc = spec_mod.read_document(str(path))
-            if not isinstance(doc, dict) or doc.get("format") != business_mod.FORMAT:
+            if not isinstance(doc, dict) or not str(doc.get("format", "")).startswith(
+                "sudograph-business-overlay/"
+            ):
                 continue
             overlays.append(path)
             if business_mod.main([str(path)]) != 0:
@@ -119,6 +121,12 @@ def main() -> int:
             ) != 0:
                 failures.append(f"{os.path.relpath(artifact, ROOT)}: "
                                 "saved export differs from its source/definitions")
+            review = path.with_name("review.html")
+            if review.exists() and business_mod.main(
+                [str(path), "--check-app", str(review), "--lang", "zh"]
+            ) != 0:
+                failures.append(f"{os.path.relpath(review, ROOT)}: "
+                                "review export differs from its source/definitions")
         except (ValueError, OSError) as e:
             failures.append(f"{os.path.relpath(path, ROOT)}: {e}")
     print(f"\n{len(paths)} source/business example(s), {len(overlays)} overlay example(s) checked")

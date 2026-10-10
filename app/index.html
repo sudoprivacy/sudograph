@@ -354,7 +354,8 @@ const fillOf = n => {
 
 function renderLegend() { $('legend').innerHTML =
   isBusiness() ? Object.values(BUSINESS_ORIGINS).map(o=>`<span><i style="background:${o.colour}"></i>${o.name}</span>`).join('')+
-    `<span><i style="background:var(--type)"></i>${t('源字段与对象')}</span><span>${t('来源不代表已确认')}</span>` :
+    `<span><i style="background:var(--type)"></i>${t('源字段与对象')}</span>`+
+    `<span><i style="background:transparent;border-color:var(--hook)"></i>${t('待业务确认')}</span><span>${t('来源不代表已确认')}</span>` :
   (isSchema()||BUNDLE.projection?.mode==='source_projection') ?
     [KINDS.raw,KINDS.type].map(k=>`<span><i style="background:var(${k.var})"></i>${k.name}</span>`).join('')+
     `<span><u style="border-top-color:var(--edge)"></u>${t('关系')}</span>` :

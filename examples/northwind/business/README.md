@@ -6,7 +6,8 @@ field identities or the accepted phase-one file. Source SQL computations already
 belong to phase one; an observation of those computations is cited here to help
 review a proposed business meaning.
 
-The [English preview](index.html) opens locally in a browser. Its source and
+The [English preview](index.html) and [Chinese customer-review variant](review.html)
+open locally in a browser. Both come from the same compiler and model. Their source and
 definition checks run in CI; [preview.json](preview.json) records the file hashes
 and review boundaries. Include [the upstream MIT licence](LICENSE.northwind.txt)
 when distributing the standalone Northwind preview.
@@ -20,8 +21,9 @@ The pilot has seven definitions and two business views:
 - The second view reuses the four questions by identity. It creates no additional
   definitions or independent copies of their meanings.
 
-**Green means supplied evidence. Purple means model deduction. Grey means a source
-object or field.** The legend and each definition also spell out the origin, so
+**Green reuses the phase-one source colour. Orange marks model questions. Grey
+reuses the phase-one object/field colour.** All definitions have orange review
+outlines until reviewed. The legend and each definition also spell out the origin, so
 colour is not the only distinction. All definitions remain **unreviewed**. Having
 a source citation does not establish that an interpretation is correct; inferred
 does not mean incorrect. Business approval is a separate decision.
@@ -42,8 +44,13 @@ python -m compiler.business examples/northwind/business/pilot.yaml --app busines
 ```
 
 The compiler checks the phase-one manifest pin and its locked artifact before
-loading the overlay. An authored definition must declare `origin: provided` or
-`origin: inferred` and reference existing source IDs. Supplied claims require a
+loading the overlay. An authored definition must declare `origin: provided` with
+`contributor: source` or `business_user`, or `origin: inferred` with
+`contributor: model`, and reference existing source IDs. Attribution cannot be
+omitted or contradicted. Business-user input requires a supplied document quote;
+this pilot has no business-user statements yet. Nodes and their reference edges
+carry the same attribution. These edges do not claim source foreign keys.
+Supplied claims require a
 quotation from a source SQL definition or a supplied document snapshot. The quote
 must exist in that evidence; document text is checked against its SHA-256. This
 checks reference integrity, not whether a quotation logically proves the claim.
@@ -76,7 +83,7 @@ python -m compiler.business examples/northwind/business/pilot.yaml --check-app e
 ```
 
 The example gate validates nested overlay YAML and, when present, checks the saved
-English HTML against the same source snapshot and canonical definitions. This
+English HTML and Chinese review variant against the same source snapshot and canonical definitions. This
 reuses the existing five-gate CI workflow. The source artifact remains immutable.
 
 ## Current boundaries

@@ -19,7 +19,7 @@ from urllib.parse import quote, urlparse
 from . import source_schema
 from .spec import read_document
 
-FORMAT = "sudograph-business-overlay/v1"
+FORMAT = "sudograph-business-overlay/v2"
 REGISTRY = "sudograph-business-registry/v1"
 
 
@@ -78,13 +78,19 @@ def compile_document(doc, model):
         raise ValueError("definitions: declare at least one canonical definition")
     for key, item in doc["definitions"].items():
         where = f"definition {key}"
-        required = {"concept", "label", "statement", "origin", "targets", "version"}
+        required = {"concept", "label", "statement", "origin", "contributor", "targets", "version"}
         mapping(item, required | {"evidence"}, required, where)
         for name in ("concept", "label", "statement"):
             text(item[name], f"{where}.{name}")
         if item["origin"] not in ("provided", "inferred"):
             raise ValueError(
                 f"{where}.origin: use provided with evidence, or inferred for model deduction"
+            )
+        contributors = ("source", "business_user") if item["origin"] == "provided" else ("model",)
+        if item["contributor"] not in contributors:
+            raise ValueError(
+                f"{where}.contributor: {item['origin']} requires one of {contributors}; "
+                "keep source material, business-user input and model deduction distinct"
             )
         if type(item["version"]) is not int or item["version"] < 1:
             raise ValueError(
@@ -114,6 +120,10 @@ def compile_document(doc, model):
             raise ValueError(
                 f"{where}.evidence: provided claims need a supplied document or source SQL quote"
             )
+        if item["contributor"] == "business_user" and not any(
+            isinstance(e, dict) and e.get("kind") == "document" for e in evidence
+        ):
+            raise ValueError(f"{where}: business-user input requires a supplied document quote")
         for citation in evidence:
             mapping(
                 citation, {"kind", "ref", "quote"}, {"kind", "ref", "quote"}, f"{where}.evidence"
@@ -164,6 +174,9 @@ def compile_document(doc, model):
                 "from": target,
                 "to": identity,
                 "rel": "business_evidence",
+                "origin": definitions[identity]["origin"],
+                "contributor": definitions[identity]["contributor"],
+                "review_status": definitions[identity]["review_status"],
             }
             for identity in ids
             for target in definitions[identity]["targets"]

@@ -135,15 +135,18 @@ async function drawCanvas(v, shown, edges, mine) {
   cy = cytoscape({container:host, minZoom:.08,maxZoom:4,
     elements:[...nodes.map(n=> {const p=positions.get(n.id);return {data:{id:n.id,
       label:linesOf(n,false).map(l=>l.parts.join('')).join('\n'), color:fillOf(n),
+      borderColor:n.kind==='business_definition'?css(KINDS.hook.var):'#778399',
       w:p.width,h:p.height,pad:Math.max(40,dimensions.get(n.id).h+16),
       headerWidth:dimensions.get(n.id).w,headerHeight:dimensions.get(n.id).h,
       ...(n.kind==='instance'?{parent:n.type}:n.parent?{parent:n.parent}:{})},
       position:saved?.positions[n.id] || {x:p.x+p.width/2,y:p.y+p.height/2}};}),
       ...edges.map((e,i)=>({data:{id:'edge-'+i,source:e.from,target:e.to,
-        label:bt(e.via || ''),anchorId:canvasEdgeId(e),meta:e,loop:e.from===e.to,color:css(inferred(e)?EDGES.guessed.colour:edgeStyle(e.rel).colour),
-        dash:inferred(e)?'dotted':edgeStyle(e.rel).dash?'dashed':'solid'}}))],
+        label:bt(e.via || ''),anchorId:canvasEdgeId(e),meta:e,loop:e.from===e.to,
+        color:e.rel==='business_evidence'?BUSINESS_ORIGINS[e.origin].colour:css(inferred(e)?EDGES.guessed.colour:edgeStyle(e.rel).colour),
+        dash:e.rel==='business_evidence'?(e.origin==='inferred'?'dashed':'solid'):
+          inferred(e)?'dotted':edgeStyle(e.rel).dash?'dashed':'solid'}}))],
     style:[{selector:'node',style:{shape:'roundrectangle','background-color':'data(color)',
-      width:'data(w)',height:'data(h)','border-width':1,'border-color':'#778399',
+      width:'data(w)',height:'data(h)','border-width':1,'border-color':'data(borderColor)',
       label:nodes.length>500?'data(label)':'','text-wrap':'wrap',color:'#dfe4ec',
       'font-size':11,'font-family':readerFont,'text-valign':'center'}},
       {selector:':parent',style:{padding:'data(pad)','background-opacity':.2,'border-style':'dashed',
@@ -343,6 +346,7 @@ async function drawCanvas(v, shown, edges, mine) {
 
 function showRelation(e) {
   state.selected=null;state.selectedRelation=canvasEdgeId(e);state.panel='relation';state.relation=e;updateCanvasSelection();
+  if(e.rel==='business_evidence')return showBusinessRelation(e);
   $('panel').innerHTML=`<h2>${t('关系')}</h2><p>${esc(bt(e.from))} → ${esc(bt(e.to))}</p>`+
     `<p>${esc(bt(e.via || e.rel))}</p>`+
     (e.rel==='same_source_key'?`<p>${t('同一来源主键的两个业务投影；各自筛选可能不同。')}</p>`+

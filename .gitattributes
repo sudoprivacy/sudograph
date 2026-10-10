@@ -10,6 +10,7 @@
 /examples/northwind-phase-one/native/**/index.html -diff linguist-generated=true
 # Phase-two previews are checked against the pinned source and overlay contract.
 /examples/northwind/business/index.html -text -diff linguist-generated=true
+/examples/northwind/business/review.html -text -diff linguist-generated=true
 /examples/northwind/business/pilot.yaml -text whitespace=cr-at-eol
 /examples/northwind/business/pilot.registry.json -text whitespace=cr-at-eol
 /examples/northwind/business/preview.json -text whitespace=cr-at-eol

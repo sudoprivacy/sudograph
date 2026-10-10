@@ -59,7 +59,23 @@
           "resolution": "Separate hosting/moderation BR/FR prepared; await a supported external resolution before retrying."
         }
       }
-    ]
+    ],
+    "independent_reverification": {
+      "verified_at": "2026-10-10T14:48:52.534317Z",
+      "force_refresh": true,
+      "remote_fetch_failures": 0,
+      "remote_last_error": null,
+      "owner_download_sha256": "4322ee2beecffd23539dc3325627817a3ad7df10e4920f5f8ebb3f68ceac8a6c",
+      "owner_download_matches_native_bytes": true,
+      "anonymous_browser": {
+        "language": "en",
+        "mode": "source_projection",
+        "objects": 30,
+        "fields": 204,
+        "shareone_sdk_present": true,
+        "graph_loaded": true
+      }
+    }
   },
   "verification": {
     "local_tests_passed": 294,
