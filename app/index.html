@@ -290,7 +290,7 @@ if (!BUNDLE.bridges.length) {
 /* ── the compiler already decided everything; we only look it up ───── */
 const coordKey = () =>
   Object.keys(state.at).sort().map(k => `${k}=${state.at[k]}`).join(',');
-const view   = () => isSchema() ? schemaGraph() : BUNDLE.views[`${state.basis ?? ''}|${coordKey()}`];
+const view   = () => isBusiness() ? businessGraph() : isSchema() ? schemaGraph() : BUNDLE.views[`${state.basis ?? ''}|${coordKey()}`];
 const bridge = () => BUNDLE.diffs[`${state.bridge || defaultBridgeName()}|${coordKey()}`];
 function defaultBridgeName() {
   const b = BUNDLE.bridges[0];
@@ -343,6 +343,7 @@ const hex = c => {
   return m ? [1, 2, 3].map(i => parseInt(m[i], 16)) : null;
 };
 const fillOf = n => {
+  if(n.kind==='business_definition')return BUSINESS_ORIGINS[n.origin].colour;
   const base = css((KINDS[n.kind] || (n.kind==='schema_source'?KINDS.raw:KINDS.type)).var);
   if (n.kind === 'hook' || !(n.provisional_because || []).length) return base;
   const a = hex(base), b = hex(css('--hook'));
@@ -352,7 +353,9 @@ const fillOf = n => {
 };
 
 function renderLegend() { $('legend').innerHTML =
-  BUNDLE.projection?.mode==='source_projection' ?
+  isBusiness() ? Object.values(BUSINESS_ORIGINS).map(o=>`<span><i style="background:${o.colour}"></i>${o.name}</span>`).join('')+
+    `<span><i style="background:var(--type)"></i>${t('源字段与对象')}</span><span>${t('来源不代表已确认')}</span>` :
+  (isSchema()||BUNDLE.projection?.mode==='source_projection') ?
     [KINDS.raw,KINDS.type].map(k=>`<span><i style="background:var(${k.var})"></i>${k.name}</span>`).join('')+
     `<span><u style="border-top-color:var(--edge)"></u>${t('关系')}</span>` :
   `<span><i style="background:${
@@ -370,7 +373,6 @@ function renderLegend() { $('legend').innerHTML =
     .map(([c, label]) => `<i style="background:transparent;border-color:${c}"></i>${label}`)
     .join('') + `</span>`;
 }
-renderLegend();
 
 /* ELK places nodes; Cytoscape handles graph interaction. SVG is a fallback. */
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -400,6 +402,7 @@ let scene = null;
 // a scoring fault on its side, since fixed. Kept for the reading, not for the
 // anchor.
 function linesOf(n, open, language = uiLanguage) {
+  if(n.kind==='business_definition')return businessLines(n,language);
   if(n.kind.startsWith('schema_'))return schemaLines(n,language);
   if(n.kind==='fields')return Object.entries(n.props).map(([p,value])=>({cls:'',parts:[
     bt(p,language)+': '+String(fmt(value)).slice(0,90)+(String(fmt(value)).length>90?'…':'')]}));
@@ -469,12 +472,15 @@ function measure(lines,maxWidth=260) {
 /*__CANVAS__*/
 /*__RECORDS__*/
 /*__SCHEMA__*/
+/*__BUSINESS__*/
 /*__NAVIGATION__*/
 let drawSeq = 0;
 async function draw() {
   const mine = ++drawSeq;
   const v = view();
   if (!v) { $('status').textContent = 'no view for this combination'; return; }
+  renderLegend();
+  if(isBusiness())return drawBusiness(v,mine);
   if(isSchema())return drawSchema(v,mine);
   $('schemaFilter').hidden=true;
   $('sources').checked=state.sources;
@@ -774,13 +780,15 @@ const anchors = (() => {
       for (const e of d.entries || []) ids.add(e.node);
     for(const id of graphAnchorLocations.keys())ids.add(id);
     for(const id of schemaNodes.keys())ids.add(id);
+    for(const id of businessNodes.keys())ids.add(id);
+    for(const v of Object.values(BUNDLE.business?.views||{}))for(const e of v.edges)ids.add(e.id);
     for(const vv of Object.values(BUNDLE.views))for(const n of vv.nodes)ids.add(n.id);
     for(const vv of Object.values(BUNDLE.views))for(const e of vv.edges)ids.add(canvasEdgeId(e));
     if(BUNDLE.source_schema)for(const e of schemaGraph().edges)ids.add(canvasEdgeId(e));
     return ids;
   };
   const labelOf = id => {
-    const n = schemaNodes.get(id)||(view()?.nodes || []).find(x => x.id === id);
+    const n = businessNodes.get(id)||schemaNodes.get(id)||(view()?.nodes || []).find(x => x.id === id);
     const edge=[...(view()?.edges||[]),...sourceDataEdges(view()||{})].find(e=>canvasEdgeId(e)===id);
     return n ? bt(n.label) : edge ? (isSchema()?schemaRelationLabel(edge):bt(edge.via||edge.rel)) : id;
   };
@@ -839,6 +847,8 @@ const anchors = (() => {
         state.projection = 'all'; $('projection').value = 'all'; changed = true;
       }
       for (const id of ids || []) {
+        if(businessNodes.has(id)){await revealBusiness(id);changed=true;continue;}
+        if(await revealBusinessRelation(id)){changed=true;continue;}
         if(schemaNodes.has(id)){await revealSchema(id);changed=true;continue;}
         const relation=BUNDLE.source_schema&&schemaGraph().edges.find(e=>canvasEdgeId(e)===id);
         if(relation){await revealSchemaRelation(relation);changed=true;continue;}
@@ -1004,6 +1014,7 @@ function applyTransform() {
 })();
 
 function showNode(n) {
+  if(n.kind==='business_definition')return showBusinessNode(n);
   if(n.kind.startsWith('schema_'))return showSchemaNode(n);
   const rows = [];
   rows.push(`<h2>${n.kind==='fields'?t('属性'):KINDS[n.kind]?.name||n.kind}</h2><div style="font-size:15px;font-weight:600">${esc(bt(n.label))}</div>`);
@@ -1119,6 +1130,7 @@ const checkLine = c =>
   `</div>`;
 
 function showChecks(v) {
+  if(isBusiness())return showBusinessSummary();
   if(isSchema())return showSchemaSummary();
   const bad = v.checks.filter(c => !c.ok);
   // A passing check that is about something — rows missing a value, accounted
@@ -1188,6 +1200,11 @@ function showBridge(d) {
 }
 
 $('instBtn').onclick = () => {
+  if(isBusiness()) {
+    const objects=businessGraph().nodes.filter(n=>n.kind==='schema_object');
+    const closed=objects.some(n=>!state.schemaExpanded.has(n.id));
+    state.schemaExpanded=new Set(closed?objects.map(n=>n.id):[]);return draw();
+  }
   if(isSchema()) {
     const objects=schemaObjects.filter(o=>state.schemaKind==='all'||o.object_kind===state.schemaKind);
     const closed=objects.some(o=>!state.schemaExpanded.has(o.id));

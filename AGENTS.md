@@ -13,6 +13,11 @@
 - Keep phase-one source projections separate from business definitions. A source
   SQL formula establishes what the source computes, not an approved business
   meaning. Agent proposals need explicit provenance and human confirmation.
+- Source SQL calculations and their result rows remain phase-one facts. Phase
+  two adds interpretations or new definitions in a separate business overlay.
+  Use `compiler.business` for the overlay; declare provided/inferred origins,
+  cite supplied evidence, reuse canonical definitions and increment versions
+  through the shared registry. Do not treat source attribution as approval.
 - Record the publication mechanism actually used. A file in GitHub does not mean
   its ShareOne share is bound to remote-url. Do not copy internal review comments
   into public examples; keep public examples on a separate share.

@@ -1,0 +1,33 @@
+{
+  "format": "sudograph-business-registry/v1",
+  "definitions": {
+    "sg-business/northwind-sales-review/3e83ea51866bcc11ca391cc54078a11b16a80ab97f6cda4aa8c95c66b8b3d0c8": {
+      "version": 1,
+      "content_digest": "4c501f52fe7e31014fc2c5cdada56c1418567c142aa7c43328c01596f7d9b493"
+    },
+    "sg-business/northwind-sales-review/ee96c5d18b965bce7678900e149bf695a96c8ccd4fa50fce59d141e79696486d": {
+      "version": 1,
+      "content_digest": "d5df3f063990c0c39fedae252bde4506adc7c06fd98724f86d076f6b54c210d1"
+    },
+    "sg-business/northwind-sales-review/df9ea8ceb07ab8fde180dc12fad6abee567b3037f22643f82253d284426dda84": {
+      "version": 1,
+      "content_digest": "39759dce974b39d42e313e97d73299401988004f7fbad84808a2519a2ad2052a"
+    },
+    "sg-business/northwind-sales-review/4d07134dbf521d9ba3c239ec2a687f2932775b7aa53dfb2910e1ed4aa1adb247": {
+      "version": 1,
+      "content_digest": "7d779018c241c36547f00bfc7a1c894167915188a5cb32bf0193cbdb8ae1d2d0"
+    },
+    "sg-business/northwind-sales-review/399aedd4b745c809773e51a1fe8e35efbc644c2015f55a89026674de21e6a13e": {
+      "version": 1,
+      "content_digest": "2c395eb9614aa367b996b65f6b299943e7ef21805d814577b5f668542061a9c3"
+    },
+    "sg-business/northwind-sales-review/cd2dde6a53f387b058c5f43b8c81565e24187a2effa6239b2dd2508cc6fa0cca": {
+      "version": 1,
+      "content_digest": "f58f2d8e5cf47e9ef6d3672f607c112d8f6f363f946e386de1d96594c2d360c0"
+    },
+    "sg-business/northwind-sales-review/0686d74a8e93b45fef695006d83380909c3d343c20e912977f0864d9103aff79": {
+      "version": 1,
+      "content_digest": "5913f9aafd35169520013d002abbef5f5d6768fcb4ddf553757ec18afe539987"
+    }
+  }
+}

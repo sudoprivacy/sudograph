@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 import jsonschema
 import yaml
@@ -19,6 +20,7 @@ import yaml
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from compiler import bind as bind_mod
+from compiler import business as business_mod
 from compiler import compile as compile_mod
 from compiler import diff as diff_mod
 from compiler import spec as spec_mod
@@ -99,7 +101,27 @@ def main() -> int:
                 f"{len(d.carried)} carried, posted {d.posted():,}"
             )
 
-    print(f"\n{len(paths)} example(s) checked")
+    overlays = []
+    for path in sorted(Path(EXAMPLES).rglob("*.yaml")):
+        try:
+            doc = spec_mod.read_document(str(path))
+            if not isinstance(doc, dict) or doc.get("format") != business_mod.FORMAT:
+                continue
+            overlays.append(path)
+            if business_mod.main([str(path)]) != 0:
+                failures.append(f"{os.path.relpath(path, ROOT)}: business overlay contract refused")
+            else:
+                print(f"  ok  {os.path.relpath(path, ROOT)}: "
+                      "evidence, identities and view references")
+            artifact = path.with_name("index.html")
+            if artifact.exists() and business_mod.main(
+                [str(path), "--check-app", str(artifact), "--lang", "en"]
+            ) != 0:
+                failures.append(f"{os.path.relpath(artifact, ROOT)}: "
+                                "saved export differs from its source/definitions")
+        except (ValueError, OSError) as e:
+            failures.append(f"{os.path.relpath(path, ROOT)}: {e}")
+    print(f"\n{len(paths)} source/business example(s), {len(overlays)} overlay example(s) checked")
     for f in failures:
         print(f"FAIL {f}", file=sys.stderr)
     return 1 if failures else 0

@@ -559,12 +559,30 @@ Display names and complete `translations.en` may be supplied by an agent;
 they describe source facts and are not authority for business meaning.
 
 Phase two uses `mode: business` (the legacy default), with separately reviewed
-business expressions and decisions. The [Northwind draft provenance](examples/northwind-business.provenance.md)
+business expressions and decisions. The [Northwind draft provenance](examples/northwind/business/provenance.md)
 identifies source computations and added agent assumptions; the old business
 fixture is not approved policy. A portable HTML is a read-only snapshot,
 not a second writable database and not a promise of live or transactionally
 consistent data. Regenerate it when the source changes. Never infer a revenue
 formula, workflow owner or business definition from a column name alone.
+
+For phase-two review, use a separate checked overlay over a pinned phase-one
+baseline. Source SQL and its results stay in phase one. The first
+[Northwind business pilot](examples/northwind/business/README.md) distinguishes
+supplied evidence from model deductions in the shared reader, with a colour and
+text legend. Origin and business confirmation are separate. All pilot definitions
+are still unreviewed; it does not introduce a new sales calculation.
+
+```sh
+python -m compiler.business examples/northwind/business/pilot.yaml
+```
+
+The overlay compiler enforces declared origins, existing source references,
+verifiable evidence quotations, canonical definition identities and versions.
+Business views reuse definition references. The native renderer checks the same
+contract; a no-context author cannot omit origins by taking another render path.
+These structural checks do not approve an interpretation or authenticate a
+document's author. See the pilot guide for registry ownership and current limits.
 Deliver the HTML produced by the compiler directly. If presentation is deficient,
 fix the shared template and regenerate; a private HTML patch is not a reproducible
 agent deliverable. Source object/field IDs are generated and checked by the

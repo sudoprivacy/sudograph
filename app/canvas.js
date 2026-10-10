@@ -83,7 +83,7 @@ async function drawCanvas(v, shown, edges, mine) {
     const sizes=Object.keys(BUNDLE.ui.catalogs).flatMap(lang=>[false,true].map(open=>measure(linesOf(n,open,lang))));
     return [n.id,{w:Math.max(...sizes.map(s=>s.w)),h:Math.max(...sizes.map(s=>s.h))}];
   }));
-  const direction=state.direction==='auto'?(state.projection==='data'||isSchema()?'RIGHT':'DOWN'):state.direction;
+  const direction=state.direction==='auto'?(state.projection==='data'||isSchema()||isBusiness()?'RIGHT':'DOWN'):state.direction;
   const box = n => {
     // Reserve enough space for every available language, including wrapped text.
     // A language switch then preserves both manual placement and route geometry.
@@ -204,15 +204,16 @@ async function drawCanvas(v, shown, edges, mine) {
   if (nodes.length <= 500) for (const n of nodes) {
     const label = document.createElement('div');
     label.className='canvas-label'; label.dataset.nodeId=n.id;label.id='node-label-'+n.id;
+    if(n.kind==='business_definition')label.dataset.shareoneAnchorId=n.id;
     label.style.cssText='position:absolute;pointer-events:auto;user-select:text;cursor:text;'+
       'text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;line-height:16px';
     label.textContent=linesOf(n,state.expanded.has(n.id)).map(l=>l.parts.join('')).join('\n');
     label.onpointerdown=e=>e.stopPropagation();
     label.onclick=e=>{e.stopPropagation();if (!getSelection()?.toString()) select(n);};
-    if(n.kind.startsWith('schema_'))label.onpointerup=()=>{
+    if(n.kind.startsWith('schema_')||n.kind==='business_definition')label.onpointerup=()=>{
       const selection=getSelection();
       if(selection?.toString()&&selection.rangeCount&&label.contains(selection.getRangeAt(0).commonAncestorContainer)
-        &&commentSchemaNode(n))selection.removeAllRanges();
+        &&(n.kind==='business_definition'?anchors.comment(n.id,bt(n.label),bt(n.statement)):commentSchemaNode(n)))selection.removeAllRanges();
     };
     const target=n.kind==='fields'?shown.get(n.parent):n;
     const expandable=target?.kind==='schema_object' || target?.kind==='instance' || (target?.kind==='type' && target.count &&

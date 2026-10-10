@@ -153,6 +153,6 @@ bytes do not change dataset coverage.
 
 Phase two adds separately reviewed business definitions and views referencing
 the same source identities. Keep this phase-one snapshot as the review baseline.
-The [legacy business fixture's provenance](../northwind-business.provenance.md)
+The [legacy business fixture's provenance](../northwind/business/provenance.md)
 distinguishes upstream calculations from agent-authored assumptions; it is not
 an accepted phase-two model.

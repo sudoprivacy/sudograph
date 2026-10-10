@@ -195,6 +195,24 @@
     "阶段一：只读原库投影，未定义业务口径。": "Phase one: read-only source projection, without business definitions.",
     "查看数据库中的记录、字段和关联。": "Browse database records, fields and relationships.",
     "快照不随源库自动更新；空值保持原样。": "This snapshot does not update automatically; empty values are preserved.",
-    "快照不随源库自动更新；NULL 保持为空，不推断为零或业务缺口。": "Snapshots do not update automatically; NULL stays empty, without inferred zeros or business gaps."
+    "快照不随源库自动更新；NULL 保持为空，不推断为零或业务缺口。": "Snapshots do not update automatically; NULL stays empty, without inferred zeros or business gaps.",
+    "资料提供": "Supplied evidence",
+    "模型推演": "Model deduction",
+    "来源不代表已确认": "Origin does not mean approval",
+    "源字段与对象": "Source fields and objects",
+    "业务视图": "Business view",
+    "待业务确认": "Awaiting business review",
+    "依据或核对目标": "Evidence or review target",
+    "业务定义草案": "Proposed business definition",
+    "信息来源": "Information origin",
+    "确认状态": "Review status",
+    "核对源字段": "Inspect source fields",
+    "评论业务定义": "Comment on definition",
+    "引用证据": "Cited evidence",
+    "原始资料": "Original material",
+    "业务定义的标识": "Business definition identity",
+    "源 SQL 和结果仍属于阶段一；这里核对业务含义和新的假设。": "Source SQL and results remain in phase one. Review business meanings and new hypotheses here.",
+    "点击定义查看出处，沿源字段核对真实记录。": "Select a definition to inspect its evidence and follow source fields to real records.",
+    "本版只记录定义与问题；口径确认后再实现指标计算。": "This version records definitions and questions. Metric execution follows review of the business definition."
   }
 }

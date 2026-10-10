@@ -1,0 +1,20 @@
+{
+  "status": "unreviewed-business-pilot",
+  "language": "en",
+  "artifact": "index.html",
+  "artifact_bytes": 11645685,
+  "artifact_sha256": "cc7394b892e5133120c9396ee16b3b2f44317b6c2abbdacb7795830df7e8d05c",
+  "overlay": "pilot.yaml",
+  "overlay_sha256": "003018de2b66b71f7c02c78de3935826d186de87fc3d4d38e5dd0c6e5a133f10",
+  "registry": "pilot.registry.json",
+  "canonical_definitions": 7,
+  "origins": {
+    "provided": 3,
+    "inferred": 4
+  },
+  "new_executable_metrics": false,
+  "phase_one_source_unchanged": true,
+  "live_shareone_deployment": false,
+  "reproduce": "python -m compiler.business examples/northwind/business/pilot.yaml --app examples/northwind/business/index.html --lang en",
+  "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources."
+}

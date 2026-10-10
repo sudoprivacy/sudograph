@@ -1,0 +1,46 @@
+{
+  "status": "unreviewed-first-phase-two-overlay",
+  "spec": "examples/northwind/business/pilot.yaml",
+  "source_baseline": "examples/northwind-phase-one/2026-10-10/baseline.json",
+  "canonical_definitions": 7,
+  "origin_counts": {"provided": 3, "inferred": 4},
+  "business_views": ["sales-meaning", "open-questions"],
+  "definition_references_reused": true,
+  "source_model_and_records_match_pinned_baseline": true,
+  "new_executable_metrics": false,
+  "human_confirmations": 0,
+  "local_tests_passed": 294,
+  "local_gates_passed": 5,
+  "browser": {
+    "tool": "ai-dev-browser",
+    "languages": ["zh", "en"],
+    "provided_colour": "#357769",
+    "inferred_colour": "#7153a2",
+    "origin_text_and_legend_visible": true,
+    "review_status_separate_from_origin": true,
+    "source_field_and_real_record_drilldown": true,
+    "source_sql_citation_inspected": true,
+    "definition_identity_reused_across_views": true,
+    "local_anchor_test_host": {
+      "visible_hidden_and_reveal": true,
+      "business_relation_reveal_from_source_view": true
+    },
+    "live_shareone_host_tested": false,
+    "phase_one_reader_regression": {
+      "source_objects": 30,
+      "source_fields": 204,
+      "field_foreign_key_inspection": true,
+      "identities_stable_across_languages": true,
+      "source_view_record_paging": true
+    }
+  },
+  "limits": [
+    "Quotation and reference integrity are checked; semantic correctness still needs business review.",
+    "Document text has a digest and a cited URI; the compiler does not authenticate its external author.",
+    "Canonical concept/target duplicates are refused; arbitrary semantic synonyms are not automatically deduplicated.",
+    "A service operator must own the namespace and registry. A multi-writer transaction and human approval endpoint have not shipped.",
+    "This first overlay is not registered as an authenticated Gateway resource.",
+    "Remote-url deployment remains awaiting a supported ShareOne size/moderation resolution.",
+    "No fresh-agent trial or business acceptance is claimed."
+  ]
+}

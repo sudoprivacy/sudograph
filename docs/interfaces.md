@@ -68,8 +68,23 @@ YAML with `compiler.cli --mode source_projection` or a registered view's
 `examples/northwind.yaml` uses this source contract. Draft interpretations are
 kept separately in `examples/northwind-business.yaml`; they are not confirmed
 business policy. A display selector never selects a workflow contract.
-The [draft provenance](../examples/northwind-business.provenance.md) separates
+The [draft provenance](../examples/northwind/business/provenance.md) separates
 stored upstream formulas from the agent's rounding, scope and workflow proposals.
+
+`compiler.business` is the checked phase-two overlay entrance. Its
+`sudograph-business-overlay/v1` document pins a frozen phase-one manifest,
+declares a namespace and canonical definitions, and references those definitions
+from named business views. Every definition has an explicit origin (`provided`
+or `inferred`), source targets and a version. Provided claims require a checked
+SQL/document quotation. Source SQL definitions/results themselves remain phase
+one, including calculations. Origin does not represent business approval.
+
+The shared renderer adds independent business views while retaining the source
+reader and record drilldown. It validates the same overlay contract at render
+time. Definitions have one identity across views/languages; a registry refuses
+edits without new versions. An operator must own the registry in a service.
+The current overlay records statements and questions, not executable metrics or
+human confirmations. It is not yet a registered authenticated Gateway resource.
 
 For public delivery, `compiler.cli --app graph.html --records --lang en --pack-html`
 and corresponding `compiler.project` flags generate an English presentation with

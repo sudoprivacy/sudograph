@@ -25,7 +25,19 @@
       "retryable": false,
       "reason": "远程内容违规，拒绝修改。原因: 包含可能执行恶意脚本的base64编码数据，且数据量巨大，存在潜在安全风险。",
       "reason_translation": "Remote content was rejected because its large base64-encoded payload could execute malicious scripts and pose a security risk.",
-      "next_step": "Human review by ShareOne; no alternative publication was attempted after rejection."
+      "next_step": "Human review by ShareOne; no alternative publication was attempted after rejection.",
+      "repository_audit": {
+        "shareone_commit": "930d5ce4388bb67a96f36c3ed18d9ddad6e381db",
+        "pr_url": "https://github.com/sudoprivacy/shareone/pull/293",
+        "pr_scope": "Skill comment defaults, error contracts and review-thread preservation",
+        "remote_fetch_limit_bytes": 10485760,
+        "packed_html_moderation_supported": false,
+        "moderation_max_characters": 100000,
+        "human_approval_endpoint_found": false,
+        "audit_read_only": true,
+        "new_publication_attempted": false,
+        "resolution": "Separate hosting/moderation BR/FR prepared; await a supported external resolution before retrying."
+      }
     }
   },
   "verification": {

@@ -1,6 +1,6 @@
 # Provenance of the legacy Northwind business fixture
 
-`northwind-business.yaml` is an **unreviewed agent-authored capability fixture**,
+[`northwind-business.yaml`](../../northwind-business.yaml) is an **unreviewed agent-authored capability fixture**,
 explicitly in `mode: business`. It is not an approved Northwind business model and
 is not part of phase-one source artifacts. Retaining it exercises formulas,
 relationship aggregates and gaps without presenting its assumptions as facts.
@@ -36,7 +36,21 @@ There are three distinct authorities:
 - Business reviewers and cited documents establish the intended definition.
   Until reviewed, an agent's interpretation remains a proposal.
 
-## Proposed phase-two pilot, not an implementation
+## Phase boundary
+
+The phase boundary is authorship, not the presence of a calculation. A SQL view
+already in the source database, including its expression and every result row,
+belongs to phase-one source projection. Copying that expression into an authored
+model does not move the original source view into phase two.
+
+Phase two explains, adopts or changes a business meaning. Calling a source result
+"net sales", changing date scope or introducing rounding is a separate proposal.
+Source observations remain accessible in the source view and retain their source
+identity. Northwind documentation can also inform phase-two definitions, like
+initial prompts from a business reviewer. Model deductions are a second origin.
+Both origins require visible attribution; neither automatically means confirmed.
+
+## Phase-two pilot
 
 Start with one question: **What does sales amount mean in this business, and how
 does it relate to the source's extended-price calculations?** Review source
@@ -48,10 +62,16 @@ Definitions need one canonical identity, provenance, review status and version;
 view changes reuse that definition rather than allocate another one. Keep the
 accepted phase-one artifact separately accessible.
 
-The loop is reviewer comment → agent definition change → compiler diagnostics →
-business-view comparison with source evidence and representative records →
-reviewer confirmation. Then test a fresh agent using the same interfaces.
-Server-authorised visibility should feed the same view definitions, with access
-decided before returning data. The combined baseline/overlay reader and durable
-business-definition lifecycle remain to be implemented after agreeing on the
-pilot. This document does not promote the legacy draft into acceptance.
+The [pilot](pilot.yaml) now uses the generic `compiler.business` contract and the
+shared renderer. Its separate business views distinguish supplied evidence from
+model deductions, show unreviewed status, reuse canonical definition identities
+and retain source-field drilldown. Source quotations and references are checked;
+named definitions are versioned through a registry. See [the pilot guide](README.md).
+
+The target loop remains reviewer comment → agent definition change → compiler
+diagnostics → business-view comparison with source evidence and representative
+records → reviewer confirmation. Actual business confirmation, execution of a
+new metric, a fresh-agent trial and deployment through the authenticated Gateway
+are not established by this first overlay. Server-authorised visibility should
+feed the same view definitions, with access decided before returning data. This
+document does not promote the legacy draft into acceptance.

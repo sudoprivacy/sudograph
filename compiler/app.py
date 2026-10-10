@@ -147,6 +147,9 @@ def languages() -> list[str]:
 
 def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 'zh',
            packed: bool = False) -> str:
+    if b.get('business'):
+        from . import business  # noqa: PLC0415 — overlay shares the native renderer
+        business.validate(b)
     if b.get('source_schema'):
         source_schema.validate(b['source_schema'])
     elif b.get('projection', {}).get('mode') == 'source_projection':
@@ -169,6 +172,7 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
         html = fh.read()
     for marker, filename in [('/*__CANVAS__*/', 'canvas.js'), ('/*__RECORDS__*/', 'records.js'),
                              ('/*__SCHEMA__*/', 'schema.js'),
+                             ('/*__BUSINESS__*/', 'business.js'),
                              ('/*__NAVIGATION__*/', 'navigation.js')]:
         with open(os.path.join(_ROOT, 'app', filename), encoding='utf-8') as fh:
             html = html.replace(marker, fh.read())
