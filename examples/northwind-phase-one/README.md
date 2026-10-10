@@ -1,8 +1,15 @@
 # Northwind 阶段一基线
 
-[冻结的原生 HTML](2026-10-10/index.html) 是 compiler / shared renderer 的直接产物，
+[在线示例](https://s.shareone.vip/s/sudograph-northwind-phase-one-baseline) 已发布为独立分享，
+评论已关闭。[冻结的原生 HTML](2026-10-10/index.html) 是 compiler / shared renderer 的直接产物，
 可下载后在本地浏览器打开。它包含公开的 Northwind 样例数据，不包含 ShareOne 审阅页的
 历史评论或宿主注入代码。公开展示使用另一份分享；原审阅线程不并入 example。
+ShareOne remote-url 当前最多拉取 10 MiB，本文件为 11,621,933 字节，
+因此在线示例使用原文件上传，未绑定远程自动跟随。已下载回读确认与冻结文件逐字节一致，
+并用匿名浏览器检查中文界面、30 个源对象、204 个字段，以及无评论入口。
+
+[publication.json](publication.json) 记录公开示例和本次收尾验证；源数据与 renderer
+版本仍以冻结目录中的 manifest 为准。
 
 本次冻结是**阶段一内部验收基线**：结构和数据完整性已核对，业务含义仍需人参与核对。
 没有因此宣布生产权限部署或当前版本完整的无上下文 agent 验收已经完成。

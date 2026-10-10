@@ -1,0 +1,39 @@
+{
+  "baseline_commit": "6f7e876eece8250d76b20336f68770228f3babd2",
+  "baseline_manifest": "2026-10-10/baseline.json",
+  "public_example": {
+    "url": "https://s.shareone.vip/s/sudograph-northwind-phase-one-baseline",
+    "share_id": "hebJSajbRbsnaWBU",
+    "delivery": "native_file_upload",
+    "remote_url_bound": false,
+    "remote_url_limit_bytes": 10485760,
+    "allow_comments": false,
+    "historical_comments_copied": false,
+    "download_matches_frozen_bytes": true,
+    "bytes": 11621933,
+    "sha256": "9d0e4d6d9607fe1e2207a441fcd04a29d08daf1ea18aa068cc0f9c3ba57db121"
+  },
+  "verification": {
+    "local_tests_passed": 277,
+    "local_gates_passed": 5,
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38016025524",
+    "ci_conclusion": "success",
+    "ci_tests_passed": 276,
+    "ci_tests_skipped": 1,
+    "ci_skip_reason": "Northwind source database is not installed on the CI runner",
+    "ci_gates_passed": 5,
+    "source_audit_objects": 30,
+    "source_audit_fields": 204,
+    "source_audit_values": 23841939,
+    "source_audit_binary_values": 17,
+    "source_unchanged_after_audit": true,
+    "anonymous_browser": {
+      "tool": "ai-dev-browser",
+      "language": "zh",
+      "source_objects": 30,
+      "source_fields": 204,
+      "visible_comment_controls": 0,
+      "graph_rendered": true
+    }
+  }
+}
