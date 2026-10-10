@@ -38,6 +38,10 @@ STEPS: list[tuple[list[str], str]] = [
         "every example still loads, validates and passes its own checks",
     ),
     (
+        [sys.executable, "-m", "tools.check_baselines"],
+        "frozen source examples retain their file hashes and complete source manifests",
+    ),
+    (
         [sys.executable, "-m", "tools.check_readme"],
         "every command the front page shows still works",
     ),

@@ -64,6 +64,16 @@ must remain explicit.
 Source coverage, paginated records, the authorised gateway, and raw-source
 question generation are documented in [the interface guide](docs/interfaces.md).
 
+The [Northwind phase-one baseline](examples/northwind-phase-one/README.md) packages
+the native HTML, pinned source and renderer versions, input configuration, file
+hashes, upstream licence and acceptance evidence. It uses the populated SQLite
+file supplied by [jpwhite3/northwind-SQLite3](https://github.com/jpwhite3/northwind-SQLite3)
+unchanged and read-only. The frozen example covers all 13 source tables, 17 source
+views and 204 fields, including their full records. View result counts overlap
+base-table data. Historical review comments are not part of the example.
+This is an internal technical review baseline; the current-version fresh-agent
+trial and production deployment remain separate acceptance work.
+
 ## Where this sits
 
 Sources are read-only. The compiler discovers their structure and validates
@@ -601,6 +611,7 @@ python -m compiler.cli examples/weiwai-capitalisation.yaml --view # view model J
 python -m compiler.cli examples/northwind.yaml                    # a spec over a live database
 python -m compiler.cli examples/northwind.yaml --measure          # computational self-checks, not an LLM evaluation
 python -m pytest                                                  # tests
+python -m tools.check_baselines                                    # frozen artifacts and source coverage declarations
 python -m tools.verify                                            # everything CI runs
 ```
 

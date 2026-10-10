@@ -1,0 +1,69 @@
+{
+  "format": "sudograph-phase-one-baseline/v1",
+  "frozen_at": "2026-10-10T02:04:53.977378+00:00",
+  "status": "internal-review-baseline",
+  "artifact": "index.html",
+  "projection_generated_at": "2026-10-08T10:29:34.263342+00:00",
+  "renderer": {
+    "repository": "https://github.com/sudoprivacy/sudograph",
+    "commit": "89668f844e41ccadeab45e9b797baf41277cce58",
+    "language": "zh",
+    "line_endings": "CRLF"
+  },
+  "source": {
+    "repository": "https://github.com/jpwhite3/northwind-SQLite3",
+    "commit": "4f56e7f5906dfd23b25244c5bfe8fb5da6402efd",
+    "file": "dist/northwind.db",
+    "sha256": "2f4f5c68dfcd33ba27373eae48c7a4869800c68095ee0f9f0da494f83382a877",
+    "bytes": 24702976,
+    "license": "LICENSE.northwind.txt",
+    "acquisition": "Use the populated upstream SQLite file unchanged and read-only; no local CSV import or make populate."
+  },
+  "generation": {
+    "input": "generation.yaml",
+    "original_input_path": "examples/northwind.yaml",
+    "input_commit": "89668f844e41ccadeab45e9b797baf41277cce58",
+    "command": "python -m compiler.cli examples/northwind.yaml --mode source_projection --records --app northwind.html --lang zh",
+    "snapshot_extracted_at": "2026-10-08T10:29:34.263342+00:00",
+    "renderer_updated_after_extraction": true,
+    "exact_replay": "Re-render the embedded frozen bundle with the pinned renderer, language zh and CRLF line endings.",
+    "rescan_limit": "A new scan preserves source facts; generated_at and IDs based on a relocated physical source path can differ."
+  },
+  "coverage": {
+    "objects": 30,
+    "tables": 13,
+    "views": 17,
+    "fields": 204,
+    "table_rows": 625890,
+    "result_rows": 1909973,
+    "values": 23841939
+  },
+  "privacy": {
+    "historical_review_comments_included": false,
+    "host_injection_included": false,
+    "public_example_uses_a_separate_share": true,
+    "internal_review_share_settings_not_changed": true
+  },
+  "files": [
+    {
+      "path": "index.html",
+      "bytes": 11621933,
+      "sha256": "9d0e4d6d9607fe1e2207a441fcd04a29d08daf1ea18aa068cc0f9c3ba57db121"
+    },
+    {
+      "path": "generation.yaml",
+      "bytes": 17110,
+      "sha256": "2b31c61faf7d99a0cb50c7ad7141b3c73bde76db8f68992970804ab9c0b9cc7a"
+    },
+    {
+      "path": "validation.json",
+      "bytes": 1742,
+      "sha256": "6454257d18797ee23a5ab0b31e47ff101e76d06cc1358855bafc6e1ad7c1a67c"
+    },
+    {
+      "path": "LICENSE.northwind.txt",
+      "bytes": 1096,
+      "sha256": "adc273d87b5bc47dd4b231ee14aec8ad778207be1f32212c227043c6ed94ce7f"
+    }
+  ]
+}

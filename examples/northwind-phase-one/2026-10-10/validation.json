@@ -1,0 +1,44 @@
+{
+  "checked_at": "2026-10-10T02:04:53.977378+00:00",
+  "result": "passed",
+  "source_provenance": {
+    "local_file_equals_pinned_git_blob": true,
+    "source_sha256": "2f4f5c68dfcd33ba27373eae48c7a4869800c68095ee0f9f0da494f83382a877"
+  },
+  "source_values": {
+    "method": "all objects/columns/rows/typed values compared against read-only source",
+    "coverage": {
+      "objects": 30,
+      "tables": 13,
+      "views": 17,
+      "fields": 204,
+      "table_rows": 625890,
+      "result_rows": 1909973,
+      "values": 23841939
+    },
+    "binary_values": 17,
+    "schema_complete": true,
+    "record_complete": true,
+    "source_unchanged_after_audit": true
+  },
+  "native_renderer": {
+    "equal_to_renderer_output": true,
+    "line_endings": "CRLF",
+    "no_host_injected_html_or_comment_payload": true
+  },
+  "existing_checks": {
+    "code_commit": "89668f844e41ccadeab45e9b797baf41277cce58",
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/37947129656",
+    "ci_result": "success",
+    "tests_passed": 268,
+    "tests_skipped": 1,
+    "gates_passed": 4
+  },
+  "scope_limits": [
+    "Current-version fresh-agent authoring has not been rerun end to end. The 2026-10-07 fresh-agent trial passed; its bundle was later regenerated with the shared renderer.",
+    "This is technical coverage evidence and an internal review baseline, not business-definition acceptance.",
+    "Portable source example contains the public sample dataset. It does not demonstrate a production identity/permission deployment.",
+    "No on-canvas full-row preview has shipped; source inspectors provide real paginated records.",
+    "Source views are included as source-defined results; their row counts overlap underlying tables."
+  ]
+}
