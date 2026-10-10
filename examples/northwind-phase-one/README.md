@@ -1,8 +1,11 @@
 # Northwind phase-one baseline
 
 [Public example](https://s.shareone.vip/s/sudograph-northwind-phase-one-baseline)
-uses a separate share with comments disabled. Public presentations start in
-English; internal customer review can use Chinese and the shared language switch.
+uses a separate share with comments disabled. It currently serves the original
+Chinese-default baseline. An English presentation is available in this repository;
+ShareOne's automatic review rejected the packed remote-url update, so that
+deployment awaits human review. Internal customer review keeps its Chinese
+default and the shared language switch.
 Historical review comments are not copied into public artifacts or shares.
 
 The [frozen native HTML](2026-10-10/index.html) is direct compiler/shared-renderer
@@ -17,6 +20,11 @@ The [public manifest](public/baseline.json) pins its own renderer revision,
 English default, packaging and file hashes while retaining the original source
 extraction timestamp. The public presentation was compared to every typed value
 in the pinned source database, including binary payloads.
+
+The packed file is below ShareOne's remote fetch size limit, but its encoded HTML
+was rejected as a potential script risk. Size acceptance and content approval
+are separate requirements. The original share was left unchanged and verified
+byte-for-byte after the rejection. No alternative publication path was attempted.
 
 This is an **internal phase-one review baseline**. Structure and data completeness
 have been checked; business meaning still requires human review. It does not

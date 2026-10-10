@@ -11,14 +11,28 @@
     "historical_comments_copied": false,
     "download_matches_frozen_bytes": true,
     "bytes": 11621933,
-    "sha256": "9d0e4d6d9607fe1e2207a441fcd04a29d08daf1ea18aa068cc0f9c3ba57db121"
+    "sha256": "9d0e4d6d9607fe1e2207a441fcd04a29d08daf1ea18aa068cc0f9c3ba57db121",
+    "prior_share_unchanged_after_rejected_update": true,
+    "current_language": "zh",
+    "remote_url_last_attempt": {
+      "attempted_at": "2026-10-10T03:26:21.951492+00:00",
+      "requested_url": "https://github.com/sudoprivacy/sudograph/blob/e847ce70392db55f2ce7919aa4b3960203418d6c/examples/northwind-phase-one/public/index.html",
+      "requested_language": "en",
+      "requested_bytes": 9230219,
+      "result": "automatic_review_rejected",
+      "http_status": 400,
+      "error_code": "BAD_REQUEST",
+      "retryable": false,
+      "reason": "??????????????: ???????????base64?????????????????????",
+      "next_step": "Human review by ShareOne; no alternative publication was attempted after rejection."
+    }
   },
   "verification": {
-    "local_tests_passed": 277,
+    "local_tests_passed": 282,
     "local_gates_passed": 5,
-    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38016025524",
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38020354320",
     "ci_conclusion": "success",
-    "ci_tests_passed": 276,
+    "ci_tests_passed": 281,
     "ci_tests_skipped": 1,
     "ci_skip_reason": "Northwind source database is not installed on the CI runner",
     "ci_gates_passed": 5,
@@ -34,6 +48,27 @@
       "source_fields": 204,
       "visible_comment_controls": 0,
       "graph_rendered": true
+    },
+    "ci_checked_commit": "e847ce70392db55f2ce7919aa4b3960203418d6c"
+  },
+  "proposed_public_presentation": {
+    "commit": "e847ce70392db55f2ce7919aa4b3960203418d6c",
+    "artifact": "public/index.html",
+    "manifest": "public/baseline.json",
+    "language": "en",
+    "packaging": "sudograph-packed-html/v1",
+    "bytes": 9230219,
+    "sha256": "9764f2c78b0e38edde30be06cc4646e803270ba0e721df999d963e1e98df076a",
+    "source_model_matches_frozen_baseline": true,
+    "shareone_deployment": "awaiting_human_review",
+    "browser_local": {
+      "tool": "ai-dev-browser",
+      "rendered": true,
+      "source_objects": 30,
+      "source_fields": 204,
+      "field_fk_inspection": true,
+      "identities_stable_across_languages": true,
+      "view_record_paging": true
     }
   }
 }
