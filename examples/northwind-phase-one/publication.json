@@ -4,48 +4,69 @@
   "public_example": {
     "url": "https://s.shareone.vip/s/sudograph-northwind-phase-one-baseline",
     "share_id": "hebJSajbRbsnaWBU",
-    "delivery": "native_file_upload",
-    "remote_url_bound": false,
-    "remote_url_limit_bytes": 10485760,
+    "delivery": "reviewed_native_remote_url",
+    "remote_url_bound": true,
+    "remote_url_limit_bytes": 16777216,
     "allow_comments": false,
     "historical_comments_copied": false,
     "download_matches_frozen_bytes": true,
-    "bytes": 11621933,
-    "sha256": "9d0e4d6d9607fe1e2207a441fcd04a29d08daf1ea18aa068cc0f9c3ba57db121",
+    "bytes": 11603808,
+    "sha256": "4322ee2beecffd23539dc3325627817a3ad7df10e4920f5f8ebb3f68ceac8a6c",
     "prior_share_unchanged_after_rejected_update": true,
-    "current_language": "zh",
+    "current_language": "en",
     "remote_url_last_attempt": {
-      "attempted_at": "2026-10-10T03:26:21.951492+00:00",
-      "requested_url": "https://github.com/sudoprivacy/sudograph/blob/e847ce70392db55f2ce7919aa4b3960203418d6c/examples/northwind-phase-one/public/index.html",
+      "attempted_at": "2026-10-10T08:07:46.114599Z",
+      "requested_url": "https://github.com/sudoprivacy/sudograph/blob/928b2b118261fdd683f97f57cec25978510f138a/examples/northwind-phase-one/native/2026-10-10/index.html",
+      "normalized_remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/928b2b118261fdd683f97f57cec25978510f138a/examples/northwind-phase-one/native/2026-10-10/index.html",
       "requested_language": "en",
-      "requested_bytes": 9230219,
-      "result": "automatic_review_rejected",
-      "http_status": 400,
-      "error_code": "BAD_REQUEST",
-      "retryable": false,
-      "reason": "远程内容违规，拒绝修改。原因: 包含可能执行恶意脚本的base64编码数据，且数据量巨大，存在潜在安全风险。",
-      "reason_translation": "Remote content was rejected because its large base64-encoded payload could execute malicious scripts and pose a security risk.",
-      "next_step": "Human review by ShareOne; no alternative publication was attempted after rejection.",
-      "repository_audit": {
-        "shareone_commit": "930d5ce4388bb67a96f36c3ed18d9ddad6e381db",
-        "pr_url": "https://github.com/sudoprivacy/shareone/pull/293",
-        "pr_scope": "Skill comment defaults, error contracts and review-thread preservation",
-        "remote_fetch_limit_bytes": 10485760,
-        "packed_html_moderation_supported": false,
-        "moderation_max_characters": 100000,
-        "human_approval_endpoint_found": false,
-        "audit_read_only": true,
-        "new_publication_attempted": false,
-        "resolution": "Separate hosting/moderation BR/FR prepared; await a supported external resolution before retrying."
+      "requested_bytes": 11603808,
+      "result": "formal_review_approved_and_owner_bound",
+      "http_status": 200,
+      "review_id": "633147f0-5b3d-4dcb-91f6-31c286580169",
+      "moderation_reason": "完整内容超过自动审核预算，需要人工复核；尚未作出内容违规判断。",
+      "approved_at": "2026-10-10T08:08:01.852195Z",
+      "approved_sha256": "4322ee2beecffd23539dc3325627817a3ad7df10e4920f5f8ebb3f68ceac8a6c",
+      "publication_operation": "PUT /api/v1/pages/{share_id}",
+      "original_content_unchanged_after_submission": true,
+      "original_content_unchanged_after_decision": true,
+      "download_and_force_refresh_verified": true,
+      "verified_at": "2026-10-10T08:08:47.585718+00:00"
+    },
+    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/928b2b118261fdd683f97f57cec25978510f138a/examples/northwind-phase-one/native/2026-10-10/index.html",
+    "previous_remote_url_attempts": [
+      {
+        "attempted_at": "2026-10-10T03:26:21.951492+00:00",
+        "requested_url": "https://github.com/sudoprivacy/sudograph/blob/e847ce70392db55f2ce7919aa4b3960203418d6c/examples/northwind-phase-one/public/index.html",
+        "requested_language": "en",
+        "requested_bytes": 9230219,
+        "result": "automatic_review_rejected",
+        "http_status": 400,
+        "error_code": "BAD_REQUEST",
+        "retryable": false,
+        "reason": "远程内容违规，拒绝修改。原因: 包含可能执行恶意脚本的base64编码数据，且数据量巨大，存在潜在安全风险。",
+        "reason_translation": "Remote content was rejected because its large base64-encoded payload could execute malicious scripts and pose a security risk.",
+        "next_step": "Human review by ShareOne; no alternative publication was attempted after rejection.",
+        "repository_audit": {
+          "shareone_commit": "930d5ce4388bb67a96f36c3ed18d9ddad6e381db",
+          "pr_url": "https://github.com/sudoprivacy/shareone/pull/293",
+          "pr_scope": "Skill comment defaults, error contracts and review-thread preservation",
+          "remote_fetch_limit_bytes": 10485760,
+          "packed_html_moderation_supported": false,
+          "moderation_max_characters": 100000,
+          "human_approval_endpoint_found": false,
+          "audit_read_only": true,
+          "new_publication_attempted": false,
+          "resolution": "Separate hosting/moderation BR/FR prepared; await a supported external resolution before retrying."
+        }
       }
-    }
+    ]
   },
   "verification": {
-    "local_tests_passed": 282,
+    "local_tests_passed": 294,
     "local_gates_passed": 5,
-    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38020354320",
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38036015476",
     "ci_conclusion": "success",
-    "ci_tests_passed": 281,
+    "ci_tests_passed": 293,
     "ci_tests_skipped": 1,
     "ci_skip_reason": "Northwind source database is not installed on the CI runner",
     "ci_gates_passed": 5,
@@ -56,13 +77,29 @@
     "source_unchanged_after_audit": true,
     "anonymous_browser": {
       "tool": "ai-dev-browser",
-      "language": "zh",
+      "checked_at": "2026-10-10T08:10:03.433367+00:00",
+      "language": "en",
+      "viewports": [
+        "desktop 1440x960",
+        "mobile 430x932"
+      ],
       "source_objects": 30,
       "source_fields": 204,
       "visible_comment_controls": 0,
-      "graph_rendered": true
+      "graph_rendered": true,
+      "identities_stable_across_languages": true,
+      "view_record_paging": {
+        "object": "Customer and Suppliers by City",
+        "count": 122,
+        "offset_50_rows": 50,
+        "trusted_next_page_offset": 100,
+        "next_page_rows": 22
+      },
+      "field_fk_inspection": true,
+      "page_data_bridge_replies": true,
+      "page_data_result": "disabled as configured; rejected promptly"
     },
-    "ci_checked_commit": "e847ce70392db55f2ce7919aa4b3960203418d6c"
+    "ci_checked_commit": "5f5bad3677a1fccbcca7cb1c8df16dd9dc64bf28"
   },
   "proposed_public_presentation": {
     "commit": "e847ce70392db55f2ce7919aa4b3960203418d6c",
@@ -73,7 +110,7 @@
     "bytes": 9230219,
     "sha256": "9764f2c78b0e38edde30be06cc4646e803270ba0e721df999d963e1e98df076a",
     "source_model_matches_frozen_baseline": true,
-    "shareone_deployment": "awaiting_human_review",
+    "shareone_deployment": "superseded_by_reviewed_native_presentation",
     "browser_local": {
       "tool": "ai-dev-browser",
       "rendered": true,
@@ -82,6 +119,25 @@
       "field_fk_inspection": true,
       "identities_stable_across_languages": true,
       "view_record_paging": true
+    },
+    "host_integration_review": {
+      "document_open_removes_injected_listeners": true,
+      "native_presentation_retains_host_bridges": true,
+      "packed_loader_approval": "not_granted"
     }
+  },
+  "deployed_presentation": {
+    "commit": "928b2b118261fdd683f97f57cec25978510f138a",
+    "artifact": "native/2026-10-10/index.html",
+    "manifest": "native/2026-10-10/baseline.json",
+    "language": "en",
+    "packaging": "native-html",
+    "source_model_matches_frozen_baseline": true,
+    "shareone_pull_request": "https://github.com/sudoprivacy/shareone/pull/294",
+    "shareone_commit": "b0c711deed5acd42b17bde6414f7a470bee7bfd9",
+    "deployment_url": "https://github.com/sudoprivacy/shareone/actions/runs/38036571392",
+    "deployment_conclusion": "success",
+    "host_parity_url": "https://github.com/sudoprivacy/shareone/actions/runs/38036719550",
+    "host_parity_conclusion": "success"
   }
 }
