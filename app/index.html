@@ -149,6 +149,7 @@
   <span id="legend"></span>
 </header>
 <div class="graph-tools">
+  <button id="panelToggle" aria-controls="panel" aria-expanded="true" data-ui="收起详情">收起详情</button>
   <button id="navBack" data-ui="返回上一步" disabled>返回上一步</button>
   <button id="fit" data-ui="适应画布">适应画布</button>
   <button id="relayout" data-ui="重新排布">重新排布</button>
@@ -208,6 +209,7 @@ const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '�
    away from a static diagram in the first place. Visibility is a view decision,
    so it belongs here; the figures still come only from the compiler. */
 const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
+                panelCollapsed:false,
                 schemaExpanded:new Set(),schemaKind:'table',
                 expanded: new Set(), panel: 'checks', selected:null, selectedRelation:null, focus:null,
                 sources:!!BUNDLE.source_schema || BUNDLE.projection?.mode==='source_projection', edgeLabels:false, direction:'auto', layoutEngine:'auto',
@@ -215,6 +217,15 @@ const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
 for(const option of $('projection').options)option.hidden=option.value.startsWith('schema')?!BUNDLE.source_schema:
   option.value==='all'&&BUNDLE.projection?.mode==='source_projection';
 $('projection').value = state.projection;
+let panelSizeChanged=false;
+function syncPanelToggle() {
+  $('panel').hidden=state.panelCollapsed;
+  $('panelToggle').textContent=t(state.panelCollapsed?'展开详情':'收起详情');
+  $('panelToggle').setAttribute('aria-expanded',String(!state.panelCollapsed));
+}
+$('panelToggle').onclick=()=>{
+  state.panelCollapsed=!state.panelCollapsed;panelSizeChanged=true;syncPanelToggle();
+};
 $('projection').onchange = e => { state.projection = e.target.value; state.focus=null;draw(); };
 $('schemaKind').onchange=e=>{state.schemaKind=e.target.value;state.focus=null;draw();};
 $('checksBtn').onclick = () => { state.panel = 'checks'; showChecks(view()); };
@@ -237,6 +248,7 @@ $('language').onchange = async e => {
   renderLegend();
   $('title').textContent=bt(BUNDLE.ontology);
   accessNotice();
+  syncPanelToggle();
   await draw();
 };
 
@@ -358,7 +370,8 @@ const fillOf = n => {
 function renderLegend() { $('legend').innerHTML =
   isBusiness() ? Object.values(BUSINESS_VISUALS).map(o=>`<span><i style="background:${o.colour}"></i>${o.name}</span>`).join('')+
     `<span><i style="background:var(--type)"></i>${t('源字段与对象')}</span>`+
-    `<span><i style="background:transparent;border-color:var(--hook)"></i>${t('待业务确认')}</span><span>${t('来源不代表已确认')}</span>` :
+    `<span><i style="background:transparent;border-color:var(--hook)"></i>${t('待业务确认')}</span><span>${t('来源不代表已确认')}</span>`+
+    '<span>∑ '+t('候选业务指标')+' · ⬡ '+t('业务规则')+' · ◯ '+t('待核对问题')+'</span>' :
   (isSchema()||(state.projection==='data'&&BUNDLE.source_schema)||BUNDLE.projection?.mode==='source_projection') ?
     [KINDS.raw,KINDS.type].map(k=>`<span><i style="background:var(${k.var})"></i>${k.name}</span>`).join('')+
     `<span><u style="border-top-color:var(--edge)"></u>${t('关系')}</span>` :
@@ -1252,7 +1265,10 @@ function refit() {
    its frame after load, and a window or a phone changes it later. Fitting once
    against a stale viewport is how the right-hand nodes end up clipped, which is
    exactly how this first shipped inside a ShareOne frame. */
-new ResizeObserver(() => refit()).observe($('cy'));
+new ResizeObserver(() => {
+  if(panelSizeChanged&&cy){panelSizeChanged=false;cy.resize();anchors.report();}
+  else {panelSizeChanged=false;refit();}
+}).observe($('cy'));
 
 $('fit').onclick = refit;
 draw();

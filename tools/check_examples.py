@@ -115,18 +115,6 @@ def main() -> int:
             else:
                 print(f"  ok  {os.path.relpath(path, ROOT)}: "
                       "evidence, identities and view references")
-            artifact = path.with_name("index.html")
-            if artifact.exists() and business_mod.main(
-                [str(path), "--check-app", str(artifact), "--lang", "en"]
-            ) != 0:
-                failures.append(f"{os.path.relpath(artifact, ROOT)}: "
-                                "saved export differs from its source/definitions")
-            review = path.with_name("review.html")
-            if review.exists() and business_mod.main(
-                [str(path), "--check-app", str(review), "--lang", "zh"]
-            ) != 0:
-                failures.append(f"{os.path.relpath(review, ROOT)}: "
-                                "review export differs from its source/definitions")
         except (ValueError, OSError) as e:
             failures.append(f"{os.path.relpath(path, ROOT)}: {e}")
     print(f"\n{len(paths)} source/business example(s), {len(overlays)} overlay example(s) checked")

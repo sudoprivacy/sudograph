@@ -169,7 +169,7 @@
     "盲测题": "Blind questions",
     "题目来自原库；标准答案仅在裁判端。尚未完成隔离 LLM 答题，暂无得分。": "Questions come from the source database; answers stay with the judge. No isolated LLM run or score yet.",
     "同一来源主键的两个业务投影；各自筛选可能不同。": "Two business projections share the same source key; their filters may differ.",
-    "适应画布": "Fit graph",
+    "适应画布": "Fit canvas",
     "重新排布": "Rearrange",
     "排布": "Layout",
     "自动": "Automatic",
@@ -220,12 +220,22 @@
     "提供者类别": "Contributor category",
     "这条线引用源对象或字段；不是源库外键，也不是新的计算公式。": "This edge references a source object or field. It is not a source foreign key or a new calculation.",
     "关系流向": "Relationship flow",
-    "适应画布": "Fit canvas",
     "取数点与资料依据": "Source connectors and evidence",
     "待确认业务理解": "Business meanings to review",
     "版本与标识": "Version and identity",
     "定义版本": "Definition version",
     "修改定义时递增版本；不是阶段编号或可信度评分。": "Incremented when the definition changes; not a phase number or confidence score.",
-    "此对象有评论，可在评论侧栏查看。": "This object has comments; read them in the comment sidebar."
+    "此对象有评论，可在评论侧栏查看。": "This object has comments; read them in the comment sidebar.",
+    "收起详情": "Hide details",
+    "展开详情": "Show details",
+    "业务理解": "Business meaning",
+    "候选业务指标": "Proposed business metric",
+    "业务规则": "Business rule",
+    "待核对问题": "Issue to review",
+    "定义类别": "Definition category",
+    "汇总范围": "Reporting scope",
+    "明细粒度": "Line grain",
+    "规则适用对象": "Rule applies to",
+    "问题影响对象": "Issue concerns definition"
   }
 }

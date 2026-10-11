@@ -31,6 +31,7 @@ def base(tmp_path):
         "definitions": {
             "observed-total": {
                 "concept": "source total",
+                "category": "meaning",
                 "label": "Source total",
                 "statement": "The source sums amount.",
                 "origin": "provided",
@@ -41,6 +42,7 @@ def base(tmp_path):
             },
             "refund-question": {
                 "concept": "refund policy",
+                "category": "meaning",
                 "label": "Refunds",
                 "statement": "Should refunds reduce this amount?",
                 "origin": "inferred",
@@ -222,3 +224,49 @@ def test_cli_requires_pinned_baseline_and_registry_version_before_writing(base, 
     doc["baseline"]["sha256"] = "wrong"
     config.write_text(yaml.safe_dump(doc), encoding="utf8")
     assert business.main([str(config)]) == 2
+
+
+def test_rule_requires_named_subject_and_metric_requires_scope_and_source_grain(base):
+    model, doc = base
+    field = next(n for n in business.source_nodes(model["source_schema"]).values()
+                 if n["kind"] == "schema_field")
+    metric = {
+        "concept": "ticket total", "category": "metric", "label": "Total tickets",
+        "statement": "Sum included ticket amounts.", "origin": "inferred", "contributor": "model",
+        "version": 1, "targets": [field["id"]], "grain": [field["id"]], "scope": "All tickets",
+    }
+    rule = doc["definitions"]["refund-question"]
+    rule["category"] = "rule"
+    with pytest.raises(ValueError, match="named business"):
+        business.build(doc, model)
+    doc["definitions"]["ticket-total"] = metric
+    rule["applies_to"] = ["ticket-total"]
+    compiled = business.build(doc, model)["business"]
+    question_view = compiled["views"]["questions"]
+    assert len(question_view["definitions"]) == 2
+    edge = next(e for e in question_view["edges"] if e["rel"] == "business_applies_to")
+    assert compiled["definitions"][edge["from"]]["category"] == "rule"
+    assert compiled["definitions"][edge["to"]]["category"] == "metric"
+    metric["grain"] = []
+    with pytest.raises(ValueError, match="grain"):
+        business.build(doc, model)
+    metric["grain"] = [field["id"]]
+    del metric["scope"]
+    with pytest.raises(ValueError, match="scope"):
+        business.build(doc, model)
+
+
+def test_missing_categories_unknown_purposes_and_cycles_are_refused(base):
+    model, doc = base
+    item = doc["definitions"]["refund-question"]
+    del item["category"]
+    with pytest.raises(ValueError, match="category"):
+        business.build(doc, model)
+    item["category"] = "issue"
+    item["applies_to"] = ["invented-definition"]
+    with pytest.raises(ValueError, match="canonical definitions"):
+        business.build(doc, model)
+    item["applies_to"] = ["observed-total"]
+    doc["definitions"]["observed-total"]["applies_to"] = ["refund-question"]
+    with pytest.raises(ValueError, match="cycle"):
+        business.build(doc, model)

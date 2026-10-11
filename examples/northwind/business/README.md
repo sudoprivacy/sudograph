@@ -14,22 +14,22 @@ when distributing the standalone Northwind preview.
 
 [publication.json](publication.json) records the actual ShareOne publication
 state. The [original review share](https://s.shareone.vip/s/sudograph-northwind)
-hosts this comment-resolution revision through its approved, pinned remote URL.
-The owner download matches the candidate bytes and SHA-256. Anonymous browser
-checks cover source connectors, automatic layout, annotated-node selection,
-selected-text quotes, both languages and real record drilldown. Existing comment
+hosts the last approved revision through its pinned remote URL. A new local
+candidate is not live until its own content review and publication checks pass;
+consult publication.json for the actual state. Existing comment
 threads and replies are preserved. Phase two continues the same
 working model and review URL; the business overlay is a checked input to that
 shared model, not a separate site. The public phase-one acceptance baseline
 remains separate as historical evidence.
 
-The pilot has seven definitions and two business views:
+The pilot has nine definitions and two business views:
 
 - Three supplied observations: the upstream README's business context, the source
   extended-price expression and the source category report's time/grain scope.
-- Four model deductions or questions: reporting scope, product versus order-line
-  prices, rounding, and freight/tax/currency treatment.
-- The second view reuses the four questions by identity. It creates no additional
+- Six model deductions or questions: reporting scope, product versus order-line
+  prices, a proposed line-amount total, its rounding rule, a rounding-impact
+  question, and freight/tax/currency treatment.
+- The second view reuses definitions and their dependencies by identity. It creates no additional
   definitions or independent copies of their meanings.
 
 **Green reuses the phase-one source colour. Orange marks business meanings to
@@ -41,6 +41,12 @@ colour is not the only distinction. All definitions remain **unreviewed**. Havin
 a source citation does not establish that an interpretation is correct; inferred
 does not mean incorrect. Business approval is a separate decision.
 
+Meanings, candidate metrics, rules and issues have checked categories. A rule
+must name the business subject it applies to; a raw field alone is not its
+purpose. Metric definitions require grain and scope. Rules use a hexagon and
+issues an ellipse; category labels and the legend supplement shapes. Colour
+still expresses provenance and confirmation, not an agent's subjective confidence.
+
 Open a definition to inspect its statement, origin, version and evidence. Follow
 a source field to the source reader and real paginated records. Switch views or
 language without allocating new field or definition identities. The source
@@ -48,8 +54,13 @@ reader and archived phase-one baseline remain accessible.
 
 The two-price interpretation now proposes a catalogue reference price and an
 order-line price before its separate discount. The rounding interpretation
-proposes rounding each line before summing and gives an explicitly illustrative
-0.335 + 0.335 example. Neither proposal is approved or executed. Domain specialists
+applies to the new proposed total of included order-line amounts, not a sum of
+unit prices. Its metric defines line grain using OrderID and ProductID, and
+leaves reporting period, date, returns, cancellations and currency unconfirmed.
+The source's Order Subtotals SQL is cited as evidence of an existing order-level
+sum; the proposed broader business total is still an interpretation. A separate
+issue explains the conditional precision concern using an explicitly illustrative
+0.335 + 0.335 example. These proposals are neither approved nor executed. Domain specialists
 can use source evidence, pretrained knowledge, accumulated memory or specialised
 models to propose concrete meanings; those inputs do not replace human review.
 
@@ -58,6 +69,12 @@ history remains in expandable details. Automatic layout compares both ELK flow
 directions with the canvas rather than equating edge flow with graph shape. Source
 objects keep compact field catalogues. Page-owned comment marks use the supported
 host API so existing comments do not block node selection or text selection.
+The details panel starts expanded and can be hidden, including on mobile.
+Toggling only resizes the existing canvas and preserves graph, zoom and pan;
+it does not rerun ELK or rebuild nodes. Local Chrome checks at desktop and phone
+viewport sizes found no increase in scripted pan/zoom work. This is not a
+real-phone hardware benchmark. Object anchors currently do not retain precise
+text ranges; see the [ShareOne protocol request](../../../docs/shareone-object-text-anchor-fr-2026-10-12.md).
 
 ## Generate and check
 
@@ -108,9 +125,18 @@ For a saved export:
 python -m compiler.business examples/northwind/business/pilot.yaml --check-app examples/northwind/business/index.html --lang en
 ```
 
-The example gate validates nested overlay YAML and, when present, checks the saved
-English HTML and Chinese review variant against the same source snapshot and canonical definitions. This
-reuses the existing five-gate CI workflow. The source artifact remains immutable.
+The example gate validates nested overlay YAML. The full export gate regenerates
+the complete English and Chinese HTML, including reader code, styles, SDK settings
+and any packed wrapper, and refuses differences beyond platform newlines:
+
+```sh
+python -m tools.check_generated
+```
+
+An unchanged embedded model cannot hide manual HTML edits. Every HTML in examples
+must have a checked generation owner or locked baseline; renaming it cannot skip
+the gate. CI and the local verifier share the same six gates. The source artifact
+remains immutable.
 
 ## Current boundaries
 
@@ -121,7 +147,11 @@ metrics follow review of their intended meanings and must use the established
 checked expression/compiler path. Confirmation history and permissions must be
 implemented at the trusted service boundary, not inferred from a menu choice.
 
-ShareOne content review approved this exact native HTML and access scope. That
-approval permits hosting; it does not confirm any business definition. The
+ShareOne content review approves exact candidate bytes and access scope; a prior
+revision's approval cannot authorise this revision. Hosting approval does not
+confirm any business definition. The
 phase-one source model, views and complete records equal the frozen baseline;
-all seven business definition identities are preserved and remain unreviewed.
+all seven previous business identities are preserved and two are added. All nine
+definitions remain unreviewed. Approved source write-back and a GitLab adapter
+are not deployed; their [acceptance plan](../../../docs/source-writeback-acceptance.md)
+does not claim an existing full-flow CI test.

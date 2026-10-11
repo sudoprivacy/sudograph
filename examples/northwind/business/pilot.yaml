@@ -1,4 +1,4 @@
-format: sudograph-business-overlay/v2
+format: sudograph-business-overlay/v3
 namespace: northwind-sales-review
 baseline:
   manifest: ../../northwind-phase-one/2026-10-10/baseline.json
@@ -12,15 +12,15 @@ documents:
       This is a version of the Microsoft Access 2000 Northwind sample database, re-engineered for SQLite3.
 
 
-      The Northwind sample database was provided with Microsoft Access as a tutorial schema for managing small business
-      customers, orders, inventory, purchasing, suppliers, shipping, and employees. Northwind is an excellent tutorial
-      schema for a small-business ERP, with customers, orders, inventory, purchasing, suppliers, shipping, employees,
-      and single-entry accounting.
+      The Northwind sample database was provided with Microsoft Access as a tutorial schema for managing
+      small business customers, orders, inventory, purchasing, suppliers, shipping, and employees. Northwind
+      is an excellent tutorial schema for a small-business ERP, with customers, orders, inventory, purchasing,
+      suppliers, shipping, employees, and single-entry accounting.
 
 
-      All the TABLES and VIEWS from the MSSQL-2000 version have been converted to Sqlite3 and included here. Included
-      is a single version prepopulated with data. Should you decide to, you can use the included python script to
-      pump the database full of more data.
+      All the TABLES and VIEWS from the MSSQL-2000 version have been converted to Sqlite3 and included
+      here. Included is a single version prepopulated with data. Should you decide to, you can use the
+      included python script to pump the database full of more data.
 
 
       [Download here](https://raw.githubusercontent.com/jpwhite3/northwind-SQLite3/main/dist/northwind.db)'
@@ -29,25 +29,26 @@ definitions:
   business-context:
     concept: supplied-business-context
     label: Business context from Northwind
-    statement: The supplied README describes Northwind as a small-business ERP tutorial covering customers, orders,
-      inventory, purchasing, suppliers, shipping and employees.
+    statement: The supplied README describes Northwind as a small-business ERP tutorial covering customers,
+      orders, inventory, purchasing, suppliers, shipping and employees.
     origin: provided
     contributor: source
-    version: 2
+    version: 3
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders
     evidence:
     - kind: document
       ref: upstream-context
       quote: Northwind is an excellent tutorial schema for a small-business ERP
+    category: meaning
   extended-price:
     concept: source-extended-price
     label: Source extended-price calculation
-    statement: The source view calculates ExtendedPrice from line UnitPrice, Quantity and Discount, including /100
-      * 100. This observation preserves the source computation; it does not approve a revenue definition.
+    statement: The source view calculates ExtendedPrice from line UnitPrice, Quantity and Discount, including
+      /100 * 100. This observation preserves the source computation; it does not approve a revenue definition.
     origin: provided
     contributor: source
-    version: 2
+    version: 3
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Quantity
@@ -56,18 +57,19 @@ definitions:
     evidence:
     - kind: source_sql
       ref: sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended
-      quote: "CREATE VIEW [Order Details Extended] AS\nSELECT [Order Details].OrderID, \n       [Order Details].ProductID,\
-        \ \n       Products.ProductName, \n\t   [Order Details].UnitPrice, \n       [Order Details].Quantity, \n\
-        \       [Order Details].Discount, \n      ([Order Details].UnitPrice*Quantity*(1-Discount)/100)*100 AS ExtendedPrice\n\
-        FROM Products \n     JOIN [Order Details] ON Products.ProductID = [Order Details].ProductID"
+      quote: "CREATE VIEW [Order Details Extended] AS\nSELECT [Order Details].OrderID, \n       [Order\
+        \ Details].ProductID, \n       Products.ProductName, \n\t   [Order Details].UnitPrice, \n    \
+        \   [Order Details].Quantity, \n       [Order Details].Discount, \n      ([Order Details].UnitPrice*Quantity*(1-Discount)/100)*100\
+        \ AS ExtendedPrice\nFROM Products \n     JOIN [Order Details] ON Products.ProductID = [Order Details].ProductID"
+    category: meaning
   category-source-scope:
     concept: source-category-time-scope
     label: Source category report scope
-    statement: Sales by Category groups by category and product and filters OrderDate to 1997. That scope is already
-      part of the phase-one source view.
+    statement: Sales by Category groups by category and product and filters OrderDate to 1997. That scope
+      is already part of the phase-one source view.
     origin: provided
     contributor: source
-    version: 2
+    version: 3
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/CategoryID
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/ProductSales
@@ -76,33 +78,36 @@ definitions:
     - kind: source_sql
       ref: sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category
       quote: "CREATE VIEW [Sales by Category] AS\nSELECT Categories.CategoryID, \n       Categories.CategoryName,\
-        \ \n         Products.ProductName, \n\tSum([Order Details Extended].ExtendedPrice) AS ProductSales\nFROM\
-        \  Categories \n    JOIN Products \n      ON Categories.CategoryID = Products.CategoryID\n       JOIN [Order\
-        \ Details Extended] \n         ON Products.ProductID = [Order Details Extended].ProductID              \
-        \  \n           JOIN Orders \n             ON Orders.OrderID = [Order Details Extended].OrderID \nWHERE\
-        \ Orders.OrderDate BETWEEN DATETIME('1997-01-01') And DATETIME('1997-12-31')\nGROUP BY Categories.CategoryID,\
-        \ Categories.CategoryName, Products.ProductName"
+        \ \n         Products.ProductName, \n\tSum([Order Details Extended].ExtendedPrice) AS ProductSales\n\
+        FROM  Categories \n    JOIN Products \n      ON Categories.CategoryID = Products.CategoryID\n\
+        \       JOIN [Order Details Extended] \n         ON Products.ProductID = [Order Details Extended].ProductID\
+        \                \n           JOIN Orders \n             ON Orders.OrderID = [Order Details Extended].OrderID\
+        \ \nWHERE Orders.OrderDate BETWEEN DATETIME('1997-01-01') And DATETIME('1997-12-31')\nGROUP BY\
+        \ Categories.CategoryID, Categories.CategoryName, Products.ProductName"
+    category: meaning
   category-question:
     concept: category-sales-scope
     label: 'Category sales: scope to confirm'
-    statement: For the business question, should we reuse the source 1997 report or define another reporting period
-      and category-level grain? The source view alone does not choose the new business scope.
-    origin: inferred
-    contributor: model
-    version: 2
-    targets:
-    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/ProductSales
-    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/CategoryID
-  price-meaning:
-    concept: unit-price-business-meaning
-    label: Catalogue price and order-line price
-    statement: 'Proposed meaning: Products.UnitPrice is the catalogue reference price; Order Details.UnitPrice is
-      the price used on that order line before its separate Discount. Calculate the transaction from the order-line
-      price, quantity and discount. Do not replace a historical order-line price with the product reference price.
-      This interpretation uses the source structure and common order models and remains unreviewed.'
+    statement: For the business question, should we reuse the source 1997 report or define another reporting
+      period and category-level grain? The source view alone does not choose the new business scope.
     origin: inferred
     contributor: model
     version: 3
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/ProductSales
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/CategoryID
+    category: issue
+  price-meaning:
+    concept: unit-price-business-meaning
+    label: Catalogue price and order-line price
+    statement: 'Proposed meaning: Products.UnitPrice is the catalogue reference price; Order Details.UnitPrice
+      is the price used on that order line before its separate Discount. Calculate the transaction from
+      the order-line price, quantity and discount. Do not replace a historical order-line price with the
+      product reference price. This interpretation uses the source structure and common order models and
+      remains unreviewed.'
+    origin: inferred
+    contributor: model
+    version: 4
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/UnitPrice
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
@@ -110,31 +115,80 @@ definitions:
     - kind: source_sql
       ref: sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended
       quote: ([Order Details].UnitPrice*Quantity*(1-Discount)/100)*100 AS ExtendedPrice
+    category: meaning
   rounding-question:
     concept: rounding-policy
-    label: Round each line, then add the amounts
-    statement: 'Proposed rule: round each order-line amount to the settlement precision, then add the rounded amounts.
-      For a currency with two decimal places, an illustrative example is two amounts of 0.335: round each to 0.34
-      and add to get 0.68; add first and round 0.670 to get 0.67. These are invented example amounts, not source
-      records. Currency, precision and settlement practice still need review. The source SQL has no explicit rounding
-      rule. This pilot records a proposal and does not execute it or replace the source amounts.'
+    label: Rounding rule for the proposed sales total
+    statement: 'Proposed rule for the order-line amount total: after the reporting scope is chosen, round
+      each included line amount to the settlement precision, then sum those amounts. This sums line amounts
+      (UnitPrice times Quantity times one minus Discount), not product catalogue prices or unit prices.
+      The rule serves the referenced business metric. It is a proposal; currency, precision and settlement
+      practice need review, and no new calculation is executed.'
+    origin: inferred
+    contributor: model
+    version: 4
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice
+    category: rule
+    applies_to:
+    - sales-total
+  tax-freight-question:
+    concept: freight-tax-currency
+    label: Freight, tax and currency
+    statement: The line expression does not reference Freight. Confirm whether the intended sales amount
+      includes freight, whether UnitPrice already includes tax and which currency applies. These meanings
+      are not established by the expression.
     origin: inferred
     contributor: model
     version: 3
     targets:
-    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice
-  tax-freight-question:
-    concept: freight-tax-currency
-    label: Freight, tax and currency
-    statement: The line expression does not reference Freight. Confirm whether the intended sales amount includes
-      freight, whether UnitPrice already includes tax and which currency applies. These meanings are not established
-      by the expression.
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/Freight
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
+    category: issue
+  sales-total:
+    concept: order-line-sales-amount-total
+    category: metric
+    label: Order-line amount total (scope to review)
+    statement: 'Candidate business metric: the sum of order-line extended amounts in a reviewed reporting
+      scope. Each line amount uses its order-line UnitPrice, Quantity and Discount. The purpose is to
+      inspect a report total and reconcile it with its contributing lines, not to sum catalogue prices.
+      Source Order Subtotals already groups those amounts by order; this separate candidate does not turn
+      that fact into an approved net-revenue definition or execute a new metric.'
     origin: inferred
     contributor: model
     version: 2
     targets:
-    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/Freight
-    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ProductID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderDate
+    grain:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ProductID
+    scope: Reporting period, included orders, returns/cancellations and currency are unresolved. No all-time
+      or annual total is approved. Use Orders.OrderDate when a date scope is chosen.
+    evidence:
+    - kind: source_sql
+      ref: sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Subtotals
+      quote: Sum(([Order Details].UnitPrice*Quantity*(1-Discount)/100)*100) AS Subtotal
+  rounding-impact:
+    concept: line-rounding-versus-total-rounding-impact
+    category: issue
+    label: Rounding order can change a report total
+    statement: 'Conditional concern for the proposed report total: if included line amounts carry more
+      decimals than settlement precision, rounding each line and rounding only the final total can differ.
+      For two invented line amounts of 0.335 in a two-decimal currency, round then sum gives 0.68, whereas
+      sum then round gives 0.67. These are explanatory examples, not source records; no claim is made
+      that this dataset or the business has already suffered a discrepancy. Review this issue before accepting
+      the rule.'
+    origin: inferred
+    contributor: model
+    version: 1
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice
+    applies_to:
+    - sales-total
+    - rounding-question
 views:
   sales-meaning:
     label: Sales meaning review
@@ -146,6 +200,8 @@ views:
     - price-meaning
     - rounding-question
     - tax-freight-question
+    - sales-total
+    - rounding-impact
   open-questions:
     label: Open business questions
     definitions:
@@ -153,42 +209,63 @@ views:
     - price-meaning
     - rounding-question
     - tax-freight-question
+    - rounding-impact
 translations:
   zh:
     Business context from Northwind: Northwind 提供的业务背景
-    ? The supplied README describes Northwind as a small-business ERP tutorial covering customers, orders, inventory,
-      purchasing, suppliers, shipping and employees.
+    ? The supplied README describes Northwind as a small-business ERP tutorial covering customers, orders,
+      inventory, purchasing, suppliers, shipping and employees.
     : 原仓库 README 将 Northwind 描述为小企业 ERP 教学示例，涉及客户、订单、库存、采购、供应商、运输和员工。
     Source extended-price calculation: 源库的明细金额计算
-    ? The source view calculates ExtendedPrice from line UnitPrice, Quantity and Discount, including /100 * 100.
-      This observation preserves the source computation; it does not approve a revenue definition.
+    ? The source view calculates ExtendedPrice from line UnitPrice, Quantity and Discount, including /100
+      * 100. This observation preserves the source computation; it does not approve a revenue definition.
     : 源视图使用明细 UnitPrice、Quantity、Discount 计算 ExtendedPrice，包含 /100 * 100。本项记录源库已有计算，不代表已确认收入口径。
     Source category report scope: 源品类报表的时间范围
-    ? Sales by Category groups by category and product and filters OrderDate to 1997. That scope is already part
-      of the phase-one source view.
+    ? Sales by Category groups by category and product and filters OrderDate to 1997. That scope is already
+      part of the phase-one source view.
     : Sales by Category 按品类和产品分组，筛选 1997 年 OrderDate。这个范围已属于阶段一源视图。
     'Category sales: scope to confirm': 按品类销售额：确认范围
-    ? For the business question, should we reuse the source 1997 report or define another reporting period and category-level
-      grain? The source view alone does not choose the new business scope.
+    ? For the business question, should we reuse the source 1997 report or define another reporting period
+      and category-level grain? The source view alone does not choose the new business scope.
     : 业务问题应复用源库的 1997 年报表，还是另设报告期间、汇总到品类层级？源视图不能替业务人员选择新的范围。
     Freight, tax and currency: 运费、税与币种
-    ? The line expression does not reference Freight. Confirm whether the intended sales amount includes freight,
-      whether UnitPrice already includes tax and which currency applies. These meanings are not established by the
-      expression.
+    ? The line expression does not reference Freight. Confirm whether the intended sales amount includes
+      freight, whether UnitPrice already includes tax and which currency applies. These meanings are not
+      established by the expression.
     : 明细表达式未引用 Freight。需要确认目标销售额是否包含运费、UnitPrice 是否含税、使用什么币种；这些含义不能仅由表达式确定。
     Sales meaning review: 销售口径核对
     Open business questions: 待确认业务问题
     Catalogue price and order-line price: 商品参考价与订单单价
-    ? 'Proposed meaning: Products.UnitPrice is the catalogue reference price; Order Details.UnitPrice is the price
-      used on that order line before its separate Discount. Calculate the transaction from the order-line price,
-      quantity and discount. Do not replace a historical order-line price with the product reference price. This
-      interpretation uses the source structure and common order models and remains unreviewed.'
+    ? 'Proposed meaning: Products.UnitPrice is the catalogue reference price; Order Details.UnitPrice
+      is the price used on that order line before its separate Discount. Calculate the transaction from
+      the order-line price, quantity and discount. Do not replace a historical order-line price with the
+      product reference price. This interpretation uses the source structure and common order models and
+      remains unreviewed.'
     : 建议解释：商品表 UnitPrice 是目录参考单价；订单明细 UnitPrice 是这笔订单采用的折扣前单价，Discount 另行扣除。核算这笔交易应使用明细单价、数量和折扣；不要拿商品参考价重算历史订单。这是结合源结构与常见订单模型提出的解释，仍待业务确认。
-    Round each line, then add the amounts: 建议先逐笔四舍五入，再相加
-    ? 'Proposed rule: round each order-line amount to the settlement precision, then add the rounded amounts. For
-      a currency with two decimal places, an illustrative example is two amounts of 0.335: round each to 0.34 and
-      add to get 0.68; add first and round 0.670 to get 0.67. These are invented example amounts, not source records.
-      Currency, precision and settlement practice still need review. The source SQL has no explicit rounding rule.
-      This pilot records a proposal and does not execute it or replace the source amounts.'
-    : 建议先把每条订单明细金额四舍五入到结算精度，再把这些金额相加。以精确到分的币种为例：两笔各 0.335，逐笔变成 0.34 后相加是 0.68；先相加得到 0.670 再四舍五入是 0.67。这两个数是说明差异的假设例子，不是源库记录。币种、精度和结算惯例仍待确认。源
-      SQL 没有显式舍入规则；本试点只记录建议，不执行它，也不覆盖源金额。
+    Rounding rule for the proposed sales total: 订单明细金额总额的舍入规则
+    ? 'Proposed rule for the order-line amount total: after the reporting scope is chosen, round each
+      included line amount to the settlement precision, then sum those amounts. This sums line amounts
+      (UnitPrice times Quantity times one minus Discount), not product catalogue prices or unit prices.
+      The rule serves the referenced business metric. It is a proposal; currency, precision and settlement
+      practice need review, and no new calculation is executed.'
+    : 建议用于“订单明细金额总额”的规则：先选定报表范围，把纳入范围的每条明细金额按结算精度四舍五入，再求这些金额的总和。相加的是明细金额（单价 × 数量 × 折扣因子），不是商品标价或单价。本规则服务于连线指向的业务指标。币种、精度和结算惯例仍待确认；本版没有执行新的计算。
+    Order-line amount total (scope to review): 订单明细金额总额（范围待确认）
+    ? Reporting period, included orders, returns/cancellations and currency are unresolved. No all-time
+      or annual total is approved. Use Orders.OrderDate when a date scope is chosen.
+    : 报告期间、纳入哪些订单、退货或取消订单的处理、币种都未确认；目前没有获准的全量或年度总额。若按日期筛选，应核对 Orders.OrderDate。
+    Rounding order can change a report total: 舍入顺序可能影响报表总额
+    ? 'Conditional concern for the proposed report total: if included line amounts carry more decimals
+      than settlement precision, rounding each line and rounding only the final total can differ. For
+      two invented line amounts of 0.335 in a two-decimal currency, round then sum gives 0.68, whereas
+      sum then round gives 0.67. These are explanatory examples, not source records; no claim is made
+      that this dataset or the business has already suffered a discrepancy. Review this issue before accepting
+      the rule.'
+    : 针对候选报表总额的条件性问题：如果明细金额的小数位多于结算精度，逐笔舍入和只在总额上舍入可能得到不同结果。以精确到分的币种、两笔假设金额各 0.335 为例，逐笔舍入再相加得 0.68，先相加再舍入得
+      0.67。这是解释差异的例子，不是源库记录，也不表示已发现这个数据集或实际业务存在差额。确认规则前应核对这一问题。
+    ? 'Candidate business metric: the sum of order-line extended amounts in a reviewed reporting scope.
+      Each line amount uses its order-line UnitPrice, Quantity and Discount. The purpose is to inspect
+      a report total and reconcile it with its contributing lines, not to sum catalogue prices. Source
+      Order Subtotals already groups those amounts by order; this separate candidate does not turn that
+      fact into an approved net-revenue definition or execute a new metric.'
+    : 候选业务指标：把经确认的报表范围内，各条订单明细的金额相加，用于查看报表总额并与贡献该金额的明细核对。每条金额按本条订单的单价、数量和折扣计算，绝不是把商品标价相加。源 Order Subtotals
+      已按订单汇总这类金额；这里另提一个待确认的业务指标，不把源汇总等同于已确认净收入，也没有执行新的指标。

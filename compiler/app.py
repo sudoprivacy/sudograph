@@ -21,6 +21,7 @@ import json
 import os
 import re
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from . import blind, browse, catalog, html_export, source_schema
@@ -197,3 +198,19 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
     payload = json.dumps(b, ensure_ascii=False).replace("</", "<\\/")
     native = html.replace("__BUNDLE__", payload)
     return html_export.pack(native, language=language) if packed else native
+
+
+def check_export(path: str | Path, model: dict[str, Any], *, language: str) -> None:
+    """Compare the entire deliverable with the shared renderer, not just its data.
+
+    Reuse the checked snapshot instead of rescanning: a new extraction timestamp
+    is not evidence of a hand edit. Text-mode newline conversion is the only
+    permitted difference between platforms. Packed wrappers are checked too.
+    """
+    saved = Path(path).read_text(encoding="utf8")
+    expected = render(model, language=language, packed=html_export.MARKER in saved)
+    if saved != expected.replace("\r\n", "\n"):
+        raise ValueError(
+            "saved HTML differs from the shared compiler/renderer output; "
+            "change checked inputs or app sources and regenerate, never patch the export"
+        )

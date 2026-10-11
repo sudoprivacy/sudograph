@@ -42,6 +42,10 @@ STEPS: list[tuple[list[str], str]] = [
         "frozen source examples retain their file hashes and complete source manifests",
     ),
     (
+        [sys.executable, "-m", "tools.check_generated"],
+        "every HTML deliverable is frozen or fully regenerated from checked inputs and app sources",
+    ),
+    (
         [sys.executable, "-m", "tools.check_readme"],
         "every command the front page shows still works",
     ),

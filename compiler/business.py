@@ -19,7 +19,7 @@ from urllib.parse import quote, urlparse
 from . import source_schema
 from .spec import read_document
 
-FORMAT = "sudograph-business-overlay/v2"
+FORMAT = "sudograph-business-overlay/v3"
 REGISTRY = "sudograph-business-registry/v1"
 
 
@@ -78,8 +78,15 @@ def compile_document(doc, model):
         raise ValueError("definitions: declare at least one canonical definition")
     for key, item in doc["definitions"].items():
         where = f"definition {key}"
-        required = {"concept", "label", "statement", "origin", "contributor", "targets", "version"}
-        mapping(item, required | {"evidence"}, required, where)
+        required = {
+            "concept", "category", "label", "statement", "origin",
+            "contributor", "targets", "version",
+        }
+        mapping(item, required | {"evidence", "applies_to", "grain", "scope"}, required, where)
+        if not isinstance(item["category"], str) or item["category"] not in {
+            "meaning", "metric", "rule", "issue",
+        }:
+            raise ValueError(f"{where}.category: use meaning, metric, rule or issue")
         for name in ("concept", "label", "statement"):
             text(item[name], f"{where}.{name}")
         if item["origin"] not in ("provided", "inferred"):
@@ -107,6 +114,20 @@ def compile_document(doc, model):
             raise ValueError(
                 f"{where}.targets: unknown or duplicate source ID; discover source_schema IDs"
             )
+        if item["category"] == "metric":
+            grain = item.get("grain")
+            if (
+                not isinstance(grain, list) or not grain
+                or any(not isinstance(v, str) for v in grain)
+                or len(set(grain)) != len(grain)
+                or any(v not in targets or nodes[v].get("kind") != "schema_field" for v in grain)
+            ):
+                raise ValueError(
+                    f"{where}.grain: metric definitions require source-field IDs in targets"
+                )
+            text(item.get("scope"), f"{where}.scope")
+        elif "grain" in item or "scope" in item:
+            raise ValueError(f"{where}: grain and scope belong to metric definitions")
         concept = unicodedata.normalize("NFKC", item["concept"]).strip().casefold()
         signature = digest([namespace, concept, sorted(targets)])
         identity = "sg-business/" + quote(namespace, safe="") + "/" + signature
@@ -149,6 +170,42 @@ def compile_document(doc, model):
             "review_status": "unreviewed",
         }
         keys[key] = identity
+    for definition in definitions.values():
+        refs = definition.get("applies_to", [])
+        if (
+            not isinstance(refs, list)
+            or any(not isinstance(v, str) for v in refs)
+            or len(set(refs)) != len(refs) or set(refs) - keys.keys()
+            or definition["key"] in refs
+        ):
+            raise ValueError(
+                f"definition {definition['key']}.applies_to: reference other canonical definitions"
+            )
+        if definition["category"] == "rule" and (
+            not refs or any(
+                definitions[keys[k]]["category"] not in {"meaning", "metric"} for k in refs
+            )
+        ):
+            raise ValueError(
+                f"definition {definition['key']}: a rule must apply to a named business "
+                "meaning or metric; source fields alone do not establish its business purpose"
+            )
+        definition["applies_to"] = [keys[k] for k in refs]
+    visiting, visited = set(), set()
+
+    def dependencies(identity):
+        if identity in visiting:
+            raise ValueError("business dependencies contain a cycle; make their purpose explicit")
+        if identity in visited:
+            return
+        visiting.add(identity)
+        for target in definitions[identity]["applies_to"]:
+            dependencies(target)
+        visiting.remove(identity)
+        visited.add(identity)
+
+    for identity in definitions:
+        dependencies(identity)
     views = {}
     if not isinstance(doc["views"], dict) or not doc["views"]:
         raise ValueError("views: declare at least one business view using definition references")
@@ -164,6 +221,10 @@ def compile_document(doc, model):
                 f"view {key}: duplicate or unknown definition; reference an existing key"
             )
         ids = [keys[k] for k in refs]
+        # A view reuses dependencies by identity. A rule cannot be shown with its
+        # business purpose silently omitted, and no extra definition is copied.
+        for identity in ids:
+            ids.extend(v for v in definitions[identity]["applies_to"] if v not in ids)
         used.update(ids)
         targets = sorted(
             {target for identity in ids for target in definitions[identity]["targets"]}
@@ -181,6 +242,18 @@ def compile_document(doc, model):
             for identity in ids
             for target in definitions[identity]["targets"]
         ]
+        edges.extend(
+            {
+                "id": "sg-relation/" + digest([identity, target, "business_applies_to"]),
+                "from": identity,
+                "to": target,
+                "rel": "business_applies_to",
+                "origin": definitions[identity]["origin"],
+                "contributor": definitions[identity]["contributor"],
+                "review_status": definitions[identity]["review_status"],
+            }
+            for identity in ids for target in definitions[identity]["applies_to"]
+        )
         views[key] = {
             "label": item["label"],
             "definitions": ids,
@@ -195,6 +268,7 @@ def compile_document(doc, model):
     if not isinstance(translations, dict) or set(translations) - {"en", "zh"}:
         raise ValueError("translations: use the supported en/zh catalogues")
     vocabulary = {item[name] for item in definitions.values() for name in ("label", "statement")}
+    vocabulary.update(item["scope"] for item in definitions.values() if "scope" in item)
     vocabulary.update(v["label"] for v in views.values())
     for language, terms in translations.items():
         if (
@@ -343,6 +417,7 @@ def main(argv=None):
                 )
             if saved.get("ui", {}).get("language") != args.lang:
                 raise ValueError("saved export language differs from --lang")
+            app.check_export(args.check_app, model, language=args.lang)
         if args.app:
             rendered = app.render(model, language=args.lang, packed=args.pack_html)
             write(args.app, rendered.encode("utf8"))

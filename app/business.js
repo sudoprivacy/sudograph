@@ -7,6 +7,8 @@ const businessColour=n=>(n.origin==='provided'&&n.contributor==='source'?BUSINES
 const BUSINESS_CONTRIBUTORS={source:'源资料',business_user:'业务人员提供',model:'模型推演'};
 const businessContributor=(n,language=uiLanguage)=>t(BUSINESS_CONTRIBUTORS[n.contributor],{},language);
 const businessNodes=new Map(Object.entries(BUNDLE.business?.definitions||{}));
+const BUSINESS_CATEGORIES={meaning:'业务理解',metric:'候选业务指标',rule:'业务规则',issue:'待核对问题'};
+const BUSINESS_SHAPES={meaning:'roundrectangle',metric:'roundrectangle',rule:'hexagon',issue:'ellipse'};
 const isBusiness=()=>state.projection.startsWith('business:');
 for(const [key,v] of Object.entries(BUNDLE.business?.views||{})) {
   const option=document.createElement('option');option.value='business:'+key;
@@ -26,14 +28,17 @@ function businessGraph() {
   }
   for(const obj of [...have.values()].filter(n=>n.kind==='schema_object'))
     if(state.schemaExpanded.has(obj.id))for(const field of obj.fields)have.set(field.id,field);
-  const edges=selected.edges.map(e=>({...e,via:t('依据或核对目标')}));
+  const edges=selected.edges.map(e=>({...e,via:t(e.rel==='business_applies_to'
+    ? businessNodes.get(e.from).category==='rule'?'规则适用对象':'问题影响对象'
+    : '依据或核对目标')}));
   if(state.sources)for(const obj of [...have.values()].filter(n=>n.kind==='schema_object')) {
     have.set(obj.source,schemaNodes.get(obj.source));edges.push(sourceSupplyEdge(obj.source,obj.id,obj.id));
   }
   return {nodes:[...have.values()],edges,groups:[],checks:[]};
 }
 function businessLines(n,language) {
-  return [{cls:'',parts:[bt(n.label,language)]}];
+  return [{cls:'',parts:[bt(n.label,language)]},
+    ...(n.category==='meaning'?[]:[{cls:'mark',parts:[t(BUSINESS_CATEGORIES[n.category],{},language)]}])];
 }
 async function drawBusiness(v,mine) {
   $('schemaFilter').hidden=true;
@@ -55,6 +60,7 @@ function showBusinessNode(n) {
   state.panel='node';
   $('panel').innerHTML=`<h2>${t('业务定义草案')}</h2><strong>${esc(bt(n.label))}</strong>`+
     `<p>${esc(bt(n.statement))}</p><div class="kv"><span>${t('信息来源')}</span><span>${businessContributor(n)}</span></div>`+
+    `<div class="kv"><span>${t('定义类别')}</span><span>${t(BUSINESS_CATEGORIES[n.category])}</span></div>`+
     `<div class="kv"><span>${t('确认状态')}</span><span>${t('待业务确认')}</span></div>`+
     `<p class="muted">${t('来源不代表已确认')}</p>`;
   const controls=document.createElement('div');controls.className='schema-actions';
@@ -69,6 +75,17 @@ function showBusinessNode(n) {
     b.onclick=()=>revealSchema(id);refs.appendChild(b);
   }
   $('panel').appendChild(refs);
+  if(n.category==='metric') {
+    const scope=document.createElement('p');scope.textContent=t('汇总范围')+'：'+bt(n.scope);$('panel').appendChild(scope);
+    const grain=document.createElement('p');grain.textContent=t('明细粒度')+'：'+n.grain.map(id=>{
+      const field=schemaNodes.get(id);return schemaNodes.get(field.parent).name+'.'+field.column;}).join(' + ');
+    $('panel').appendChild(grain);
+  }
+  for(const id of n.applies_to) {
+    const related=businessNodes.get(id),b=document.createElement('button');
+    b.textContent=t(n.category==='rule'?'规则适用对象':'问题影响对象')+' · '+bt(related.label);
+    b.onclick=()=>revealBusiness(id);$('panel').appendChild(b);
+  }
   for(const evidence of n.evidence||[]) {
     const details=document.createElement('details'),summary=document.createElement('summary');
     summary.textContent=t('引用证据');details.appendChild(summary);
@@ -88,6 +105,14 @@ function showBusinessNode(n) {
   $('panel').appendChild(identity);
 }
 function showBusinessRelation(e) {
+  if(e.rel==='business_applies_to') {
+    const from=businessNodes.get(e.from),to=businessNodes.get(e.to);
+    $('panel').innerHTML='<h2>'+t(from.category==='rule'?'规则适用对象':'问题影响对象')+'</h2>'+
+      '<p>'+esc(bt(from.label))+' → '+esc(bt(to.label))+'</p><p>'+t('待业务确认')+'</p>';
+    for(const node of [from,to]){const b=document.createElement('button');b.textContent=bt(node.label);
+      b.onclick=()=>revealBusiness(node.id);$('panel').appendChild(b);}
+    return;
+  }
   const target=schemaNodes.get(e.from),definition=businessNodes.get(e.to);
   const sourceName=(target.parent?schemaNodes.get(target.parent).name+'.':'')+(target.column||target.name);
   $('panel').innerHTML=`<h2>${t('依据或核对目标')}</h2><p>${esc(sourceName)} → ${esc(bt(definition.label))}</p>`+

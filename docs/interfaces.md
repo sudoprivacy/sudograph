@@ -86,7 +86,7 @@ The [draft provenance](../examples/northwind/business/provenance.md) separates
 stored upstream formulas from the agent's rounding, scope and workflow proposals.
 
 `compiler.business` is the checked phase-two overlay entrance. Its
-`sudograph-business-overlay/v2` document pins a frozen phase-one manifest,
+`sudograph-business-overlay/v3` document pins a frozen phase-one manifest,
 declares a namespace and canonical definitions, and references those definitions
 from named business views. Every definition has an explicit origin (`provided`
 or `inferred`), a contributor category, source targets and a version. Provided
@@ -98,12 +98,34 @@ references, not new source foreign keys. Provided claims require a checked
 SQL/document quotation. Source SQL definitions/results themselves remain phase
 one, including calculations. Origin does not represent business approval.
 
+Every definition declares `category: meaning`, `metric`, `rule` or `issue`.
+Metrics require a source-field grain and an explicit proposed scope. A rule
+references its named business subject through `applies_to`; a source column
+alone does not establish the purpose of a rule. Issues can reference affected
+definitions. Unknown references, self references and dependency cycles fail.
+Views include dependency closure using canonical IDs rather than copied nodes.
+Categories change labels/shapes; provenance and confirmation retain their
+existing colour contract. These are reviewable definitions, not executed metrics.
+
 The shared renderer adds independent business views while retaining the source
 reader and record drilldown. It validates the same overlay contract at render
 time. Definitions have one identity across views/languages; a registry refuses
 edits without new versions. An operator must own the registry in a service.
 The current overlay records statements and questions, not executable metrics or
 human confirmations. It is not yet a registered authenticated Gateway resource.
+
+Saved overlay exports pass a full shared-renderer comparison, including scripts,
+CSS, comment SDK settings and packed wrappers. Only platform newline conversion
+is ignored. `python -m tools.check_generated` inventories every example HTML;
+unowned/renamed exports fail, while frozen baselines retain their exact hashes.
+CI and `tools.verify` run this gate. A matching embedded model cannot conceal a
+hand-edited reader. Trusted publishers must run the gate before upload; arbitrary
+uploads outside this repository are not governed by its CI.
+
+The shared reader's details panel starts expanded and can be hidden on desktop
+or mobile. Toggling it resizes the existing canvas without rebuilding the graph,
+rerunning layout or changing its pan/zoom. It is presentation state, not access
+control, and does not remove the authorised model from memory.
 
 Supplied definitions reuse the source green, and source objects/fields keep the
 phase-one grey. Model questions reuse the warm gap colour. Orange outlines mark

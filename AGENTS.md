@@ -10,6 +10,11 @@
   Generate a separate, traceable presentation through the shared compiler and
   renderer. Use `--lang en --pack-html` for a complete public source export when
   hosting limits require a smaller file; packaging must not remove any records.
+- Never edit generated HTML, including demo-specific CSS, scripts or labels.
+  Change checked source configuration, definition YAML or shared app sources,
+  then regenerate. Before publishing, run python -m tools.check_generated;
+  a matching embedded model alone is not enough. Every example HTML must have
+  a checked generation owner or a locked baseline.
 - Keep phase-one source projections separate from business definitions. A source
   SQL formula establishes what the source computes, not an approved business
   meaning. Agent proposals need explicit provenance and human confirmation.

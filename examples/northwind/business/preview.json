@@ -2,30 +2,30 @@
   "status": "unreviewed-business-pilot",
   "language": "en",
   "artifact": "index.html",
-  "artifact_bytes": 11659451,
-  "artifact_sha256": "181aa78ffe1ee150910ba4f0177a53e252c61f77073e955341e65ae5924308f4",
+  "artifact_bytes": 11681561,
+  "artifact_sha256": "3e42b4ab077c683c64f00f26ae014f66554793babac86a0f97c5242da5167d87",
   "overlay": "pilot.yaml",
-  "overlay_sha256": "a35554ff8fb52f1998b6f6a2e7441441f78477fc2b76379d9f24b981a405588d",
+  "overlay_sha256": "cc197d6f760afc9de74ea85122271cb53eb70d72309aa3d98267b3135fa57365",
   "registry": "pilot.registry.json",
-  "canonical_definitions": 7,
+  "canonical_definitions": 9,
   "origins": {
     "provided": 3,
-    "inferred": 4
+    "inferred": 6
   },
   "new_executable_metrics": false,
   "phase_one_source_unchanged": true,
-  "live_shareone_deployment": true,
+  "live_shareone_deployment": false,
   "reproduce": "python -m compiler.business examples/northwind/business/pilot.yaml --app examples/northwind/business/index.html --lang en",
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
     "artifact": "review.html",
-    "bytes": 11658489,
-    "sha256": "75b21d26af0e4ddb914657b07a946afcaf2e514f8e5a28c6d6acf2898279e3b3",
+    "bytes": 11680576,
+    "sha256": "e53d203e0b14207554006d3c000af3d31d6217465be223c7ba807fdf70a478eb",
     "language": "zh"
   },
   "contributors": {
     "source": 3,
-    "model": 4,
+    "model": 6,
     "business_user": 0
   },
   "source_objects_shared_by_identity": true,
@@ -36,8 +36,7 @@
     "unreviewed_outline": "--hook"
   },
   "validation": {
-    "verification_gates_passed": 5,
-    "tests_passed": 300,
+    "tests_passed": 309,
     "browser_tool": "ai-dev-browser",
     "source_field_to_real_records": true,
     "source_node_references_shared_in_renderer": true,
@@ -52,33 +51,17 @@
     "selected_phrase_quote_with_stable_id": true,
     "neighbor_highlight_on_annotated_nodes": true,
     "pan_and_zoom_did_not_run_layout": true,
-    "live_anonymous_browser_verified": true,
-    "live_existing_annotated_node_selection": true,
-    "live_owner_download_equals_candidate": true,
-    "live_existing_comments_and_replies_preserved": true
+    "verification_status": "passed",
+    "phase_one_source_views_and_complete_records_equal_to_frozen_baseline": true,
+    "whole_html_regeneration_check": true,
+    "new_definition_ids": 2,
+    "business_purpose_dependencies": true,
+    "local_panel_toggle_does_not_rebuild_or_relayout": true,
+    "local_phone_viewport_canvas_height_expanded_px": 274.421875,
+    "local_phone_viewport_canvas_height_collapsed_px": 490.03125,
+    "real_phone_hardware_benchmark": false,
+    "verification_gates_passed": 6
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
-  "publication": "publication.json",
-  "automatic_layout": {
-    "chosen_flow": "DOWN",
-    "candidates": [
-      {
-        "direction": "DOWN",
-        "bounds": {
-          "width": 2032.6666666666667,
-          "height": 583
-        },
-        "scale": 0.6267628730731387
-      },
-      {
-        "direction": "RIGHT",
-        "bounds": {
-          "width": 923,
-          "height": 1769
-        },
-        "scale": 0.44870866308648955
-      }
-    ],
-    "viewport_context": "Anonymous ShareOne host, Chrome window 1680 x 1100; host chrome reduces canvas height."
-  }
+  "publication": "publication.json"
 }

@@ -120,5 +120,19 @@
       "last_activity_at": "2026-10-11T15:25:32.409947Z"
     },
     "resolution_does_not_confirm_business_meaning": true
+  },
+  "pending_update": {
+    "status": "local-verified-candidate-awaiting-ci-and-content-review",
+    "candidate_bytes": 11680576,
+    "candidate_sha256": "e53d203e0b14207554006d3c000af3d31d6217465be223c7ba807fdf70a478eb",
+    "candidate_filename": "northwind.html",
+    "business_definitions": 9,
+    "business_definitions_confirmed": 0,
+    "phase_one_source_schema_views_records_equal_to_frozen_baseline": true,
+    "original_definition_ids_preserved": 7,
+    "new_definition_ids": 2,
+    "current_review_page_updated": false,
+    "manual_html_edits": false,
+    "default_details_panel_expanded": true
   }
 }

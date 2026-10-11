@@ -39,6 +39,10 @@ that understanding inspectable and reusable. **Git is the history.**
    belong in parsers, schemas, checked write paths and the shared renderer.
    Improvements must survive regeneration without the previous conversation.
    Never repair only a demo HTML or add a database-specific exception to pass it.
+   CI regenerates and compares complete deliverables, including reader scripts,
+   styles and comment integration. Unregistered HTML fails the export inventory;
+   frozen baseline files keep their locked hashes. Change checked inputs or the
+   shared renderer and regenerate before publishing.
 7. **Identity supports references without copying facts.** Generate source,
    object and field addresses from the source in phase one. Use declared keys for
    rows; keyless positions are snapshot-local. Give separately reviewed business
@@ -218,10 +222,13 @@ accepted phase-one artifact and its source/export version as a review baseline;
 business definitions reference its source identities. Several rules can belong
 to one presentation. A menu toggle alone does not preserve a historical snapshot.
 The current compiler separates `source_projection` and `business` modes and
-supplies shared field identities; a combined reader with a pinned phase-one
-baseline and versioned business overlays is a next-stage design, not shipped yet.
-Business items currently use spec keys. Enforcing immutable business identities
-and explicit migrations across versions is also next-stage work.
+supplies shared field identities. `compiler.business` compiles a pinned phase-one
+baseline and versioned canonical definitions into one reader with separate source
+and business views. Typed definitions distinguish meanings, candidate metrics,
+rules and issues; rules reference their business subjects and metrics declare
+grain and scope. The registry rejects duplicate identities and unversioned edits.
+Trusted human confirmation, identity migrations and authenticated overlay delivery
+remain service work; CLI input is not proof of authority.
 Loading already refuses duplicate YAML keys with both source locations and
 refuses a graph identity reused across `raw`, `hooks`, `types` and `nodes`.
 Different view references and repeated field names in different objects remain
