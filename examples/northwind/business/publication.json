@@ -2,12 +2,12 @@
   "status": "reviewed_native_remote_url",
   "target_url": "https://s.shareone.vip/s/sudograph-northwind",
   "target_share_id": "aSoJi9Ny94gwxXFc",
-  "candidate_commit": "f6daf34eaa6decf3b264276ad72f41aac4ec5dcf",
-  "candidate_remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/f6daf34eaa6decf3b264276ad72f41aac4ec5dcf/examples/northwind/business/review.html",
+  "candidate_commit": "d888a7a3ea15ebf0f8ac4bd04c0f70ff61fdc6e4",
+  "candidate_remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/d888a7a3ea15ebf0f8ac4bd04c0f70ff61fdc6e4/examples/northwind/business/review.html",
   "candidate_filename": "northwind.html",
-  "candidate_bytes": 11649692,
-  "candidate_sha256": "6516219c90929cb44913c2c63ae37ef23e0b9f567d0ad62fe9d6941127be4230",
-  "review_id": "dfea5fb6-ee42-4186-b70e-246c783ef2a4",
+  "candidate_bytes": 11658489,
+  "candidate_sha256": "75b21d26af0e4ddb914657b07a946afcaf2e514f8e5a28c6d6acf2898279e3b3",
+  "review_id": "b976999c-ecf9-4369-9b54-c9bf9c0f40b7",
   "review_approved": true,
   "rejection": {
     "http_status": 409,
@@ -22,10 +22,10 @@
   "phase_one_source_views_and_records_unchanged": true,
   "review_candidate_download_matches_bytes": true,
   "public_phase_one_remote_url_verified": true,
-  "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38062032214",
+  "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38149419610",
   "ci_conclusion": "success",
-  "reviewed_at": "2026-10-10T17:02:16.946721Z",
-  "reviewer_note": "用户在本会话明确交接此候选给 ShareOne AI 正式复核；本决定由有 root 权限的 ShareOne 审核员代理记录。核对固定 commit f6daf34eaa6decf3b264276ad72f41aac4ec5dcf 与候选下载的全部字节、SHA-256和访问设置；原生 HTML 与该 commit 通用 renderer/vendor 源文件逐字节重建一致；完整脚本及资源上下文检查通过，未发现可执行包装器或新增外传入口。阶段一 source_schema、记录数据与原模型一致；7条独立业务定义（3条源依据、4条模型推演）明确待业务确认，未增加可执行指标。准确 commit 的 CI 全绿；离线真实 ShareOne 注入/沙箱浏览器验证业务视图、源字段记录下钻、双语稳定身份、评论锚点/事件桥和 Page Data 回包。批准仅适用于此记录的原页面、owner、文件哈希、URL、文件名及分发范围。提交和复核不发布；阶段二业务含义仍待业务方确认，原页面及28个评论线程在复核前后保持不变。",
+  "reviewed_at": "2026-10-11T15:18:24.081687Z",
+  "reviewer_note": "opensource sample",
   "publication_operation": "PUT /api/v1/pages/{share_id}",
   "remote_url_bound": true,
   "allow_comments": true,
@@ -33,8 +33,8 @@
   "force_refresh_verified": true,
   "remote_fetch_failures": 0,
   "remote_last_error": null,
-  "existing_comment_threads_preserved": 28,
-  "verified_at": "2026-10-11T03:07:31.376199+00:00",
+  "existing_comment_threads_preserved": 32,
+  "verified_at": "2026-10-11T15:26:24.826757+00:00",
   "anonymous_browser": {
     "tool": "ai-dev-browser",
     "language": "zh",
@@ -64,29 +64,61 @@
     "business_identity_reused_across_views": true,
     "language_switch": true,
     "shareone_comment_sdk_present": true,
-    "comment_create_button_present": true,
+    "source_connector_visible_and_checkbox_synchronised": true,
+    "automatic_layout_flow": "DOWN",
+    "automatic_layout_candidates": [
+      {
+        "direction": "DOWN",
+        "bounds": {
+          "width": 2032.6666666666667,
+          "height": 583
+        },
+        "scale": 0.6267628730731387
+      },
+      {
+        "direction": "RIGHT",
+        "bounds": {
+          "width": 923,
+          "height": 1769
+        },
+        "scale": 0.44870866308648955
+      }
+    ],
+    "existing_annotated_node_clicks_and_neighbour_highlight": true,
+    "selected_phrase_quote_preserves_stable_identity": true,
+    "definition_version_in_expandable_details": true,
+    "rounding_example_visible": true,
+    "pan_and_zoom_did_not_run_layout": true,
+    "reload_verified": true,
     "test_comments_created": false
   },
-  "pending_update": {
-    "status": "formal_review_pending",
-    "candidate_commit": "d888a7a3ea15ebf0f8ac4bd04c0f70ff61fdc6e4",
-    "candidate_remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/d888a7a3ea15ebf0f8ac4bd04c0f70ff61fdc6e4/examples/northwind/business/review.html",
-    "candidate_sha256": "75b21d26af0e4ddb914657b07a946afcaf2e514f8e5a28c6d6acf2898279e3b3",
-    "candidate_bytes": 11658489,
-    "filename": "northwind.html",
-    "review_id": "b976999c-ecf9-4369-9b54-c9bf9c0f40b7",
-    "approved": null,
-    "reason": "完整内容超过自动审核预算，需要人工复核；尚未作出内容违规判断。",
-    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38149419610",
-    "ci_conclusion": "success",
-    "source_data_unchanged": true,
-    "canonical_definition_ids_preserved": 7,
-    "current_review_page_updated_to_this_candidate": false,
-    "comment_round": {
-      "threads_reviewed": 4,
-      "design_discussion_resolved": 1,
-      "page_changes_waiting_for_deployment": 3
+  "previous_publication": {
+    "candidate_commit": "f6daf34eaa6decf3b264276ad72f41aac4ec5dcf",
+    "candidate_remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/f6daf34eaa6decf3b264276ad72f41aac4ec5dcf/examples/northwind/business/review.html",
+    "candidate_filename": "northwind.html",
+    "candidate_bytes": 11649692,
+    "candidate_sha256": "6516219c90929cb44913c2c63ae37ef23e0b9f567d0ad62fe9d6941127be4230",
+    "review_id": "dfea5fb6-ee42-4186-b70e-246c783ef2a4",
+    "reviewed_at": "2026-10-10T17:02:16.946721Z",
+    "verified_at": "2026-10-11T03:07:31.376199+00:00",
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38062032214"
+  },
+  "existing_replies_preserved": true,
+  "source_schema_views_records_equal_to_frozen_baseline": true,
+  "canonical_definition_ids_preserved": 7,
+  "business_definitions_confirmed": 0,
+  "comment_round": {
+    "threads_reviewed": 4,
+    "design_discussion_resolved": 1,
+    "page_change_threads_verified_and_resolved": 3,
+    "summary_after_resolution": {
+      "total": 32,
+      "open": 0,
+      "in_progress": 0,
+      "resolved": 32,
+      "dismissed": 0,
+      "last_activity_at": "2026-10-11T15:25:32.409947Z"
     },
-    "next_step": "On formal approval, publish this exact candidate to the original share, verify the live behavior and then resolve the remaining page-change threads."
+    "resolution_does_not_confirm_business_meaning": true
   }
 }

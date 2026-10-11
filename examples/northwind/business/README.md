@@ -14,10 +14,11 @@ when distributing the standalone Northwind preview.
 
 [publication.json](publication.json) records the actual ShareOne publication
 state. The [original review share](https://s.shareone.vip/s/sudograph-northwind)
-hosts the earlier approved phase-two version through a pinned remote URL. This
-comment-resolution revision is checked and awaits formal content review before
-updating that same share, retaining its phase-one views and comment threads.
-Phase two continues the same
+hosts this comment-resolution revision through its approved, pinned remote URL.
+The owner download matches the candidate bytes and SHA-256. Anonymous browser
+checks cover source connectors, automatic layout, annotated-node selection,
+selected-text quotes, both languages and real record drilldown. Existing comment
+threads and replies are preserved. Phase two continues the same
 working model and review URL; the business overlay is a checked input to that
 shared model, not a separate site. The public phase-one acceptance baseline
 remains separate as historical evidence.
@@ -113,13 +114,14 @@ reuses the existing five-gate CI workflow. The source artifact remains immutable
 
 ## Current boundaries
 
-This version records definitions and questions. It introduces no sales formula,
-tax assumption, new rounding policy or invented workflow owner. Executable
+This version records definitions and questions, including an unreviewed rounding
+proposal. It introduces no executable sales formula, applied rounding policy,
+tax assumption or invented workflow owner. Executable
 metrics follow review of their intended meanings and must use the established
 checked expression/compiler path. Confirmation history and permissions must be
 implemented at the trusted service boundary, not inferred from a menu choice.
 
-The public remote-url publication is separately awaiting ShareOne's supported
-resolution of the size/moderation blockers. Local browser checks establish that
-origins, citations, language switching, reused identities and record drilldown
-work; they do not establish deployment or business acceptance.
+ShareOne content review approved this exact native HTML and access scope. That
+approval permits hosting; it does not confirm any business definition. The
+phase-one source model, views and complete records equal the frozen baseline;
+all seven business definition identities are preserved and remain unreviewed.

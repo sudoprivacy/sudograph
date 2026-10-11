@@ -14,7 +14,7 @@
   },
   "new_executable_metrics": false,
   "phase_one_source_unchanged": true,
-  "live_shareone_deployment": false,
+  "live_shareone_deployment": true,
   "reproduce": "python -m compiler.business examples/northwind/business/pilot.yaml --app examples/northwind/business/index.html --lang en",
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
@@ -51,11 +51,14 @@
     "page_owned_comment_marks": true,
     "selected_phrase_quote_with_stable_id": true,
     "neighbor_highlight_on_annotated_nodes": true,
-    "pan_and_zoom_did_not_run_layout": true
+    "pan_and_zoom_did_not_run_layout": true,
+    "live_anonymous_browser_verified": true,
+    "live_existing_annotated_node_selection": true,
+    "live_owner_download_equals_candidate": true,
+    "live_existing_comments_and_replies_preserved": true
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
   "publication": "publication.json",
-  "pending_update": "Generic source visibility, viewport layout, nonblocking comments, selected-text quotes and clearer business proposals.",
   "automatic_layout": {
     "chosen_flow": "DOWN",
     "candidates": [
@@ -73,8 +76,9 @@
           "width": 923,
           "height": 1769
         },
-        "scale": 0.4701897258338044
+        "scale": 0.44870866308648955
       }
-    ]
+    ],
+    "viewport_context": "Anonymous ShareOne host, Chrome window 1680 x 1100; host chrome reduces canvas height."
   }
 }
