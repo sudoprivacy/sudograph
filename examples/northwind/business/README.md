@@ -14,8 +14,10 @@ when distributing the standalone Northwind preview.
 
 [publication.json](publication.json) records the actual ShareOne publication
 state. The [original review share](https://s.shareone.vip/s/sudograph-northwind)
-now hosts this approved native candidate through a pinned remote URL, retaining
-its phase-one views and existing comment threads. Phase two continues the same
+hosts the earlier approved phase-two version through a pinned remote URL. This
+comment-resolution revision is checked and awaits formal content review before
+updating that same share, retaining its phase-one views and comment threads.
+Phase two continues the same
 working model and review URL; the business overlay is a checked input to that
 shared model, not a separate site. The public phase-one acceptance baseline
 remains separate as historical evidence.

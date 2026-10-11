@@ -66,5 +66,27 @@
     "shareone_comment_sdk_present": true,
     "comment_create_button_present": true,
     "test_comments_created": false
+  },
+  "pending_update": {
+    "status": "formal_review_pending",
+    "candidate_commit": "d888a7a3ea15ebf0f8ac4bd04c0f70ff61fdc6e4",
+    "candidate_remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/d888a7a3ea15ebf0f8ac4bd04c0f70ff61fdc6e4/examples/northwind/business/review.html",
+    "candidate_sha256": "75b21d26af0e4ddb914657b07a946afcaf2e514f8e5a28c6d6acf2898279e3b3",
+    "candidate_bytes": 11658489,
+    "filename": "northwind.html",
+    "review_id": "b976999c-ecf9-4369-9b54-c9bf9c0f40b7",
+    "approved": null,
+    "reason": "完整内容超过自动审核预算，需要人工复核；尚未作出内容违规判断。",
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38149419610",
+    "ci_conclusion": "success",
+    "source_data_unchanged": true,
+    "canonical_definition_ids_preserved": 7,
+    "current_review_page_updated_to_this_candidate": false,
+    "comment_round": {
+      "threads_reviewed": 4,
+      "design_discussion_resolved": 1,
+      "page_changes_waiting_for_deployment": 3
+    },
+    "next_step": "On formal approval, publish this exact candidate to the original share, verify the live behavior and then resolve the remaining page-change threads."
   }
 }
