@@ -14,7 +14,7 @@
   },
   "new_executable_metrics": false,
   "phase_one_source_unchanged": true,
-  "live_shareone_deployment": false,
+  "live_shareone_deployment": true,
   "reproduce": "python -m compiler.business examples/northwind/business/pilot.yaml --app examples/northwind/business/index.html --lang en",
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
@@ -46,5 +46,7 @@
     "canonical_definition_ids_preserved": 7,
     "phase_one_source_and_views_equal_to_original_review": true,
     "comments_in_artifact": false
-  }
+  },
+  "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
+  "publication": "publication.json"
 }

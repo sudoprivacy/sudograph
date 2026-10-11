@@ -13,8 +13,12 @@ and review boundaries. Include [the upstream MIT licence](LICENSE.northwind.txt)
 when distributing the standalone Northwind preview.
 
 [publication.json](publication.json) records the actual ShareOne publication
-state. The original review share is unchanged while formal review of this new
-candidate is pending. The approved public phase-one baseline remains separate.
+state. The [original review share](https://s.shareone.vip/s/sudograph-northwind)
+now hosts this approved native candidate through a pinned remote URL, retaining
+its phase-one views and existing comment threads. Phase two continues the same
+working model and review URL; the business overlay is a checked input to that
+shared model, not a separate site. The public phase-one acceptance baseline
+remains separate as historical evidence.
 
 The pilot has seven definitions and two business views:
 

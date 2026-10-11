@@ -21,6 +21,11 @@ that understanding inspectable and reusable. **Git is the history.**
    checks what the source actually contains. Phase two adds reviewed meanings,
    rules and metrics that reference that foundation. A plausible column name or
    LLM guess does not establish a business definition.
+   Phase two continues the same working model and review share, adding business
+   content and named views. Source objects and fields keep their identities;
+   definitions can be refined with versioned review. Preserve source views and
+   a frozen phase-one acceptance snapshot for comparison. The archive is history,
+   not a separate working model or a requirement to start another review URL.
 4. **People need real records as well as field names.** Review should progress
    from source objects to fields, a small set of real records, and full paginated
    records. Keep values from the same row together and retain its declared key.

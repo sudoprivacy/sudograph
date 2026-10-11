@@ -1,5 +1,5 @@
 {
-  "status": "formal_review_pending",
+  "status": "reviewed_native_remote_url",
   "target_url": "https://s.shareone.vip/s/sudograph-northwind",
   "target_share_id": "aSoJi9Ny94gwxXFc",
   "candidate_commit": "f6daf34eaa6decf3b264276ad72f41aac4ec5dcf",
@@ -8,15 +8,15 @@
   "candidate_bytes": 11649692,
   "candidate_sha256": "6516219c90929cb44913c2c63ae37ef23e0b9f567d0ad62fe9d6941127be4230",
   "review_id": "dfea5fb6-ee42-4186-b70e-246c783ef2a4",
-  "review_approved": null,
+  "review_approved": true,
   "rejection": {
     "http_status": 409,
     "error_code": "CONTENT_REVIEW_REQUIRED",
     "reason": "完整内容超过自动审核预算，需要人工复核；尚未作出内容违规判断。",
     "retryable": false
   },
-  "current_review_page_updated": false,
-  "current_review_page_bytes_unchanged": true,
+  "current_review_page_updated": true,
+  "current_review_page_bytes_unchanged": false,
   "comments_preserved": true,
   "comments_embedded_in_candidate": false,
   "phase_one_source_views_and_records_unchanged": true,
@@ -24,5 +24,47 @@
   "public_phase_one_remote_url_verified": true,
   "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38062032214",
   "ci_conclusion": "success",
-  "next_step": "A root reviewer must decide the existing content review. On approval, publish the exact candidate to the original share and verify its download, remote binding, browser and comments."
+  "reviewed_at": "2026-10-10T17:02:16.946721Z",
+  "reviewer_note": "用户在本会话明确交接此候选给 ShareOne AI 正式复核；本决定由有 root 权限的 ShareOne 审核员代理记录。核对固定 commit f6daf34eaa6decf3b264276ad72f41aac4ec5dcf 与候选下载的全部字节、SHA-256和访问设置；原生 HTML 与该 commit 通用 renderer/vendor 源文件逐字节重建一致；完整脚本及资源上下文检查通过，未发现可执行包装器或新增外传入口。阶段一 source_schema、记录数据与原模型一致；7条独立业务定义（3条源依据、4条模型推演）明确待业务确认，未增加可执行指标。准确 commit 的 CI 全绿；离线真实 ShareOne 注入/沙箱浏览器验证业务视图、源字段记录下钻、双语稳定身份、评论锚点/事件桥和 Page Data 回包。批准仅适用于此记录的原页面、owner、文件哈希、URL、文件名及分发范围。提交和复核不发布；阶段二业务含义仍待业务方确认，原页面及28个评论线程在复核前后保持不变。",
+  "publication_operation": "PUT /api/v1/pages/{share_id}",
+  "remote_url_bound": true,
+  "allow_comments": true,
+  "owner_download_matches_candidate_bytes": true,
+  "force_refresh_verified": true,
+  "remote_fetch_failures": 0,
+  "remote_last_error": null,
+  "existing_comment_threads_preserved": 28,
+  "verified_at": "2026-10-11T03:07:31.376199+00:00",
+  "anonymous_browser": {
+    "tool": "ai-dev-browser",
+    "language": "zh",
+    "source_objects": 30,
+    "source_fields": 204,
+    "canonical_definitions": 7,
+    "visible_views": [
+      {
+        "value": "schema",
+        "label": "结构关系"
+      },
+      {
+        "value": "data",
+        "label": "数据关系"
+      },
+      {
+        "value": "business:sales-meaning",
+        "label": "业务视图 · 销售口径核对"
+      },
+      {
+        "value": "business:open-questions",
+        "label": "业务视图 · 待确认业务问题"
+      }
+    ],
+    "source_field_to_real_records": true,
+    "shared_source_node_references": true,
+    "business_identity_reused_across_views": true,
+    "language_switch": true,
+    "shareone_comment_sdk_present": true,
+    "comment_create_button_present": true,
+    "test_comments_created": false
+  }
 }
