@@ -122,6 +122,9 @@
     padding:0;font-size:16px;line-height:20px;border-color:#778399;cursor:pointer;
     user-select:none;background:#171b23;color:#dfe4ec}
   .graph-expand:hover{background:#2c3b52;border-color:#fff}
+  .canvas-label[data-has-comments="true"]::after,.canvas-edge-label[data-has-comments="true"]::after{
+    content:'';position:absolute;left:-8px;top:-5px;width:6px;height:6px;border-radius:50%;
+    background:#a8c4ed;box-shadow:0 0 0 2px #11141a;pointer-events:none}
   @media (max-width:800px){ main{flex-direction:column} aside{width:auto;height:44%;
     border-left:none;border-top:1px solid var(--line)} }
 </style>
@@ -158,8 +161,8 @@
     <option value="view" data-ui="源视图">源视图</option>
     <option value="all" data-ui="全部">全部</option>
   </select></label>
-  <label><span data-ui="排布">排布</span><select id="direction">
-    <option value="auto" data-ui="自动">自动</option>
+  <label><span data-ui="关系流向">关系流向</span><select id="direction">
+    <option value="auto" data-ui="适应画布">适应画布</option>
     <option value="RIGHT" data-ui="从左到右">从左到右</option>
     <option value="DOWN" data-ui="从上到下">从上到下</option>
   </select></label>
@@ -207,7 +210,7 @@ const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '�
 const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
                 schemaExpanded:new Set(),schemaKind:'table',
                 expanded: new Set(), panel: 'checks', selected:null, selectedRelation:null, focus:null,
-                sources:BUNDLE.projection?.mode==='source_projection', edgeLabels:false, direction:'auto', layoutEngine:'auto',
+                sources:!!BUNDLE.source_schema || BUNDLE.projection?.mode==='source_projection', edgeLabels:false, direction:'auto', layoutEngine:'auto',
                 projection: BUNDLE.source_schema ? 'schema' : Object.values(BUNDLE.views)[0].groups.some(g => g.backing) ? 'data' : 'all' };
 for(const option of $('projection').options)option.hidden=option.value.startsWith('schema')?!BUNDLE.source_schema:
   option.value==='all'&&BUNDLE.projection?.mode==='source_projection';
@@ -343,7 +346,7 @@ const hex = c => {
   return m ? [1, 2, 3].map(i => parseInt(m[i], 16)) : null;
 };
 const fillOf = n => {
-  if(n.kind==='business_definition')return BUSINESS_ORIGINS[n.origin].colour;
+  if(n.kind==='business_definition')return businessColour(n);
   const base = css((KINDS[n.kind] || (n.kind==='schema_source'?KINDS.raw:KINDS.type)).var);
   if (n.kind === 'hook' || !(n.provisional_because || []).length) return base;
   const a = hex(base), b = hex(css('--hook'));
@@ -353,10 +356,10 @@ const fillOf = n => {
 };
 
 function renderLegend() { $('legend').innerHTML =
-  isBusiness() ? Object.values(BUSINESS_ORIGINS).map(o=>`<span><i style="background:${o.colour}"></i>${o.name}</span>`).join('')+
+  isBusiness() ? Object.values(BUSINESS_VISUALS).map(o=>`<span><i style="background:${o.colour}"></i>${o.name}</span>`).join('')+
     `<span><i style="background:var(--type)"></i>${t('源字段与对象')}</span>`+
     `<span><i style="background:transparent;border-color:var(--hook)"></i>${t('待业务确认')}</span><span>${t('来源不代表已确认')}</span>` :
-  (isSchema()||BUNDLE.projection?.mode==='source_projection') ?
+  (isSchema()||(state.projection==='data'&&BUNDLE.source_schema)||BUNDLE.projection?.mode==='source_projection') ?
     [KINDS.raw,KINDS.type].map(k=>`<span><i style="background:var(${k.var})"></i>${k.name}</span>`).join('')+
     `<span><u style="border-top-color:var(--edge)"></u>${t('关系')}</span>` :
   `<span><i style="background:${
@@ -470,6 +473,7 @@ function measure(lines,maxWidth=260) {
    engine, so two clicks in quick succession used to run concurrently and
    whichever finished last replaced the canvas — which looked exactly like the
    second click doing nothing. */
+/*__LAYOUT__*/
 /*__CANVAS__*/
 /*__RECORDS__*/
 /*__SCHEMA__*/
@@ -481,10 +485,10 @@ async function draw() {
   const v = view();
   if (!v) { $('status').textContent = 'no view for this combination'; return; }
   renderLegend();
+  $('sources').checked=state.sources;
   if(isBusiness())return drawBusiness(v,mine);
   if(isSchema())return drawSchema(v,mine);
   $('schemaFilter').hidden=true;
-  $('sources').checked=state.sources;
 
   const d = state.bridgeMode ? bridge() : null;
   const entries = new Set((d?.entries || []).map(e => e.node));
@@ -823,8 +827,11 @@ const anchors = (() => {
   const wire = api => {
     if (wired) return;
     wired = true;
-    api.on('resync', async ids => {for(const id of ids||[])tracked.add(id);
-      await Promise.all((ids||[]).map(locateGraphAnchor));report();});
+    // The reader owns nonblocking comment marks. Host-sized overlay buttons
+    // otherwise consume clicks and text selection on annotated canvas nodes.
+    api.configure?.({marks:'page'});
+    api.on('resync', async ids => {tracked.clear();for(const id of ids||[])tracked.add(id);
+      await Promise.all((ids||[]).map(locateGraphAnchor));refreshCanvasCommentMarks();report();});
     api.on('hittest', rect => {
       const out = [];
       for (const id of known()) {
@@ -868,10 +875,18 @@ const anchors = (() => {
     });
   };
 
-  return { get live() { return !!host(); }, report,
+  return { get live() { return !!host(); }, report, marked:id=>tracked.has(id),
     comment(id,label,context,rect=rectOf(id)) {
       const api=host();if(!api?.select)return false;wire(api);
       return api.select({id,label,context},rect);
+    },
+    commentSelection(id,context,container) {
+      const selection=getSelection();
+      if(!selection?.toString().trim()||!selection.rangeCount)return false;
+      const range=selection.getRangeAt(0);
+      if(!container.contains(range.commonAncestorContainer))return false;
+      const r=range.getBoundingClientRect();
+      return this.comment(id,selection.toString().trim(),context,{x:r.x,y:r.y,width:r.width,height:r.height});
     }
   };
 })();

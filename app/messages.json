@@ -218,6 +218,14 @@
     "源资料": "Source material",
     "业务人员提供": "Business-user input",
     "提供者类别": "Contributor category",
-    "这条线引用源对象或字段；不是源库外键，也不是新的计算公式。": "This edge references a source object or field. It is not a source foreign key or a new calculation."
+    "这条线引用源对象或字段；不是源库外键，也不是新的计算公式。": "This edge references a source object or field. It is not a source foreign key or a new calculation.",
+    "关系流向": "Relationship flow",
+    "适应画布": "Fit canvas",
+    "取数点与资料依据": "Source connectors and evidence",
+    "待确认业务理解": "Business meanings to review",
+    "版本与标识": "Version and identity",
+    "定义版本": "Definition version",
+    "修改定义时递增版本；不是阶段编号或可信度评分。": "Incremented when the definition changes; not a phase number or confidence score.",
+    "此对象有评论，可在评论侧栏查看。": "This object has comments; read them in the comment sidebar."
   }
 }

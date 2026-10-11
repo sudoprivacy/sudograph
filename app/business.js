@@ -1,8 +1,9 @@
 // Origins describe evidence. Confirmation is a separate, operator-owned decision.
-const BUSINESS_ORIGINS={
-  provided:{get colour(){return css(KINDS.raw.var)},get name(){return t('资料提供')}},
-  inferred:{get colour(){return css(KINDS.hook.var)},get name(){return t('模型推演 · 待确认')}},
+const BUSINESS_VISUALS={
+  evidence:{get colour(){return css(KINDS.raw.var)},get name(){return t('取数点与资料依据')}},
+  proposal:{get colour(){return css(KINDS.hook.var)},get name(){return t('待确认业务理解')}},
 };
+const businessColour=n=>(n.origin==='provided'&&n.contributor==='source'?BUSINESS_VISUALS.evidence:BUSINESS_VISUALS.proposal).colour;
 const BUSINESS_CONTRIBUTORS={source:'源资料',business_user:'业务人员提供',model:'模型推演'};
 const businessContributor=(n,language=uiLanguage)=>t(BUSINESS_CONTRIBUTORS[n.contributor],{},language);
 const businessNodes=new Map(Object.entries(BUNDLE.business?.definitions||{}));
@@ -32,9 +33,7 @@ function businessGraph() {
   return {nodes:[...have.values()],edges,groups:[],checks:[]};
 }
 function businessLines(n,language) {
-  return [{cls:'',parts:[bt(n.label,language)]},
-    {cls:'sub',parts:[businessContributor(n,language)+' · v'+n.version]},
-    {cls:'sub',parts:[t('待业务确认',{},language)]}];
+  return [{cls:'',parts:[bt(n.label,language)]}];
 }
 async function drawBusiness(v,mine) {
   $('schemaFilter').hidden=true;
@@ -55,10 +54,9 @@ async function drawBusiness(v,mine) {
 function showBusinessNode(n) {
   state.panel='node';
   $('panel').innerHTML=`<h2>${t('业务定义草案')}</h2><strong>${esc(bt(n.label))}</strong>`+
-    `<p>${esc(bt(n.statement))}</p><div class="kv"><span>${t('信息来源')}</span><span>${t(n.origin==='provided'?'资料提供':'模型推演')}</span></div>`+
-    `<div class="kv"><span>${t('提供者类别')}</span><span>${businessContributor(n)}</span></div>`+
+    `<p>${esc(bt(n.statement))}</p><div class="kv"><span>${t('信息来源')}</span><span>${businessContributor(n)}</span></div>`+
     `<div class="kv"><span>${t('确认状态')}</span><span>${t('待业务确认')}</span></div>`+
-    `<p class="muted">${t('来源不代表已确认')} · v${n.version}</p>`;
+    `<p class="muted">${t('来源不代表已确认')}</p>`;
   const controls=document.createElement('div');controls.className='schema-actions';
   const button=(label,action)=>{const b=document.createElement('button');b.textContent=t(label);b.onclick=action;controls.appendChild(b);};
   button('核对源字段',async()=>{state.focus=n.id;await draw();});
@@ -84,7 +82,9 @@ function showBusinessNode(n) {
     }
     $('panel').appendChild(details);
   }
-  const identity=document.createElement('details');identity.innerHTML=`<summary>${t('业务定义的标识')}</summary><div class="op">${esc(n.id)}</div>`;
+  const identity=document.createElement('details');identity.dataset.shareoneAnchorId=n.id;
+  identity.innerHTML=`<summary>${t('版本与标识')}</summary><p>${t('定义版本')}：${n.version}</p>`+
+    `<p class="muted">${t('修改定义时递增版本；不是阶段编号或可信度评分。')}</p><div class="op">${esc(n.id)}</div>`;
   $('panel').appendChild(identity);
 }
 function showBusinessRelation(e) {

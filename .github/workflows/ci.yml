@@ -13,6 +13,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.21.0"
       # Pinned. An unpinned linter is a gate whose meaning changes with whatever
       # PyPI served that morning: ruff 0.16 widened its defaults and turned a
       # green local run red here, which says nothing about the code.

@@ -29,9 +29,11 @@ The pilot has seven definitions and two business views:
 - The second view reuses the four questions by identity. It creates no additional
   definitions or independent copies of their meanings.
 
-**Green reuses the phase-one source colour. Orange marks model questions. Grey
-reuses the phase-one object/field colour.** All definitions have orange review
-outlines until reviewed. The legend and each definition also spell out the origin, so
+**Green reuses the phase-one source colour. Orange marks business meanings to
+review, whether supplied by a person or inferred by a model. Grey reuses the
+phase-one object/field colour.** Source connectors are visible by default and use
+a barrel shape. Supplied source observations reuse green but remain definition
+nodes, with orange review outlines until reviewed. Details spell out the origin, so
 colour is not the only distinction. All definitions remain **unreviewed**. Having
 a source citation does not establish that an interpretation is correct; inferred
 does not mean incorrect. Business approval is a separate decision.
@@ -40,6 +42,19 @@ Open a definition to inspect its statement, origin, version and evidence. Follow
 a source field to the source reader and real paginated records. Switch views or
 language without allocating new field or definition identities. The source
 reader and archived phase-one baseline remain accessible.
+
+The two-price interpretation now proposes a catalogue reference price and an
+order-line price before its separate discount. The rounding interpretation
+proposes rounding each line before summing and gives an explicitly illustrative
+0.335 + 0.335 example. Neither proposal is approved or executed. Domain specialists
+can use source evidence, pretrained knowledge, accumulated memory or specialised
+models to propose concrete meanings; those inputs do not replace human review.
+
+Canvas labels omit repeated origin/review text and version numbers. Definition
+history remains in expandable details. Automatic layout compares both ELK flow
+directions with the canvas rather than equating edge flow with graph shape. Source
+objects keep compact field catalogues. Page-owned comment marks use the supported
+host API so existing comments do not block node selection or text selection.
 
 ## Generate and check
 

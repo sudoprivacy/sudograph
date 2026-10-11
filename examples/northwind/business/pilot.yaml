@@ -95,23 +95,32 @@ definitions:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/CategoryID
   price-meaning:
     concept: unit-price-business-meaning
-    label: 'Two prices: meanings to confirm'
-    statement: The product and order-line UnitPrice may represent a catalogue price and a transaction price. This
-      is a model hypothesis; confirm meanings and use real rows to check differences before choosing one.
+    label: Catalogue price and order-line price
+    statement: 'Proposed meaning: Products.UnitPrice is the catalogue reference price; Order Details.UnitPrice is
+      the price used on that order line before its separate Discount. Calculate the transaction from the order-line
+      price, quantity and discount. Do not replace a historical order-line price with the product reference price.
+      This interpretation uses the source structure and common order models and remains unreviewed.'
     origin: inferred
     contributor: model
-    version: 2
+    version: 3
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/UnitPrice
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
+    evidence:
+    - kind: source_sql
+      ref: sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended
+      quote: ([Order Details].UnitPrice*Quantity*(1-Discount)/100)*100 AS ExtendedPrice
   rounding-question:
     concept: rounding-policy
-    label: 'Rounding: line or total?'
-    statement: Should amounts be rounded per line or only after aggregation, at what precision and with which rule?
-      Source SQL contains no explicit rounding policy. No new rounding rule is applied in this pilot.
+    label: Round each line, then add the amounts
+    statement: 'Proposed rule: round each order-line amount to the settlement precision, then add the rounded amounts.
+      For a currency with two decimal places, an illustrative example is two amounts of 0.335: round each to 0.34
+      and add to get 0.68; add first and round 0.670 to get 0.67. These are invented example amounts, not source
+      records. Currency, precision and settlement practice still need review. The source SQL has no explicit rounding
+      rule. This pilot records a proposal and does not execute it or replace the source amounts.'
     origin: inferred
     contributor: model
-    version: 2
+    version: 3
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice
   tax-freight-question:
@@ -162,14 +171,6 @@ translations:
     ? For the business question, should we reuse the source 1997 report or define another reporting period and category-level
       grain? The source view alone does not choose the new business scope.
     : 业务问题应复用源库的 1997 年报表，还是另设报告期间、汇总到品类层级？源视图不能替业务人员选择新的范围。
-    'Two prices: meanings to confirm': 两个单价：确认业务含义
-    ? The product and order-line UnitPrice may represent a catalogue price and a transaction price. This is a model
-      hypothesis; confirm meanings and use real rows to check differences before choosing one.
-    : 产品与订单明细的 UnitPrice 可能分别表示目录价和成交价。这是模型假设；应先确认定义、核对真实记录中的差异，再选择计算依据。
-    'Rounding: line or total?': 舍入：逐行还是合计后？
-    ? Should amounts be rounded per line or only after aggregation, at what precision and with which rule? Source
-      SQL contains no explicit rounding policy. No new rounding rule is applied in this pilot.
-    : 金额应逐行舍入还是汇总后舍入？精度和规则是什么？源 SQL 没有明确的舍入政策，本试点尚未应用新的舍入规则。
     Freight, tax and currency: 运费、税与币种
     ? The line expression does not reference Freight. Confirm whether the intended sales amount includes freight,
       whether UnitPrice already includes tax and which currency applies. These meanings are not established by the
@@ -177,3 +178,17 @@ translations:
     : 明细表达式未引用 Freight。需要确认目标销售额是否包含运费、UnitPrice 是否含税、使用什么币种；这些含义不能仅由表达式确定。
     Sales meaning review: 销售口径核对
     Open business questions: 待确认业务问题
+    Catalogue price and order-line price: 商品参考价与订单单价
+    ? 'Proposed meaning: Products.UnitPrice is the catalogue reference price; Order Details.UnitPrice is the price
+      used on that order line before its separate Discount. Calculate the transaction from the order-line price,
+      quantity and discount. Do not replace a historical order-line price with the product reference price. This
+      interpretation uses the source structure and common order models and remains unreviewed.'
+    : 建议解释：商品表 UnitPrice 是目录参考单价；订单明细 UnitPrice 是这笔订单采用的折扣前单价，Discount 另行扣除。核算这笔交易应使用明细单价、数量和折扣；不要拿商品参考价重算历史订单。这是结合源结构与常见订单模型提出的解释，仍待业务确认。
+    Round each line, then add the amounts: 建议先逐笔四舍五入，再相加
+    ? 'Proposed rule: round each order-line amount to the settlement precision, then add the rounded amounts. For
+      a currency with two decimal places, an illustrative example is two amounts of 0.335: round each to 0.34 and
+      add to get 0.68; add first and round 0.670 to get 0.67. These are invented example amounts, not source records.
+      Currency, precision and settlement practice still need review. The source SQL has no explicit rounding rule.
+      This pilot records a proposal and does not execute it or replace the source amounts.'
+    : 建议先把每条订单明细金额四舍五入到结算精度，再把这些金额相加。以精确到分的币种为例：两笔各 0.335，逐笔变成 0.34 后相加是 0.68；先相加得到 0.670 再四舍五入是 0.67。这两个数是说明差异的假设例子，不是源库记录。币种、精度和结算惯例仍待确认。源
+      SQL 没有显式舍入规则；本试点只记录建议，不执行它，也不覆盖源金额。

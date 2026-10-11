@@ -28,9 +28,12 @@ selection. The ShareOne application-anchor protocol supplies canvas node bounds.
 Source rows are paged separately: a large database does not imply placing all its
 rows on one canvas. No million-node rendering performance claim has been made.
 
-Business-mode views start with source connectors folded out of the canvas and
-edge labels shown around a selected node. Source provenance remains in each
-type's details; `Show sources` restores its nodes and edges. `Focus neighbors`
+Any model with a source schema starts with source connectors visible, including
+business overlays. A connector uses the source green and a barrel shape; source
+objects and fields remain grey. Supplied interpretations reuse green, but keep
+the business-definition shape and an unreviewed border. The source citation is
+evidence, not an approved interpretation. Edge labels appear around a selected
+node. `Show sources` toggles connector visibility. `Focus neighbors`
 shows one hop around a selected object; `Full graph` restores the overview.
 Neither control changes the compiled model or access permissions. The default is
 ELK layered with its own orthogonal edge routes, including bends and endpoints.
@@ -41,10 +44,21 @@ but the tested configurations still have some edges crossing nodes. The metrics
 overview limits layers to four nodes with Coffman-Graham layering so fan-out
 does not put every measure on one long row. Dense views still need zoom or focus
 for reading. ELK offers
-left-to-right and top-to-bottom layouts; `Rearrange` discards manual placement
+left-to-right and top-to-bottom relationship flows, not guarantees about the
+outer shape of the graph. Automatic layout compares both ELK geometries with the
+available canvas and picks the larger fit scale. Field catalogues remain compact
+inside their objects. Layout geometry is cached; pan and zoom do not rerun ELK.
+`Rearrange` discards manual placement
 for the current view. Dragging node borders moves their text and attached edges.
 Placements survive projection/focus/language switches during the current page
 session; they are not saved to the server or across a reload.
+
+The reader uses the host's supported page-owned comment-mark mode. Small marks
+on labels never consume pointer input; annotated nodes retain selection, neighbor
+highlighting and text selection. The host still owns the comment sidebar and
+identity-based reveal/report protocol. Text selections send the selected phrase
+as the comment quote while retaining the object ID as the anchor. Version numbers
+belong to definition history and appear in expandable details, not on every node.
 
 The template includes a Chinese/English selector. Controls, legend and panels
 switch together without changing graph identities or coordinates. Business

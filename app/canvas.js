@@ -3,6 +3,13 @@ let cy = null;
 const canvasLayouts = new Map();
 let canvasLayoutKey = null, resetCanvasLayout = false, labelFrame = null;
 let refreshCanvasEdgeLabels=()=>{};
+function refreshCanvasCommentMarks() {
+  for(const label of $('cy').querySelectorAll('.canvas-label,.canvas-edge-label')) {
+    const id=label.dataset.nodeId||cy?.getElementById(label.dataset.edgeId).data('anchorId');
+    label.dataset.hasComments=String(anchors.marked(id));
+    if(anchors.marked(id))label.title=t('此对象有评论，可在评论侧栏查看。');
+  }
+}
 function canvasEdgeId(e) {
   return e.id || 'sg-relation/'+encodeURIComponent(JSON.stringify([e.rel,e.from,e.to,e.via||'',e.role||'']));
 }
@@ -74,6 +81,7 @@ async function drawCanvas(v, shown, edges, mine) {
         'source-endpoint','target-endpoint'].map(name=>[name,e.style(name)]))])),
     zoom:cy.zoom(),pan:{...cy.pan()}});
   const engine=state.layoutEngine==='auto'?'elk':state.layoutEngine;
+  const projection=state.projection,directionPreference=state.direction;
   const key=JSON.stringify([state.basis,coordKey(),state.projection,state.direction,engine,
     state.sources,state.focus,[...shown.keys()].sort()]);
   if(resetCanvasLayout){canvasLayouts.delete(key);resetCanvasLayout=false;}
@@ -83,7 +91,6 @@ async function drawCanvas(v, shown, edges, mine) {
     const sizes=Object.keys(BUNDLE.ui.catalogs).flatMap(lang=>[false,true].map(open=>measure(linesOf(n,open,lang))));
     return [n.id,{w:Math.max(...sizes.map(s=>s.w)),h:Math.max(...sizes.map(s=>s.h))}];
   }));
-  const direction=state.direction==='auto'?(state.projection==='data'||isSchema()||isBusiness()?'RIGHT':'DOWN'):state.direction;
   const box = n => {
     // Reserve enough space for every available language, including wrapped text.
     // A language switch then preserves both manual placement and route geometry.
@@ -91,29 +98,42 @@ async function drawCanvas(v, shown, edges, mine) {
     return {id:n.id,width:size.w,height:size.h+12,
       layoutOptions:{'elk.layered.layering.layerConstraint':(n.kind==='schema_source'?KINDS.raw:KINDS[n.kind]||{}).layer || 'NONE'}};
   };
-  const nest=n=>{
+  const nest=(n,direction)=>{
     const result=box(n), members=nodes.filter(row=>(n.kind==='type'&&row.kind==='instance'&&row.type===n.id) || row.parent===n.id);
     if(members.length) {
       const pad=Math.max(40,dimensions.get(n.id).h+16);
-      result.children=members.map(nest);
+      // A field catalogue stays compact regardless of the outer edge flow.
+      const inside=n.kind==='schema_object'?'RIGHT':direction;
+      result.children=members.map(child=>nest(child,inside));
       result.layoutOptions={...result.layoutOptions,'elk.algorithm':'layered',
-        'elk.direction':direction,'elk.padding':`[top=${pad},left=${pad},bottom=${pad},right=${pad}]`,
+        'elk.direction':inside,'elk.padding':`[top=${pad},left=${pad},bottom=${pad},right=${pad}]`,
         'elk.spacing.nodeNode':'25','elk.layered.spacing.nodeNodeBetweenLayers':'40',
         'elk.layered.layering.strategy':'COFFMAN_GRAHAM','elk.layered.layering.coffmanGraham.layerBound':'4'};
     }
     return result;
   };
-  const children=nodes.filter(n=>!n.parent&&!['instance','fields'].includes(n.kind)).map(nest);
-  const laid = await elk.layout({id:'root', layoutOptions:{'elk.algorithm':'layered',
+  const makeGraph=direction=>({id:'root', layoutOptions:{'elk.algorithm':'layered',
     'elk.edgeRouting':'ORTHOGONAL',
     'elk.direction':direction, 'elk.spacing.nodeNode':'55','elk.spacing.componentComponent':'75',
-    ...(state.projection==='all'?{'elk.layered.layering.strategy':'COFFMAN_GRAHAM',
+    ...(projection==='all'?{'elk.layered.layering.strategy':'COFFMAN_GRAHAM',
       'elk.layered.layering.coffmanGraham.layerBound':'4'}:{}),
     'elk.layered.thoroughness':'20',
     'elk.hierarchyHandling':'INCLUDE_CHILDREN','elk.layered.spacing.nodeNodeBetweenLayers':'115'},
-    children,
+    children:nodes.filter(n=>!n.parent&&!['instance','fields'].includes(n.kind)).map(n=>nest(n,direction)),
     edges:edges.map((e,i)=>({id:'e'+i,sources:[e.from],targets:[e.to]}))});
+  const viewport=$('cy').getBoundingClientRect();
+  const geometryKey=JSON.stringify([projection,directionPreference,Math.round(viewport.width),Math.round(viewport.height),
+    nodes.map(n=>[n.id,n.parent,n.kind,dimensions.get(n.id)]),edges.map(e=>[e.from,e.to])]);
+  let geometry=canvasGeometryCache.get(geometryKey);
+  if(!geometry) {
+    geometry=await chooseCanvasLayout(makeGraph,viewport,directionPreference,g=>elk.layout(g));
+    if(canvasGeometryCache.size>=24)canvasGeometryCache.delete(canvasGeometryCache.keys().next().value);
+    canvasGeometryCache.set(geometryKey,geometry);
+  }
   if (mine !== drawSeq) return;
+  const {layout:laid,direction}=geometry;
+  state.resolvedDirection=direction;state.layoutCandidates=geometry.candidates;
+  $('direction').options[0].textContent=t('适应画布')+' · '+t(direction==='RIGHT'?'从左到右':'从上到下');
   if(labelFrame!==null){cancelAnimationFrame(labelFrame);labelFrame=null;}
   cy?.destroy();
   canvasLayoutKey=key;
@@ -134,7 +154,7 @@ async function drawCanvas(v, shown, edges, mine) {
   })(laid);
   cy = cytoscape({container:host, minZoom:.08,maxZoom:4,
     elements:[...nodes.map(n=> {const p=positions.get(n.id);return {data:{id:n.id,
-      label:linesOf(n,false).map(l=>l.parts.join('')).join('\n'), color:fillOf(n),
+      label:linesOf(n,false).map(l=>l.parts.join('')).join('\n'), color:fillOf(n),shape:n.kind==='schema_source'?'barrel':'roundrectangle',
       borderColor:n.kind==='business_definition'?css(KINDS.hook.var):'#778399',
       w:p.width,h:p.height,pad:Math.max(40,dimensions.get(n.id).h+16),
       headerWidth:dimensions.get(n.id).w,headerHeight:dimensions.get(n.id).h,
@@ -142,10 +162,10 @@ async function drawCanvas(v, shown, edges, mine) {
       position:saved?.positions[n.id] || {x:p.x+p.width/2,y:p.y+p.height/2}};}),
       ...edges.map((e,i)=>({data:{id:'edge-'+i,source:e.from,target:e.to,
         label:bt(e.via || ''),anchorId:canvasEdgeId(e),meta:e,loop:e.from===e.to,
-        color:e.rel==='business_evidence'?BUSINESS_ORIGINS[e.origin].colour:css(inferred(e)?EDGES.guessed.colour:edgeStyle(e.rel).colour),
+        color:e.rel==='business_evidence'?businessColour(e):css(inferred(e)?EDGES.guessed.colour:edgeStyle(e.rel).colour),
         dash:e.rel==='business_evidence'?(e.origin==='inferred'?'dashed':'solid'):
           inferred(e)?'dotted':edgeStyle(e.rel).dash?'dashed':'solid'}}))],
-    style:[{selector:'node',style:{shape:'roundrectangle','background-color':'data(color)',
+    style:[{selector:'node',style:{shape:'data(shape)','background-color':'data(color)',
       width:'data(w)',height:'data(h)','border-width':1,'border-color':'data(borderColor)',
       label:nodes.length>500?'data(label)':'','text-wrap':'wrap',color:'#dfe4ec',
       'font-size':11,'font-family':readerFont,'text-valign':'center'}},
@@ -216,7 +236,7 @@ async function drawCanvas(v, shown, edges, mine) {
     if(n.kind.startsWith('schema_')||n.kind==='business_definition')label.onpointerup=()=>{
       const selection=getSelection();
       if(selection?.toString()&&selection.rangeCount&&label.contains(selection.getRangeAt(0).commonAncestorContainer)
-        &&(n.kind==='business_definition'?anchors.comment(n.id,bt(n.label),bt(n.statement)):commentSchemaNode(n)))selection.removeAllRanges();
+        &&anchors.commentSelection(n.id,n.kind==='business_definition'?bt(n.statement):n.column||n.name||bt(n.label),label))selection.removeAllRanges();
     };
     const target=n.kind==='fields'?shown.get(n.parent):n;
     const expandable=target?.kind==='schema_object' || target?.kind==='instance' || (target?.kind==='type' && target.count &&
@@ -260,9 +280,8 @@ async function drawCanvas(v, shown, edges, mine) {
         label.onpointerdown=e=>e.stopPropagation();
         label.onclick=e=>{e.stopPropagation();if(!getSelection()?.toString()){
           state.relation=meta;isSchema()||meta.rel==='source_supplies'?showSchemaRelation(meta):showRelation(meta);}};
-        label.onpointerup=()=>{const selection=getSelection();if(selection?.toString()&&selection.rangeCount&&
-          label.contains(selection.getRangeAt(0).commonAncestorContainer)&&
-          anchors.comment(edge.data('anchorId'),label.title,meta.via||meta.rel))selection.removeAllRanges();};
+        label.onpointerup=()=>{const selection=getSelection();if(selection?.toString()&&
+          anchors.commentSelection(edge.data('anchorId'),meta.via||meta.rel,label))selection.removeAllRanges();};
         edgeLabelElements.set(id,label);layer.appendChild(label);
       }
       const lines=[{parts:[label.textContent]}],natural=measure(lines);
@@ -328,6 +347,7 @@ async function drawCanvas(v, shown, edges, mine) {
   cy.on('tap',e=>{if(e.target===cy){navigationBegin();clearReaderSelection();}});
   if(saved) {cy.zoom(saved.zoom);cy.pan(saved.pan);} else refit();
   updateCanvasSelection();
+  refreshCanvasCommentMarks();
   labels();
   const bad=v.checks.filter(c=>!c.ok);
   $('status').textContent=`${engine==='elk'?'ELK layered':'fCoSE'} · Cytoscape ${cytoscape.version} · ${shown.size} ${t('节点')} · `+

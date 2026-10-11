@@ -57,6 +57,22 @@ that understanding inspectable and reusable. **Git is the history.**
    objects, fields, rows, definitions and exports before returning them. The
    reader renders that authorised result; hiding a menu or node cannot grant
    or revoke access.
+9. **Specialist agents propose useful, reviewable conclusions.** An agent can
+   combine source evidence with pretrained knowledge, accumulated domain memory,
+   and specialised or post-trained models. State a concrete candidate meaning
+   when there is enough basis, explain assumptions and give examples when they
+   help a business reviewer. Do not present every unknown as an unexplained
+   question. Keep evidence, inferred meaning and human confirmation distinct;
+   memory and training are not substitutes for source facts or approval. These
+   are agent inputs, not a claim that a memory or training service is deployed.
+10. **Source corrections follow a separate approved write path.** A field
+    comment can motivate a source correction. An agent may prepare a versioned
+    SQL/schema/data migration and its diff, validation and rollback evidence
+    for a GitLab merge request (or the source owner's equivalent process).
+    Enforce required approval before merge and before executing the authorised
+    migration; an LLM assertion is not approval. Git stores the proposed source
+    change, not a magical commit into a live database. Refresh the read-only
+    projection after the source changes. This write-back path is not deployed.
 
 The broader architecture and its design history are in
 [Sudo Cloud architecture and design, section 7](https://s.shareone.vip/s/sudo-cloud-plan).
@@ -635,6 +651,9 @@ That record travels with the spec into git, so there is no second place where
 
 Requires Python 3.11+. Install the pinned runtime dependencies with
 `pip install -r requirements.txt` (PyYAML and SQLGlot).
+The verification suite also uses Node.js 22.21.0 to exercise the vendored ELK
+engine on real graphs; CI installs that version explicitly. No npm packages
+are needed for those layout checks.
 
 For a complete public English export, use `--lang en --pack-html` with `--app`.
 The shared renderer losslessly packages the entire native HTML; unpacking changes

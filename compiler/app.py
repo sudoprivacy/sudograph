@@ -170,7 +170,8 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
     b = {**b, 'ui': {'language': language, 'messages': messages, 'catalogs': catalogs}}
     with open(template_path, encoding="utf-8") as fh:
         html = fh.read()
-    for marker, filename in [('/*__CANVAS__*/', 'canvas.js'), ('/*__RECORDS__*/', 'records.js'),
+    for marker, filename in [('/*__LAYOUT__*/', 'layout.js'), ('/*__CANVAS__*/', 'canvas.js'),
+                             ('/*__RECORDS__*/', 'records.js'),
                              ('/*__SCHEMA__*/', 'schema.js'),
                              ('/*__BUSINESS__*/', 'business.js'),
                              ('/*__NAVIGATION__*/', 'navigation.js')]:
