@@ -122,7 +122,7 @@
     "resolution_does_not_confirm_business_meaning": true
   },
   "pending_update": {
-    "status": "local-verified-candidate-awaiting-ci-and-content-review",
+    "status": "manual-review-required-current-share-unchanged",
     "candidate_bytes": 11680576,
     "candidate_sha256": "e53d203e0b14207554006d3c000af3d31d6217465be223c7ba807fdf70a478eb",
     "candidate_filename": "northwind.html",
@@ -133,6 +133,33 @@
     "new_definition_ids": 2,
     "current_review_page_updated": false,
     "manual_html_edits": false,
-    "default_details_panel_expanded": true
+    "default_details_panel_expanded": true,
+    "candidate_commit": "6eab35ec4e02c5cac85c91275c4cad738f5e08ea",
+    "candidate_remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/6eab35ec4e02c5cac85c91275c4cad738f5e08ea/examples/northwind/business/review.html",
+    "review_id": "65d9f3d4-d7dd-49e4-b451-36002b09e20b",
+    "review_status": "manual_required",
+    "review_approved": null,
+    "automatic_review_evidence": {
+      "policy": "complete-content-review/v2",
+      "model": "deepseek-v3.2-azure",
+      "scripts": 3,
+      "static_context_sha256": "72db3a1f5a2e8cb2a14bb9fd516f2e67f780644ba357e9909dbf0298f2e475e2",
+      "baseline_review_id": null,
+      "reused": [],
+      "data_rule": "JSON literals are data; their use by scripts still requires review. Encoded data alone does not establish malicious code. Decode-to-execute or document replacement requires manual review.",
+      "parts": 142,
+      "input_characters": 11648637,
+      "reviewed_characters": 11924752,
+      "synthesis_context_characters": 2466872,
+      "synthesis_context_sha256": "b4c9b892a9872b0273dc0bce8fd0a8366e7560b9c46374472fee61399162929a",
+      "synthesis_context": "complete fragment execution findings",
+      "error_class": "ExceptionGroup",
+      "reason": "后台自动复核未能完成，需要管理员复核。",
+      "is_safe": false
+    },
+    "moderation_reason": "完整内容超过自动审核预算，需要人工复核；尚未作出内容违规判断。",
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38158885400",
+    "ci_conclusion": "success",
+    "local_browser_verified": true
   }
 }
