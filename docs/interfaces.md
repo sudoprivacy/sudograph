@@ -2,14 +2,22 @@
 
 These are usage contracts. Design decisions remain in the design page linked by README.
 
-## Deliverable verification in customer repositories
+## Automatic verification in managed deployments
+
+Sudograph's deployment owner must provision the GitLab workspace, automatic CI
+and trusted publishing path described in the [deployment contract](managed-deployment.md).
+Business people review and comment; agents submit model changes. Neither is
+responsible for discovering or remembering a verification command. CI and service
+workers invoke the gates automatically, and the service refuses publication when
+verification is absent or fails. Installing a CLI alone does not enforce this.
+The managed deployment/publishing adapter is not implemented yet.
 
 All compiler exports use the same reader and SDK integration. The standalone
 verifier accepts native or packed HTML at any path; it does not depend on this
 repository's examples or on GitHub Actions:
 
-Pin the compiler version and make its modules available in the customer's harness
-environment before running these commands.
+The deployment owner pins the compiler in the worker environment. These commands
+are worker entry points and optional developer diagnostics:
 
 ```bash
 python -m compiler.check_export customer/review.html
@@ -25,11 +33,13 @@ model. The business command checks the pinned source and definition registry too
 Keep the renderer version pinned with the artifact; archived artifacts use their
 historical version or locked hashes rather than today's presentation.
 
-A customer GitLab job can run these same commands. The publishing harness must
-require a successful check, or render directly from checked inputs without
-accepting caller-authored HTML. Sudograph's own CI protects its examples; it cannot
-block someone uploading a file directly through an unrelated service. No customer
-GitLab adapter or enforced external publishing deployment is claimed here.
+The managed pipeline must invoke these checks without caller intervention. The
+trusted publisher must compile from registered, checked inputs using its pinned
+compiler, or independently verify the exact artifact and a trusted checked model.
+It must not accept caller-authored HTML or a caller's assertion that CI passed.
+The agent cannot change that publisher, its credentials or its check policy.
+Sudograph's own CI protects its examples; it does not enforce customer deployment
+or govern uploads to unrelated services.
 
 The reader automatically captures stable object identities and object-local text
 selectors: exact quote, both contexts, UTF-16 offsets and a language/surface/content

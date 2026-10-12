@@ -1,5 +1,11 @@
 # FR: preserve selected text within a stable object anchor
 
+Status update (2026-10-12): the SDK protocol requested below and the SudoGraph
+reader integration are implemented and verified on the production host for new
+selections. The remaining legacy-thread repair request is tracked in
+[audited anchor reattachment](shareone-legacy-anchor-reattachment-fr-2026-10-12.md).
+The original reproduction and protocol boundary below describe the earlier state.
+
 SudoGraph uses the supported anchors SDK with page-owned, nonblocking marks.
 Stable object identity correctly survives folding, layout changes and language
 switches. A text selection also supplies its actual selected phrase as the

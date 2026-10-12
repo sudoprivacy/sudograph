@@ -40,12 +40,15 @@ that understanding inspectable and reusable. **Git is the history.**
    Improvements must survive regeneration without the previous conversation.
    Never repair only a demo HTML or add a database-specific exception to pass it.
    The shared renderer supplies reader scripts, styles and comment integration
-   automatically. Its export verifier also runs in customer repositories, including
-   GitLab; this repository's CI additionally checks its example inventory and
-   frozen baseline hashes. A repository CI job does not govern external uploads:
-   the customer's handoff/publishing harness must enforce the verifier or render
-   directly from checked inputs. Change checked inputs or the shared renderer and
-   regenerate before publishing.
+   automatically. A Sudograph deployment must provision its managed GitLab
+   workspace, automatic validation and trusted publishing path together. Business
+   reviewers comment and approve; agents submit definitions. Neither must remember
+   to run a verifier. The service compiles checked inputs and refuses unverified
+   handoffs automatically. `compiler.check_export` is an internal gate, not a
+   customer obligation. This repository's CI protects its example inventory and
+   frozen baselines; the managed customer deployment and publishing adapter are
+   not yet implemented. See the [deployment contract](docs/managed-deployment.md).
+   Change checked inputs or the shared renderer and regenerate before publishing.
 7. **Identity supports references without copying facts.** Generate source,
    object and field addresses from the source in phase one. Use declared keys for
    rows; keyless positions are snapshot-local. Give separately reviewed business
