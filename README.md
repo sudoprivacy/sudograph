@@ -39,10 +39,13 @@ that understanding inspectable and reusable. **Git is the history.**
    belong in parsers, schemas, checked write paths and the shared renderer.
    Improvements must survive regeneration without the previous conversation.
    Never repair only a demo HTML or add a database-specific exception to pass it.
-   CI regenerates and compares complete deliverables, including reader scripts,
-   styles and comment integration. Unregistered HTML fails the export inventory;
-   frozen baseline files keep their locked hashes. Change checked inputs or the
-   shared renderer and regenerate before publishing.
+   The shared renderer supplies reader scripts, styles and comment integration
+   automatically. Its export verifier also runs in customer repositories, including
+   GitLab; this repository's CI additionally checks its example inventory and
+   frozen baseline hashes. A repository CI job does not govern external uploads:
+   the customer's handoff/publishing harness must enforce the verifier or render
+   directly from checked inputs. Change checked inputs or the shared renderer and
+   regenerate before publishing.
 7. **Identity supports references without copying facts.** Generate source,
    object and field addresses from the source in phase one. Use declared keys for
    rows; keyless positions are snapshot-local. Give separately reviewed business

@@ -157,6 +157,7 @@ async function drawCanvas(v, shown, edges, mine) {
       label:linesOf(n,false).map(l=>l.parts.join('')).join('\n'), color:fillOf(n),
       shape:n.kind==='schema_source'?'barrel':n.kind==='business_definition'?BUSINESS_SHAPES[n.category]:'roundrectangle',
       borderColor:n.kind==='business_definition'?css(KINDS.hook.var):'#778399',
+      borderWidth:n.kind==='business_definition'?2.5:1,
       w:p.width,h:p.height,pad:Math.max(40,dimensions.get(n.id).h+16),
       headerWidth:dimensions.get(n.id).w,headerHeight:dimensions.get(n.id).h,
       ...(n.kind==='instance'?{parent:n.type}:n.parent?{parent:n.parent}:{})},
@@ -167,7 +168,7 @@ async function drawCanvas(v, shown, edges, mine) {
         dash:e.rel.startsWith('business_')?(e.origin==='inferred'?'dashed':'solid'):
           inferred(e)?'dotted':edgeStyle(e.rel).dash?'dashed':'solid'}}))],
     style:[{selector:'node',style:{shape:'data(shape)','background-color':'data(color)',
-      width:'data(w)',height:'data(h)','border-width':1,'border-color':'data(borderColor)',
+      width:'data(w)',height:'data(h)','border-width':'data(borderWidth)','border-color':'data(borderColor)',
       label:nodes.length>500?'data(label)':'','text-wrap':'wrap',color:'#dfe4ec',
       'font-size':11,'font-family':readerFont,'text-valign':'center'}},
       {selector:':parent',style:{padding:'data(pad)','background-opacity':.2,'border-style':'dashed',
@@ -228,16 +229,17 @@ async function drawCanvas(v, shown, edges, mine) {
   if (nodes.length <= 500) for (const n of nodes) {
     const label = document.createElement('div');
     label.className='canvas-label'; label.dataset.nodeId=n.id;label.id='node-label-'+n.id;
-    if(n.kind==='business_definition')label.dataset.shareoneAnchorId=n.id;
     label.style.cssText='position:absolute;pointer-events:auto;user-select:text;cursor:text;'+
       'text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;line-height:16px';
-    label.textContent=linesOf(n,state.expanded.has(n.id)).map(l=>l.parts.join('')).join('\n');
+    const readable=document.createElement('span');
+    readable.textContent=linesOf(n,state.expanded.has(n.id)).map(l=>l.parts.join('')).join('\n');
+    label.appendChild(readable);void annotateCommentText(readable,n.id,'label');
     label.onpointerdown=e=>e.stopPropagation();
     label.onclick=e=>{e.stopPropagation();if (!getSelection()?.toString()) select(n);};
-    if(n.kind.startsWith('schema_')||n.kind==='business_definition')label.onpointerup=()=>{
+    if(n.kind.startsWith('schema_')||n.kind==='business_definition')label.onpointerup=async()=>{
       const selection=getSelection();
-      if(selection?.toString()&&selection.rangeCount&&label.contains(selection.getRangeAt(0).commonAncestorContainer)
-        &&anchors.commentSelection(n.id,n.kind==='business_definition'?bt(n.statement):n.column||n.name||bt(n.label),label))selection.removeAllRanges();
+      if(selection?.toString()&&selection.rangeCount&&readable.contains(selection.getRangeAt(0).commonAncestorContainer)
+        &&await anchors.commentSelection(n.id,n.kind==='business_definition'?bt(n.statement):n.column||n.name||bt(n.label),readable))selection.removeAllRanges();
     };
     const target=n.kind==='fields'?shown.get(n.parent):n;
     const expandable=target?.kind==='schema_object' || target?.kind==='instance' || (target?.kind==='type' && target.count &&
@@ -281,8 +283,9 @@ async function drawCanvas(v, shown, edges, mine) {
         label.onpointerdown=e=>e.stopPropagation();
         label.onclick=e=>{e.stopPropagation();if(!getSelection()?.toString()){
           state.relation=meta;isSchema()||meta.rel==='source_supplies'?showSchemaRelation(meta):showRelation(meta);}};
-        label.onpointerup=()=>{const selection=getSelection();if(selection?.toString()&&
-          anchors.commentSelection(edge.data('anchorId'),meta.via||meta.rel,label))selection.removeAllRanges();};
+        void annotateCommentText(label,edge.data('anchorId'),'edge-label');
+        label.onpointerup=async()=>{const selection=getSelection();if(selection?.toString()&&
+          await anchors.commentSelection(edge.data('anchorId'),meta.via||meta.rel,label))selection.removeAllRanges();};
         edgeLabelElements.set(id,label);layer.appendChild(label);
       }
       const lines=[{parts:[label.textContent]}],natural=measure(lines);

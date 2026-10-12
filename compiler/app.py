@@ -175,6 +175,7 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
                              ('/*__RECORDS__*/', 'records.js'),
                              ('/*__SCHEMA__*/', 'schema.js'),
                              ('/*__BUSINESS__*/', 'business.js'),
+                             ('/*__COMMENTS__*/', 'comments.js'),
                              ('/*__NAVIGATION__*/', 'navigation.js')]:
         with open(os.path.join(_ROOT, 'app', filename), encoding='utf-8') as fh:
             html = html.replace(marker, fh.read())

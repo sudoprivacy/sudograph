@@ -405,9 +405,9 @@ def main(argv=None):
         previous = json.loads(path.read_text(encoding="utf8")) if path.exists() else {}
         checked = registry(model, previous)
         if args.check_app:
-            from tools.check_baselines import bundle  # noqa: PLC0415
+            from .html_export import model as read_model  # noqa: PLC0415
 
-            saved = bundle(Path(args.check_app))
+            saved = read_model(args.check_app)
             validate(saved)
             if {k: v for k, v in saved.items() if k != "ui"} != {
                 k: v for k, v in model.items() if k != "ui"

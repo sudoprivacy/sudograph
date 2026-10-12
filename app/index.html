@@ -106,13 +106,14 @@
   #legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-left:auto;
           font-size:11px;padding:3px 10px;border:1px solid var(--line);
           border-radius:6px;background:#0e1117}
-  #legend span{display:flex;gap:5px;align-items:center;white-space:nowrap;color:var(--ink)}
+  #legend > span{display:flex;gap:5px;align-items:center;white-space:nowrap;color:var(--ink)}
   #legend i{width:11px;height:11px;border-radius:3px;display:inline-block;
             border:1px solid #2b3140}
   #legend u{width:17px;height:0;border-top:1.5px solid;display:inline-block}
   #legend em{color:var(--dim);font-style:normal;margin-left:5px}
   #legend u.dash{border-top-style:dashed}
   #legend u.dot{border-top-style:dotted;border-top-width:2px}
+  ::highlight(sudograph-comment-passage){background:#b88b35;color:#fff}
   .graph-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
     padding:8px 16px;border-bottom:1px solid var(--line)}
   .graph-tools .hint{margin-left:auto;font-size:11px;color:var(--dim)}
@@ -370,7 +371,7 @@ const fillOf = n => {
 function renderLegend() { $('legend').innerHTML =
   isBusiness() ? Object.values(BUSINESS_VISUALS).map(o=>`<span><i style="background:${o.colour}"></i>${o.name}</span>`).join('')+
     `<span><i style="background:var(--type)"></i>${t('源字段与对象')}</span>`+
-    `<span><i style="background:transparent;border-color:var(--hook)"></i>${t('待业务确认')}</span><span>${t('来源不代表已确认')}</span>`+
+    `<span><i style="background:transparent;border:2.5px solid var(--hook)"></i>${t('待业务确认')}</span><span>${t('来源不代表已确认')}</span>`+
     '<span>∑ '+t('候选业务指标')+' · ⬡ '+t('业务规则')+' · ◯ '+t('待核对问题')+'</span>' :
   (isSchema()||(state.projection==='data'&&BUNDLE.source_schema)||BUNDLE.projection?.mode==='source_projection') ?
     [KINDS.raw,KINDS.type].map(k=>`<span><i style="background:var(${k.var})"></i>${k.name}</span>`).join('')+
@@ -491,9 +492,11 @@ function measure(lines,maxWidth=260) {
 /*__RECORDS__*/
 /*__SCHEMA__*/
 /*__BUSINESS__*/
+/*__COMMENTS__*/
 /*__NAVIGATION__*/
 let drawSeq = 0;
 async function draw() {
+  invalidateCommentPassages();
   const mine = ++drawSeq;
   const v = view();
   if (!v) { $('status').textContent = 'no view for this combination'; return; }
@@ -860,7 +863,8 @@ const anchors = (() => {
     });
   // A hidden anchor is revealed by the page, because only the page knows that
   // this id is a row inside a folded type, or lives under another reading.
-    api.on('reveal', async ids => {
+    let revealing=Promise.resolve();
+    const reveal = async ids => {
       navigationBegin();
       let changed = false;
       if(state.focus){state.focus=null;changed=true;}
@@ -884,22 +888,29 @@ const anchors = (() => {
         const t = id.includes('/') ? id.split('/', 1)[0] : null;
         if (t && !state.expanded.has(t)) { state.expanded.add(t); changed = true; }
       }
-      if (changed) draw(); else report();
+      if (changed) await draw(); else report();
+    };
+    api.on('reveal', ids => revealing=reveal(ids));
+    api.on('reveal-text', async request => {
+      await revealing;
+      return restoreCommentPassage(request,api);
     });
   };
 
   return { get live() { return !!host(); }, report, marked:id=>tracked.has(id),
-    comment(id,label,context,rect=rectOf(id)) {
+    reportText(entries) {return host()?.reportText?.(entries);},
+    comment(id,label,context,rect=rectOf(id),text) {
       const api=host();if(!api?.select)return false;wire(api);
-      return api.select({id,label,context},rect);
+      return api.select({id,label,context,...(text?{text}:{})},rect);
     },
-    commentSelection(id,context,container) {
+    async commentSelection(id,context,container) {
       const selection=getSelection();
       if(!selection?.toString().trim()||!selection.rangeCount)return false;
       const range=selection.getRangeAt(0);
       if(!container.contains(range.commonAncestorContainer))return false;
-      const r=range.getBoundingClientRect();
-      return this.comment(id,selection.toString().trim(),context,{x:r.x,y:r.y,width:r.width,height:r.height});
+      const r=range.getBoundingClientRect(),text=await captureCommentPassage(container,range);
+      if(!text||!container.isConnected)return false;
+      return this.comment(id,text.exact,context,{x:r.x,y:r.y,width:r.width,height:r.height},text);
     }
   };
 })();

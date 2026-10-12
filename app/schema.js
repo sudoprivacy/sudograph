@@ -150,7 +150,7 @@ function showSchemaNode(n) {
   const kv=(key,value)=>`<div class="kv"><span>${esc(t(key))}</span><span>${esc(value)}</span></div>`;
   let html=`<h2>${t(field?'源字段':obj.object_kind==='view'?'源视图':'源表')}</h2>`+
     `<div style="font-size:16px;font-weight:600">${esc(bt(n.label))}</div>`+
-    `<p class="muted">${esc(obj.name+(field?'.'+n.column:''))}</p>`;
+    `<p class="muted" data-source-name>${esc(obj.name+(field?'.'+n.column:''))}</p>`;
   if(field) {
     html+=kv('源类型',n.declared_type||t('未声明类型'))+
       kv('允许空值',t(n.nullable?'是':'否'))+kv('主键',n.primary_key||'—')+
@@ -172,6 +172,7 @@ function showSchemaNode(n) {
     `<p>${t('展示名、语言、布局和折叠变化不会改变标识；源库搬迁或源字段真正改名需要迁移引用。')}</p>`+
     `<div class="op">${esc(n.id)}</div></details>`;
   $('panel').innerHTML=html;
+  void annotateCommentText($('panel').querySelector('[data-source-name]'),n.id,'source-name');
   const controls=document.createElement('div');controls.className='schema-actions';
   function button(text,action){const b=document.createElement('button');b.textContent=t(text);b.onclick=action;controls.appendChild(b);}
   if(!field)button(state.schemaExpanded.has(obj.id)?'收起字段':'展开字段',()=>schemaActivate(obj));
@@ -221,10 +222,10 @@ function showSchemaRelation(e) {
     const node=column?obj.fields.find(f=>f.column===column):obj;
     const card=document.createElement('div');card.className='relation-endpoint';
     const name=document.createElement('p');name.textContent=obj.name+(column?'.'+column:'');
+    void annotateCommentText(name,node.id,'source-name');
     name.onpointerdown=e=>e.stopPropagation();
-    name.onpointerup=e=>{e.stopPropagation();const selection=getSelection();if(selection?.toString()&&selection.rangeCount&&
-      name.contains(selection.getRangeAt(0).commonAncestorContainer)&&anchors.comment(node.id,bt(obj.label)+(column?'.'+bt(node.label):''),name.textContent,
-        name.getBoundingClientRect()))selection.removeAllRanges();};
+    name.onpointerup=async e=>{e.stopPropagation();const selection=getSelection();if(selection?.toString()&&selection.rangeCount&&
+      name.contains(selection.getRangeAt(0).commonAncestorContainer)&&await anchors.commentSelection(node.id,name.textContent,name))selection.removeAllRanges();};
     const b=document.createElement('button');b.textContent=t(column?'查看字段':'在图上查看');
     b.onclick=()=>revealSchema(node.id);card.append(name,b);$('panel').appendChild(card);
   }

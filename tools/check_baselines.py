@@ -29,11 +29,7 @@ def digest(path: Path) -> str:
 
 
 def bundle(path: Path) -> dict:
-    text = html_export.unpack(path.read_text(encoding="utf-8"))
-    marker = "const BUNDLE = "
-    if marker not in text:
-        raise ValueError("artifact has no native compiler bundle")
-    return json.JSONDecoder().raw_decode(text.split(marker, 1)[1])[0]
+    return html_export.model(path)
 
 
 def coverage(model: dict) -> dict:

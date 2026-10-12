@@ -59,10 +59,11 @@ async function drawBusiness(v,mine) {
 function showBusinessNode(n) {
   state.panel='node';
   $('panel').innerHTML=`<h2>${t('业务定义草案')}</h2><strong>${esc(bt(n.label))}</strong>`+
-    `<p>${esc(bt(n.statement))}</p><div class="kv"><span>${t('信息来源')}</span><span>${businessContributor(n)}</span></div>`+
+    `<p data-business-statement>${esc(bt(n.statement))}</p><div class="kv"><span>${t('信息来源')}</span><span>${businessContributor(n)}</span></div>`+
     `<div class="kv"><span>${t('定义类别')}</span><span>${t(BUSINESS_CATEGORIES[n.category])}</span></div>`+
     `<div class="kv"><span>${t('确认状态')}</span><span>${t('待业务确认')}</span></div>`+
     `<p class="muted">${t('来源不代表已确认')}</p>`;
+  void annotateCommentText($('panel').querySelector('[data-business-statement]'),n.id,'statement');
   const controls=document.createElement('div');controls.className='schema-actions';
   const button=(label,action)=>{const b=document.createElement('button');b.textContent=t(label);b.onclick=action;controls.appendChild(b);};
   button('核对源字段',async()=>{state.focus=n.id;await draw();});

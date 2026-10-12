@@ -45,3 +45,15 @@ def unpack(html: str) -> str:
     if MARKER in text:
         raise ValueError("nested packed HTML is not supported")
     return text
+
+
+def model(path: str | Path) -> dict:
+    """Read a native or packed snapshot without executing its JavaScript."""
+    text = unpack(Path(path).read_text(encoding="utf8"))
+    marker = "const BUNDLE = "
+    if marker not in text:
+        raise ValueError("artifact has no native compiler bundle")
+    result = json.JSONDecoder().raw_decode(text.split(marker, 1)[1])[0]
+    if not isinstance(result, dict):
+        raise ValueError("artifact bundle must be an object")
+    return result

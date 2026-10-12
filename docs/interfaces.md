@@ -2,6 +2,43 @@
 
 These are usage contracts. Design decisions remain in the design page linked by README.
 
+## Deliverable verification in customer repositories
+
+All compiler exports use the same reader and SDK integration. The standalone
+verifier accepts native or packed HTML at any path; it does not depend on this
+repository's examples or on GitHub Actions:
+
+Pin the compiler version and make its modules available in the customer's harness
+environment before running these commands.
+
+```bash
+python -m compiler.check_export customer/review.html
+python -m compiler.check_export customer/review.html --model checked-model.json
+python -m compiler.business customer/definitions.yaml --check-app customer/review.html --lang zh
+```
+
+The first command verifies the complete reader against the installed renderer,
+including styles, scripts, vendored code and SDK configuration. It uses the
+embedded snapshot and does **not** certify that snapshot against a database or
+prove business approval. The second additionally compares the operator's checked
+model. The business command checks the pinned source and definition registry too.
+Keep the renderer version pinned with the artifact; archived artifacts use their
+historical version or locked hashes rather than today's presentation.
+
+A customer GitLab job can run these same commands. The publishing harness must
+require a successful check, or render directly from checked inputs without
+accepting caller-authored HTML. Sudograph's own CI protects its examples; it cannot
+block someone uploading a file directly through an unrelated service. No customer
+GitLab adapter or enforced external publishing deployment is claimed here.
+
+The reader automatically captures stable object identities and object-local text
+selectors: exact quote, both contexts, UTF-16 offsets and a language/surface/content
+revision. ShareOne's `reveal-text` callback resolves within that object's readable
+text. Missing ranges, changed revisions and ambiguous quotes remain unresolved.
+Old object-only comments have no stored passage and cannot be reconstructed from
+their title. Native CSS highlights follow text movement without a per-gesture
+text scan, mutation observer or network request.
+
 ## Source coverage and records
 
 Use `compiler.catalog.scan(dsn, base)` before modelling. It inventories all tables,
