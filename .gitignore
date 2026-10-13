@@ -10,3 +10,4 @@ node_modules/
 /app/*.html
 !/app/index.html
 !/app/packed.html
+!/app/diagram-review.html

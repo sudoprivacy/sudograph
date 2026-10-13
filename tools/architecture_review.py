@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import html
+import json
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCUMENT = ROOT / "docs/review/sudograph-architecture.md"
+HTML_DOCUMENT = DOCUMENT.with_suffix(".html")
 REPOSITORY = "https://github.com/sudoprivacy/sudograph"
 START = "<!-- architecture-discussion:start -->"
 END = "<!-- architecture-discussion:end -->"
@@ -16,8 +19,8 @@ NODE = re.compile(r'^\s*([A-Z][A-Z0-9_]*)\s*(?:\[\("(.*?)"\)\]|\["(.*?)"\])\s*$'
 EDGE = re.compile(r'^\s*([A-Z][A-Z0-9_]*)\s*(-->|-\.->)(?:\|([^|]+)\|)?\s*([A-Z][A-Z0-9_]*)\s*$')
 
 
-def review_document(readme: str) -> str:
-    """Copy the section exactly; derive its commentable inventories, never a second graph."""
+def architecture_inputs(readme: str) -> dict:
+    """Extract one checked graph and its complete source inventory."""
     parts = readme.split("## Where this sits\n")
     if len(parts) != 2:
         raise ValueError("README must contain exactly one architecture section")
@@ -57,6 +60,15 @@ def review_document(readme: str) -> str:
         section,
     )
     fingerprint = hashlib.sha256(diagram.encode()).hexdigest()
+    return {"section": section, "diagram": diagram, "nodes": nodes,
+            "edges": edges, "sha256": fingerprint}
+
+
+def review_document(readme: str) -> str:
+    """Copy the section exactly; derive inventories rather than a second graph."""
+    source = architecture_inputs(readme)
+    section, nodes, edges = source["section"], source["nodes"], source["edges"]
+    fingerprint = source["sha256"]
     node_rows = [
         f"| `{identity}` | {label.replace('<br/>', ' / ')} |"
         for identity, label in nodes.items()
@@ -120,10 +132,71 @@ def review_document(readme: str) -> str:
     )
 
 
+def inline_markdown(value: str) -> str:
+    value = html.escape(value)
+    value = re.sub(r"`([^`]+)`", r"<code>\1</code>", value)
+    value = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", value)
+    return re.sub(
+        r"\[([^]]+)\]\((https://[^)]+)\)",
+        r'<a href="\2" target="_blank" rel="noopener noreferrer">\1</a>', value,
+    )
+
+
+def article_html(markdown: str) -> str:
+    """Render this checked document's paragraphs, lists and inventories without a CDN parser."""
+    output = []
+    for block in markdown.strip().split("\n\n"):
+        if block.startswith(("```", "<!--", "# Sudograph", "**Markdown viewer issue:")):
+            continue
+        lines = block.splitlines()
+        if block.startswith("## "):
+            output.append("<h2>" + inline_markdown(block[3:]) + "</h2>")
+        elif lines[0].startswith("|"):
+            rows = [[c.strip() for c in line.strip().strip("|").split("|")] for line in lines]
+            heading = "<tr>" + "".join("<th>" + inline_markdown(c) + "</th>"
+                                      for c in rows[0]) + "</tr>"
+            body = "".join("<tr>" + "".join("<td>" + inline_markdown(c) + "</td>"
+                                          for c in row) + "</tr>" for row in rows[2:])
+            output.append("<div class=table-scroll><table><thead>" + heading + "</thead><tbody>"
+                          + body + "</tbody></table></div>")
+
+        elif lines[0].startswith("* "):
+            items = re.split(r"\n\* ", block[2:])
+            output.append("<ul>" + "".join("<li>" + inline_markdown(" ".join(item.splitlines()))
+                                          + "</li>" for item in items) + "</ul>")
+        elif re.match(r"1\. ", lines[0]):
+            items = [re.sub(r"^\d+\. ", "", line) for line in lines]
+            output.append("<ol>" + "".join("<li>" + inline_markdown(item) + "</li>"
+                                          for item in items) + "</ol>")
+        else:
+            output.append("<p>" + inline_markdown(" ".join(lines)) + "</p>")
+    return "\n".join(output)
+
+
+def review_html(readme: str) -> str:
+    source = architecture_inputs(readme)
+    payload = json.dumps(source, ensure_ascii=False).replace("<", "\\u003c")
+    template = (ROOT / "app/diagram-review.html").read_text(encoding="utf8")
+    for key, value in {
+        "STYLE": (ROOT / "app/diagram-review.css").read_text(encoding="utf8"),
+        "SCRIPT": (ROOT / "app/diagram-review.js").read_text(encoding="utf8"),
+        "MODEL": payload,
+        "ARTICLE": article_html(review_document(readme)),
+    }.items():
+        marker = "@@" + key + "@@"
+        if template.count(marker) != 1:
+            raise ValueError(f"review template must contain exactly one {marker}")
+        template = template.replace(marker, value)
+    return template
+
+
 def check() -> None:
-    expected = review_document((ROOT / "README.md").read_text(encoding="utf8"))
+    readme = (ROOT / "README.md").read_text(encoding="utf8")
+    expected = review_document(readme)
     if DOCUMENT.read_text(encoding="utf8") != expected:
         raise ValueError("architecture review drifted; run python -m tools.architecture_review")
+    if HTML_DOCUMENT.read_text(encoding="utf8") != review_html(readme):
+        raise ValueError("architecture HTML drifted; run python -m tools.architecture_review")
 
 
 def main() -> int:
@@ -136,10 +209,13 @@ def main() -> int:
         check()
         print("Architecture review matches the README graph and its complete inventories")
     else:
-        content = review_document((ROOT / "README.md").read_text(encoding="utf8"))
+        readme = (ROOT / "README.md").read_text(encoding="utf8")
+        content = review_document(readme)
         DOCUMENT.parent.mkdir(parents=True, exist_ok=True)
         DOCUMENT.write_text(content, encoding="utf8")
+        HTML_DOCUMENT.write_text(review_html(readme), encoding="utf8")
         print(DOCUMENT)
+        print(HTML_DOCUMENT)
     return 0
 
 

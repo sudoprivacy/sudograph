@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sudograph architecture review</title>
+<style>@@STYLE@@</style>
+<script id="architecture-source" type="application/json">@@MODEL@@</script>
+</head>
+<body data-shareone-layout="document">
+<header>
+  <h1>Sudograph architecture review</h1>
+  <p>Explore the complete diagram. Zoom to read, drag to move, or jump to a node.</p>
+</header>
+<section id="diagram-section" aria-label="Interactive architecture diagram">
+  <div class="toolbar">
+    <button id="fit">Fit</button>
+    <button id="actual-size">100%</button>
+    <button id="zoom-out" aria-label="Zoom out">−</button>
+    <button id="zoom-in" aria-label="Zoom in">+</button>
+    <button id="expand" aria-pressed="false">Expand</button>
+    <button id="comment-mode" aria-pressed="false">Comment nodes</button>
+    <label for="focus-node">Jump to</label><select id="focus-node"><option value="">Choose a node</option></select>
+  </div>
+  <div id="diagram-viewport" tabindex="0" aria-label="Diagram canvas; drag to pan, scroll to zoom">
+    <div id="diagram-stage"></div>
+    <p id="diagram-status" role="status">Loading the diagram…</p>
+  </div>
+  <p class="diagram-help">To comment, enable “Comment nodes” and click a node, or use ShareOne’s region tool. Select text in the document for a passage comment.</p>
+</section>
+<article>@@ARTICLE@@</article>
+<script type="module">@@SCRIPT@@</script>
+</body>
+</html>
