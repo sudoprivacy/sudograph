@@ -1,0 +1,43 @@
+name: GitLab integration
+
+on:
+  push:
+    branches: [feat/managed-gitlab]
+    paths: ['compiler/**', 'infra/gitlab/**', 'tools/*gitlab*.py', '.github/workflows/gitlab-integration.yml']
+  pull_request:
+    paths: ['compiler/managed.py', 'compiler/gitlab.py', 'infra/gitlab/**', 'tools/*gitlab*.py', '.github/workflows/gitlab-integration.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: gitlab-integration-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  deployed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Deploy and accept GitLab, its runner and the publisher
+        run: python -m tools.check_gitlab "$RUNNER_TEMP/sudograph-gitlab-private" --report "$RUNNER_TEMP/gitlab-acceptance.json"
+      - name: Collect service state on failure
+        if: failure()
+        env:
+          SUDOGRAPH_ROOT_PASSWORD_FILE: ${{ runner.temp }}/sudograph-gitlab-private/root-password.txt
+        run: |
+          docker compose -f infra/gitlab/compose.yaml ps
+          docker compose -f infra/gitlab/compose.yaml logs --tail 80 publisher runner
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: gitlab-acceptance
+          path: ${{ runner.temp }}/gitlab-acceptance.json
+      - name: Stop only this isolated deployment
+        if: always()
+        env:
+          SUDOGRAPH_ROOT_PASSWORD_FILE: ${{ runner.temp }}/sudograph-gitlab-private/root-password.txt
+        run: docker compose -f infra/gitlab/compose.yaml down --volumes --remove-orphans

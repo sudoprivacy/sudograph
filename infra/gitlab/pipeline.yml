@@ -1,0 +1,15 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+sudograph-verify:
+  image: __WORKER_IMAGE__
+  tags: [sudograph]
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - python -I /opt/sudograph/infra/gitlab/worker.py
+  artifacts:
+    paths: [review.html]
+    expire_in: 7 days

@@ -1,0 +1,53 @@
+name: sudograph-gitlab
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:19.3.5-ce.0@sha256:9f5beb6b69859c4e9896985022cef582360529128428cf3e4ca358ed47ead8aa
+    hostname: gitlab
+    shm_size: 256m
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://127.0.0.1:8088'
+        nginx['listen_port'] = 8088
+        gitlab_rails['initial_root_password'] = File.read('/run/secrets/root_password').strip
+        gitlab_rails['gitlab_signup_enabled'] = false
+        puma['worker_processes'] = 0
+        sidekiq['concurrency'] = 5
+        prometheus_monitoring['enable'] = false
+        gitlab_rails['gitlab_shell_ssh_port'] = 2228
+    secrets: [root_password]
+    ports: [127.0.0.1:8088:8088]
+    volumes:
+      - gitlab-config:/etc/gitlab
+      - gitlab-logs:/var/log/gitlab
+      - gitlab-data:/var/opt/gitlab
+  publisher:
+    build:
+      context: ../..
+      dockerfile: infra/gitlab/Dockerfile
+    image: sudograph-managed:gitlab
+    restart: on-failure
+    ports: [127.0.0.1:8788:8765]
+    volumes:
+      - publisher-state:/state
+      - trusted-inputs:/trusted:ro
+  runner:
+    image: gitlab/gitlab-runner:alpine-v19.3.0@sha256:0dfd45aafbd125c3d2ef31e1a57f585ac6eea32f69135cbf45af978700f6a5de
+    volumes:
+      - runner-config:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: [/bin/sh, -c]
+    command: ['while [ ! -f /etc/gitlab-runner/config.toml ]; do sleep 1; done; exec gitlab-runner run']
+networks:
+  default:
+    name: sudograph-gitlab
+volumes:
+  gitlab-config:
+  gitlab-logs:
+  gitlab-data:
+  publisher-state:
+  trusted-inputs:
+    name: sudograph-gitlab-trusted
+  runner-config:
+secrets:
+  root_password:
+    file: ${SUDOGRAPH_ROOT_PASSWORD_FILE:?Set a private root password file}
