@@ -80,8 +80,10 @@ it does not rerun ELK or rebuild nodes. Local Chrome checks at desktop and phone
 viewport sizes found no increase in scripted pan/zoom work. This is not a
 real-phone hardware benchmark. New object comments retain precise text ranges
 and content versions; exact recovery works on an unchanged readable surface.
-Standing passage resync still needs the
-[ShareOne SDK follow-up](../../../docs/shareone-visible-object-passages-br-2026-10-13.md).
+The reader implements passive passage resync through the ShareOne SDK: visible
+unchanged passages use native ranges without navigation or camera movement.
+Text and object marks follow the host's separate visibility controls. Native
+passage clicks activate one exact comment when only one passage matches.
 The small comment button activates the existing object thread through the SDK;
 it does not obstruct label selection or normal node clicks.
 

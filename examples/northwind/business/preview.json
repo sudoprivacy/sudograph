@@ -2,8 +2,8 @@
   "status": "unreviewed-business-pilot",
   "language": "en",
   "artifact": "index.html",
-  "artifact_bytes": 11688296,
-  "artifact_sha256": "4049193e0b81be04b6254c5e6f83c3d40cb85435574d9e28393b43c233e84c7b",
+  "artifact_bytes": 11690546,
+  "artifact_sha256": "e8f54a422af150f00324a528bb354eed319b77d9b765aa5e7f1a3b62e130a764",
   "overlay": "pilot.yaml",
   "overlay_sha256": "a3b903b3868cca4e66753ec0c56c2e715b9efa1df8c67fd3992cf5588168395d",
   "registry": "pilot.registry.json",
@@ -19,8 +19,8 @@
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
     "artifact": "review.html",
-    "bytes": 11687309,
-    "sha256": "7e6667092bac5df019c14680deb99e767ef58dbe9788820ef4ee8737e7ab8d19",
+    "bytes": 11689559,
+    "sha256": "b1f574aeaacbef479da5a58b5339e39122c38de1026699f08693c79a5581a833",
     "language": "zh"
   },
   "contributors": {

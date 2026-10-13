@@ -242,6 +242,7 @@ function syncPanelToggle() {
 function togglePanel() {
   const focused=document.activeElement=== $('panelToggle') || document.activeElement=== $('panelReveal');
   state.panelCollapsed=!state.panelCollapsed;panelSizeChanged=true;syncPanelToggle();
+  scheduleCommentResync();
   if(focused)$(state.panelCollapsed?'panelReveal':'panelToggle').focus({preventScroll:true});
 }
 $('panelToggle').onclick=togglePanel;
@@ -918,10 +919,14 @@ const anchors = (() => {
       await revealing;
       return restoreCommentPassage(request,api);
     });
+    api.on('resync-text', passages => resyncCommentPassages(passages,api));
+    api.on('marks', setCommentMarks);
   };
 
-  return { get live() { return !!host(); }, report, marked:id=>tracked.has(id),
+  return { get live() { return !!host(); }, report, marked:id=>commentMarks.point&&tracked.has(id),
     activate:id=>host()?.activate?.(id),
+    activateComment:id=>host()?.activateComment?.(id),
+    resyncText:()=>host()?.resyncText?.(),
     reportText(entries) {return host()?.reportText?.(entries);},
     comment(id,label,context,rect=rectOf(id),text) {
       const api=host();if(!api?.select)return false;wire(api);

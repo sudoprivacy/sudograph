@@ -1,39 +1,34 @@
 {
-  "status": "current-revision-verified-candidate-awaits-manual-review",
+  "status": "approved-revision-live-passive-passage-update-not-yet-published",
   "target_url": "https://s.shareone.vip/s/sudograph-northwind",
   "target_share_id": "aSoJi9Ny94gwxXFc",
   "current_publication": {
+    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/83614cffa136c5843763eab99dfcb73e81fc71e6/examples/northwind/business/review.html",
+    "bytes": 11687309,
+    "sha256": "7e6667092bac5df019c14680deb99e767ef58dbe9788820ef4ee8737e7ab8d19",
+    "review_id": "2841822d-b37b-4374-94f8-652456d16bd2",
+    "commit": "83614cffa136c5843763eab99dfcb73e81fc71e6",
+    "review_status": "approved",
+    "review_approved": true,
+    "owner_download_matches_git_blob": true,
+    "existing_comment_threads_preserved": 46
+  },
+  "pending_update": {
+    "artifact": "review.html",
+    "published": false,
+    "bytes": 11689559,
+    "sha256": "b1f574aeaacbef479da5a58b5339e39122c38de1026699f08693c79a5581a833",
+    "change": "Passive native passage recovery and independent mark visibility",
+    "phase_one_source_schema_views_records_unchanged": true,
+    "business_definitions_unchanged": true,
+    "comments_embedded": false,
+    "manual_html_edits": false
+  },
+  "previous_publication": {
     "commit": "959f1d717a6cbde3e4611d61141235efdf65af52",
     "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/959f1d717a6cbde3e4611d61141235efdf65af52/examples/northwind/business/review.html",
     "bytes": 11686891,
     "sha256": "082b88decbd24a8b53313eb7b5d7a8b71eea085a3062728d4014ff129166092b",
     "owner_download_matches_git_blob": true
-  },
-  "pending_update": {
-    "artifact": "review.html",
-    "bytes": 11687309,
-    "sha256": "7e6667092bac5df019c14680deb99e767ef58dbe9788820ef4ee8737e7ab8d19",
-    "published": false,
-    "canonical_definition_ids_preserved": 9,
-    "business_nodes": 4,
-    "supporting_evidence_notes": 5,
-    "business_definitions_confirmed": 0,
-    "phase_one_source_schema_views_records_unchanged": true,
-    "comments_embedded": false,
-    "manual_html_edits": false,
-    "candidate_commit": "83614cffa136c5843763eab99dfcb73e81fc71e6",
-    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/83614cffa136c5843763eab99dfcb73e81fc71e6/examples/northwind/business/review.html",
-    "review_id": "2841822d-b37b-4374-94f8-652456d16bd2",
-    "review_status": "manual_required",
-    "review_approved": null,
-    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38399996040",
-    "ci_conclusion": "success",
-    "sync_refusal": {
-      "error_code": "CONTENT_REVIEW_REQUIRED",
-      "http_status": 409,
-      "reason": "Complete content exceeds the synchronous review budget and needs complete background review; no violation decision has been made."
-    },
-    "automatic_review_completed_at": "2026-10-13T13:03:10.391654Z",
-    "automatic_review_reason": "The reviewer could not establish the safety of the supplied SHA-256 hash-list material; the candidate requires manual review."
   }
 }

@@ -1,6 +1,30 @@
 /* Passage selectors belong to one stable object and readable surface.
    Native ranges need no text scan or input-catching overlay during camera moves. */
 const commentPassages=new Map();
+let commentMarks={text:true,point:true},commentResyncFrame=0;
+function scheduleCommentResync() {
+  if(commentResyncFrame)return;
+  commentResyncFrame=requestAnimationFrame(()=>{commentResyncFrame=0;anchors.resyncText();});
+}
+function setCommentMarks(marks) {
+  commentMarks={text:marks.text!==false,point:marks.point!==false};
+  paintCommentPassages();refreshCanvasCommentMarks();
+}
+function activateCommentPassage(event) {
+  if(!commentMarks.text||getSelection()?.toString())return false;
+  const ids=[];
+  for(const [id,passage] of commentPassages) {
+    if(!passage.range.startContainer.isConnected)continue;
+    if([...passage.range.getClientRects()].some(r=>event.clientX>=r.left&&event.clientX<=r.right&&
+      event.clientY>=r.top&&event.clientY<=r.bottom))ids.push(id);
+  }
+  // Overlapping passages cannot identify one thread without a user choice.
+  if(ids.length!==1||!anchors.activateComment(ids[0]))return false;
+  event.preventDefault();event.stopImmediatePropagation();return true;
+}
+document.addEventListener('click',event=>{
+  if(event.target.closest?.('[data-comment-surface]'))activateCommentPassage(event);
+},true);
 function readableCommentText(container) {
   const nodes=[],walker=document.createTreeWalker(container,NodeFilter.SHOW_TEXT,{
     acceptNode:node=>node.parentElement.closest('script,style,noscript,template,[data-comment-only]')
@@ -18,8 +42,10 @@ async function annotateCommentText(container,id,surface) {
   container.dataset.shareoneAnchorId=id;container.dataset.commentSurface=surface;
   delete container.dataset.shareoneAnchorVersion;
   const content=readableCommentText(container).text,version=await commentTextVersion(container,content);
-  if(version&&container.isConnected&&readableCommentText(container).text===content)
+  if(version&&container.isConnected&&readableCommentText(container).text===content) {
     container.dataset.shareoneAnchorVersion=version;
+    scheduleCommentResync();
+  }
 }
 async function captureCommentPassage(container,range) {
   const {text}=readableCommentText(container),before=document.createRange();
@@ -42,29 +68,45 @@ function passageRange(nodes,span) {
 }
 function paintCommentPassages() {
   if(!CSS.highlights||typeof Highlight==='undefined')return false;
+  if(!commentMarks.text){CSS.highlights.delete('sudograph-comment-passage');return true;}
   CSS.highlights.set('sudograph-comment-passage',new Highlight(...[...commentPassages.values()].map(p=>p.range)));
   return true;
 }
 function invalidateCommentPassages() {
   if(!commentPassages.size)return;
-  anchors.reportText([...commentPassages.keys()].map(commentId=>({commentId,state:'pending'})));
+  const pending=[...commentPassages.keys()].map(commentId=>({commentId,state:'pending'}));
   commentPassages.clear();CSS.highlights?.delete('sudograph-comment-passage');
+  anchors.reportText(pending);
 }
-async function restoreCommentPassage({commentId,id,text,signal},api) {
+async function restoreCommentPassage({commentId,id,text,signal},api,passive=false) {
   commentPassages.delete(commentId);paintCommentPassages();
   if(signal.aborted||!api.resolveText||!text)return 'unresolved';
-  if(text.version&&!text.version.includes('/label/')&&!text.version.includes('/edge-label/')&&state.panelCollapsed) {
+  if(!passive&&text.version&&!text.version.includes('/label/')&&!text.version.includes('/edge-label/')&&state.panelCollapsed) {
     state.panelCollapsed=false;panelSizeChanged=true;syncPanelToggle();
   }
-  const matches=[];
+  const matches=[];let readable=false;
   for(const container of document.querySelectorAll('[data-shareone-anchor-id="'+CSS.escape(id)+'"][data-comment-surface]')) {
     if(!container.getClientRects().length)continue;
+    readable=true;
     const content=readableCommentText(container),version=await commentTextVersion(container,content.text);
     const span=api.resolveText(content.text,text,version);
     if(span){const range=passageRange(content.nodes,span);if(range&&range.toString()===text.exact)matches.push(range);}
   }
-  if(signal.aborted||matches.length!==1)return 'unresolved';
-  commentPassages.set(commentId,{id,range:matches[0]});
+  if(signal.aborted)return 'pending';
+  if(!readable&&passive)return 'pending';
+  if(matches.length!==1)return 'unresolved';
+  const passage={id,range:matches[0]};
+  commentPassages.set(commentId,passage);
+  signal.addEventListener('abort',()=>{
+    if(commentPassages.get(commentId)===passage){commentPassages.delete(commentId);paintCommentPassages();}
+  },{once:true});
   if(!paintCommentPassages()){commentPassages.delete(commentId);return 'unresolved';}
   return 'resolved';
+}
+async function resyncCommentPassages(passages,api) {
+  const wanted=new Set(passages.map(p=>p.commentId));
+  for(const id of commentPassages.keys())if(!wanted.has(id))commentPassages.delete(id);
+  paintCommentPassages();
+  return Promise.all(passages.filter(p=>p.changed).map(async p=>({commentId:p.commentId,
+    state:!p.visible?'pending':await restoreCommentPassage(p,api,true)})));
 }
