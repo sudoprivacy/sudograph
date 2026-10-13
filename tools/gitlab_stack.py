@@ -45,6 +45,9 @@ def command(args, *, data=None, timeout=900):
                 data = None
                 print("Waiting for deployment command: " + " ".join(args[:2]), flush=True)
         if process.returncode:
+            for line in output.decode("utf8", errors="replace").splitlines():
+                if line.startswith("SUDOGRAPH_BOOTSTRAP_ERROR="):
+                    print(line, flush=True)
             # Bootstrap stdout may contain a credential; never echo it on failure.
             raise RuntimeError(f"deployment command failed (exit {process.returncode}): {args[:3]}")
         return output
@@ -79,9 +82,12 @@ def fixture_baseline(folder):
 
 
 BOOTSTRAP = """require 'securerandom'
+begin
+$sudograph_step = 'local isolated hook configuration'
 ApplicationSetting.current.update!(allow_local_requests_from_web_hooks_and_services: true)
 root = User.find_by!(username: 'root')
 def credential(user)
+  $sudograph_step = 'credential allocation'
   token = user.personal_access_tokens.create!(
     name: 'sudograph-isolated-acceptance', scopes: ['api'], expires_at: Date.today + 7)
   token.set_token(SecureRandom.hex(32)); token.save!
@@ -89,6 +95,7 @@ def credential(user)
 end
 actors = {}
 ['author', 'reviewer', 'publisher'].each do |role|
+  $sudograph_step = 'synthetic ' + role + ' creation'
   user = User.new(username: "sudograph-#{role}", name: "Sudograph acceptance #{role}",
     email: "#{role}@acceptance.invalid", password: SecureRandom.base64(48))
   user.skip_confirmation!; user.save!
@@ -96,6 +103,23 @@ actors = {}
 end
 actors['operator'] = credential(root)
 puts 'SUDOGRAPH_BOOTSTRAP=' + actors.to_json
+rescue ActiveRecord::RecordInvalid => error
+  puts 'SUDOGRAPH_BOOTSTRAP_ERROR=' + {
+    code: error.class.name, step: $sudograph_step, record: error.record.class.name,
+    fields: error.record.errors.attribute_names
+  }.to_json
+  exit 1
+rescue NoMethodError => error
+  puts 'SUDOGRAPH_BOOTSTRAP_ERROR=' + {
+    code: error.class.name, step: $sudograph_step, method: error.name.to_s
+  }.to_json
+  exit 1
+rescue => error
+  puts 'SUDOGRAPH_BOOTSTRAP_ERROR=' + {
+    code: error.class.name, step: $sudograph_step
+  }.to_json
+  exit 1
+end
 """
 
 
