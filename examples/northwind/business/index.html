@@ -16971,6 +16971,7 @@ function syncPanelToggle() {
 function togglePanel() {
   const focused=document.activeElement=== $('panelToggle') || document.activeElement=== $('panelReveal');
   state.panelCollapsed=!state.panelCollapsed;panelSizeChanged=true;syncPanelToggle();
+  scheduleCommentResync();
   if(focused)$(state.panelCollapsed?'panelReveal':'panelToggle').focus({preventScroll:true});
 }
 $('panelToggle').onclick=togglePanel;
@@ -18392,12 +18393,30 @@ async function revealSourceReviewRelation(e) {
 /* Passage selectors belong to one stable object and readable surface.
    Native ranges need no text scan or input-catching overlay during camera moves. */
 const commentPassages=new Map();
-const commentMarksVisible={text:true,point:true};
-let commentTextSyncFrame=null;
-function requestCommentTextSync() {
-  if(commentTextSyncFrame!==null)return;
-  commentTextSyncFrame=requestAnimationFrame(()=>{commentTextSyncFrame=null;anchors.resyncText();});
+let commentMarksVisible={text:true,point:true},commentResyncFrame=0;
+function scheduleCommentResync() {
+  if(commentResyncFrame)return;
+  commentResyncFrame=requestAnimationFrame(()=>{commentResyncFrame=0;anchors.resyncText();});
 }
+function setCommentMarks(marks) {
+  commentMarksVisible={text:marks.text!==false,point:marks.point!==false};
+  paintCommentPassages();refreshCanvasCommentMarks();
+}
+function activateCommentPassage(event) {
+  if(!commentMarksVisible.text||getSelection()?.toString()||event.target?.closest?.('button,a,[data-comment-only]'))return false;
+  const ids=[];
+  for(const [id,passage] of commentPassages) {
+    if(!passage.range.startContainer.isConnected)continue;
+    if([...passage.range.getClientRects()].some(r=>event.clientX>=r.left&&event.clientX<=r.right&&
+      event.clientY>=r.top&&event.clientY<=r.bottom))ids.push(id);
+  }
+  // Overlapping passages cannot identify one thread without a user choice.
+  if(ids.length!==1||!anchors.activateComment(ids[0]))return false;
+  event.preventDefault();event.stopImmediatePropagation();return true;
+}
+document.addEventListener('click',event=>{
+  if(event.target.closest?.('[data-comment-surface]'))activateCommentPassage(event);
+},true);
 function readableCommentText(container) {
   const nodes=[],walker=document.createTreeWalker(container,NodeFilter.SHOW_TEXT,{
     acceptNode:node=>node.parentElement.closest('script,style,noscript,template,[data-comment-only]')
@@ -18417,7 +18436,7 @@ async function annotateCommentText(container,id,surface) {
   const content=readableCommentText(container).text,version=await commentTextVersion(container,content);
   if(container.isConnected&&readableCommentText(container).text===content) {
     if(version)container.dataset.shareoneAnchorVersion=version;
-    requestCommentTextSync();
+    scheduleCommentResync();
   }
 }
 async function captureCommentPassage(container,range) {
@@ -18447,49 +18466,43 @@ function paintCommentPassages() {
 }
 function invalidateCommentPassages() {
   if(!commentPassages.size)return;
-  anchors.reportText([...commentPassages.keys()].map(commentId=>({commentId,state:'pending'})));
+  const pending=[...commentPassages.keys()].map(commentId=>({commentId,state:'pending'}));
   commentPassages.clear();CSS.highlights?.delete('sudograph-comment-passage');
+  anchors.reportText(pending);
 }
-async function restoreCommentPassage({commentId,id,text,signal},api,{passive=false}={}) {
+async function restoreCommentPassage({commentId,id,text,signal},api,passive=false) {
   commentPassages.delete(commentId);paintCommentPassages();
   if(signal.aborted||!api.resolveText||!text)return 'unresolved';
   if(!passive&&text.version&&!text.version.includes('/label/')&&!text.version.includes('/edge-label/')&&state.panelCollapsed) {
     state.panelCollapsed=false;panelSizeChanged=true;syncPanelToggle();
   }
-  const matches=[];let visible=0;
+  const matches=[];let readable=false;
   const surface=text.version?.match(/^(?:en|zh)\/([^/]+)\/[a-f0-9]{64}$/)?.[1];
   for(const container of document.querySelectorAll('[data-shareone-anchor-id="'+CSS.escape(id)+'"][data-comment-surface]')) {
     if((surface&&container.dataset.commentSurface!==surface)||!container.getClientRects().length)continue;
-    visible++;
+    readable=true;
     const content=readableCommentText(container),version=await commentTextVersion(container,content.text);
     const span=api.resolveText(content.text,text,version);
     if(span){const range=passageRange(content.nodes,span);if(range&&range.toString()===text.exact)matches.push(range);}
   }
   if(signal.aborted)return 'pending';
-  if(!visible)return passive?'pending':'unresolved';
+  if(!readable&&passive)return 'pending';
   if(matches.length!==1)return 'unresolved';
-  const mark={id,range:matches[0]};commentPassages.set(commentId,mark);
+  const passage={id,range:matches[0]};
+  commentPassages.set(commentId,passage);
   signal.addEventListener('abort',()=>{
-    if(commentPassages.get(commentId)===mark){commentPassages.delete(commentId);paintCommentPassages();}
+    if(commentPassages.get(commentId)===passage){commentPassages.delete(commentId);paintCommentPassages();}
   },{once:true});
   if(!paintCommentPassages()){commentPassages.delete(commentId);return 'unresolved';}
   return 'resolved';
 }
 async function resyncCommentPassages(passages,api) {
-  const keep=new Set(passages.map(p=>p.commentId));
-  for(const id of commentPassages.keys())if(!keep.has(id))commentPassages.delete(id);
+  const wanted=new Set(passages.map(p=>p.commentId));
+  for(const id of commentPassages.keys())if(!wanted.has(id))commentPassages.delete(id);
   paintCommentPassages();
-  return Promise.all(passages.filter(p=>p.changed).map(async p=>{
-    if(!p.visible){commentPassages.delete(p.commentId);paintCommentPassages();return{commentId:p.commentId,state:'pending'};}
-    return {commentId:p.commentId,state:await restoreCommentPassage(p,api,{passive:true})};
-  }));
+  return Promise.all(passages.filter(p=>p.changed).map(async p=>({commentId:p.commentId,
+    state:!p.visible?'pending':await restoreCommentPassage(p,api,true)})));
 }
-document.addEventListener('click',event=>{
-  if(!commentMarksVisible.text||getSelection()?.toString()||event.target.closest('button,a,[data-comment-only]'))return;
-  const hits=[...commentPassages].filter(([,p])=>[...p.range.getClientRects()].some(r=>
-    event.clientX>=r.left&&event.clientX<=r.right&&event.clientY>=r.top&&event.clientY<=r.bottom));
-  if(hits.length===1)anchors.activateComment(hits[0][0]);
-},true);
 
 // Navigation history belongs to the shared reader, across every presentation.
 const navigationHistory=[];
@@ -18906,9 +18919,7 @@ const anchors = (() => {
     api.on('resync', async ids => {tracked.clear();for(const id of ids||[])tracked.add(id);
       await Promise.all((ids||[]).map(locateGraphAnchor));refreshCanvasCommentMarks();report();});
     api.on('resync-text',passages=>resyncCommentPassages(passages,api));
-    api.on('marks',visible=>{
-      Object.assign(commentMarksVisible,visible);paintCommentPassages();refreshCanvasCommentMarks();
-    });
+    api.on('marks',setCommentMarks);
     api.on('hittest', rect => {
       const out = [];
       for (const id of known()) {

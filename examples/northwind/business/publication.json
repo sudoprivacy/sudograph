@@ -38,5 +38,14 @@
     "production_activateComment_available": false,
     "cache_disabled_check_same_result": true,
     "report": "../../../docs/shareone-visible-object-passages-br-2026-10-13.md"
+  },
+  "pending_update": {
+    "artifact": "review.html",
+    "published": false,
+    "bytes": 11702718,
+    "sha256": "969544130ea6dcb2b2e82bd099269e46a473b7ef1047b21d1e99a6da87444111",
+    "change": "Precise passage activation, collapsed-detail resync and regression coverage",
+    "manual_html_edits": false,
+    "comments_embedded": false
   }
 }
