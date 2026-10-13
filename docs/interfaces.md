@@ -10,7 +10,10 @@ Business people review and comment; agents submit model changes. Neither is
 responsible for discovering or remembering a verification command. CI and service
 workers invoke the gates automatically, and the service refuses publication when
 verification is absent or fails. Installing a CLI alone does not enforce this.
-The managed deployment/publishing adapter is not implemented yet.
+The managed GitLab adapter and publisher are implemented and have passed actual
+isolated deployment acceptance. See [installation and API operations](../infra/gitlab/README.md)
+and [13 end-to-end checks](trials/gitlab-managed-2026-10-13.md).
+Customer Nexus SSO and approved source write-back remain separate work.
 
 All compiler exports use the same reader and SDK integration. The standalone
 verifier accepts native or packed HTML at any path; it does not depend on this

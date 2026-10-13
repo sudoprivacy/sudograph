@@ -1,0 +1,85 @@
+{
+  "format": "sudograph-managed-acceptance/v1",
+  "environment": "isolated Docker deployment",
+  "synthetic_accounts": true,
+  "checks": [
+    "GitLab authenticates the managed author; anonymous and unknown tokens are refused",
+    "Invalid source IDs, caller approval flags and HTML fail through the same interface",
+    "A submission automatically runs real GitLab CI; successful compilation is not approval",
+    "Native GitLab protections refuse author direct pushes and merges",
+    "A GitLab review event causes automatic independent compile, merge and release",
+    "Two business views reuse one canonical definition and all source facts remain unchanged",
+    "Adding a commit invalidates old SHA-bound approval even when native CI succeeds",
+    "A fresh authenticated approval releases the new version without reallocating identities",
+    "Reviewed content rollback keeps identities; the verified historical reader remains exact",
+    "Changing stored HTML is refused on read by the persisted artifact hash",
+    "Hand-edited HTML committed directly to GitLab fails the real trusted CI job",
+    "No step writes to the registered source database",
+    "GitLab membership revocation blocks model and artifact reads immediately"
+  ],
+  "releases": [
+    {
+      "format": "sudograph-release/v1",
+      "proposal": 1,
+      "source_sha": "7e07bc887d813a291cf55606ad1e3b09e16e5886",
+      "merge_sha": "7e07bc887d813a291cf55606ad1e3b09e16e5886",
+      "project": 2,
+      "pipeline": 2,
+      "reviewers": [
+        3
+      ],
+      "baseline": {
+        "manifest": "registered-source-baseline",
+        "sha256": "3bb1603f8aad1c977c9811945028017bf76831f455edab15481d8926f6ba2238"
+      },
+      "compiler_sha256": "7b830111f5c60bf342f981cd2d9bfd77cf9cd181cb526120da50c059dac93c8a",
+      "model_sha256": "e2c6774377798604afc8fd94481eccd219bc508f41b46df5f0b7d541d0b6071e",
+      "artifact_sha256": "20fa6659067a6497395642412272a687b92e5a42480a51e287661d2ef2a10d28",
+      "business_confirmation": "not inferred from merge approval"
+    },
+    {
+      "format": "sudograph-release/v1",
+      "proposal": 2,
+      "source_sha": "a93637314b48c5b9d04a2165b8733a8bec8f5545",
+      "merge_sha": "a93637314b48c5b9d04a2165b8733a8bec8f5545",
+      "project": 2,
+      "pipeline": 5,
+      "reviewers": [
+        3
+      ],
+      "baseline": {
+        "manifest": "registered-source-baseline",
+        "sha256": "3bb1603f8aad1c977c9811945028017bf76831f455edab15481d8926f6ba2238"
+      },
+      "compiler_sha256": "7b830111f5c60bf342f981cd2d9bfd77cf9cd181cb526120da50c059dac93c8a",
+      "model_sha256": "53781e3933758462cee266b98e5f0357f495f39e289e9aed6a0ed99594de9e34",
+      "artifact_sha256": "426cdfc3d3da352cb8157b5a8c9a2a2170c66f1cf1f2acaa565db08b630bafd0",
+      "business_confirmation": "not inferred from merge approval"
+    },
+    {
+      "format": "sudograph-release/v1",
+      "proposal": 3,
+      "source_sha": "74291aebefac50460e7d19b5118cb04cd82b98b8",
+      "merge_sha": "74291aebefac50460e7d19b5118cb04cd82b98b8",
+      "project": 2,
+      "pipeline": 7,
+      "reviewers": [
+        3
+      ],
+      "baseline": {
+        "manifest": "registered-source-baseline",
+        "sha256": "3bb1603f8aad1c977c9811945028017bf76831f455edab15481d8926f6ba2238"
+      },
+      "compiler_sha256": "7b830111f5c60bf342f981cd2d9bfd77cf9cd181cb526120da50c059dac93c8a",
+      "model_sha256": "2244d33c3c77e00d6621c340c8447088a51955b981e08052408d68789f7b4459",
+      "artifact_sha256": "78a3296d47549e916985cd7f4302265916538d15e3c648d1f8582eff47bdaa8b",
+      "business_confirmation": "not inferred from merge approval"
+    }
+  ],
+  "invalid_proposal": {
+    "source_sha": "a3b33a851bd13a61d3954e869fd50b98b0c3e121",
+    "pipeline": "failed"
+  },
+  "source_sha256": "c88370a6918c458ce39b05a4d29bfb9056754188ef76be0c4c62aef6a7351a45",
+  "scope": "model review and publication; source write-back and Nexus SSO are separate"
+}

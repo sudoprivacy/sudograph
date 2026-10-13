@@ -46,8 +46,10 @@ that understanding inspectable and reusable. **Git is the history.**
    to run a verifier. The service compiles checked inputs and refuses unverified
    handoffs automatically. `compiler.check_export` is an internal gate, not a
    customer obligation. This repository's CI protects its example inventory and
-   frozen baselines; the managed customer deployment and publishing adapter are
-   not yet implemented. See the [deployment contract](docs/managed-deployment.md).
+   frozen baselines. Managed GitLab provisioning, automatic CI and publication
+   now have a [deployed acceptance](docs/trials/gitlab-managed-2026-10-13.md);
+   customer Nexus SSO and source write-back remain separate work. See the
+   [deployment contract](docs/managed-deployment.md).
    Change checked inputs or the shared renderer and regenerate before publishing.
 7. **Identity supports references without copying facts.** Generate source,
    object and field addresses from the source in phase one. Use declared keys for
@@ -107,53 +109,58 @@ trial and production deployment remain separate acceptance work.
 
 ## Where this sits
 
-Sources are read-only. The compiler discovers their structure and validates
-source bindings. Agents author checked configuration and business definitions;
-the compiler and shared renderer generate the review artifact.
+Source discovery reads databases and documents through registered access paths.
+The original systems own their facts. GitLab owns the history of source-bound
+configuration and canonical business definitions; snapshots and HTML are derived
+read-only evidence. Agents submit checked inputs, CI runs automatically, and the
+publisher independently verifies the exact reviewed revision before release.
 
 ```mermaid
 flowchart LR
-  subgraph SRC["source systems · read-only"]
-    DB[("databases<br/>ERP · GL · rosters")]
-    FILES[("files<br/>contracts · scans · exports")]
+  subgraph SOURCES["source facts remain authoritative"]
+    DB[("databases")]
+    FILES[("documents and files")]
   end
+  ACCESS["registered source access<br/>scanner and authorised Gateway"]
+  NEXUS["Nexus<br/>data and operation authority"]
+  BASELINE["registered phase-one snapshot<br/>source identities, fields and records"]
 
-  subgraph ACCESS["access tier"]
-    DRV["nexus drivers<br/>one way in per system"]
-    MIRROR["file-shaped view<br/>sources that collapse to a tree<br/>are mirrored, not copied"]
-  end
-
-  subgraph SPEC["the ontology · a git repo"]
-    RAW["raw<br/>where a figure is taken from"]
-    TYPES["types + instances<br/>the objects and their rows"]
-    METRICS["metrics<br/>named figures over those rows"]
-    HOOKS["hooks<br/>named, owned, resolvable gaps"]
-    OPS["ops<br/>the only write path"]
-  end
-
-  subgraph OUT["generated"]
-    GRAPH["graph app<br/>one self-contained file"]
-    CHECKS["checks<br/>pass or fail, per compile"]
+  subgraph MANAGED["Sudograph managed infrastructure"]
+    AUTHOR["authoring interface<br/>contract, submit, status"]
+    MODEL["private GitLab model repository<br/>model.yaml, canonical definitions, versions"]
+    MR["GitLab merge request<br/>exact commit and authenticated review"]
+    CI["operator-owned CI<br/>pinned compiler and shared renderer"]
+    DRAFT["verified review draft<br/>business meaning remains unconfirmed"]
+    PUBLISHER["trusted publisher<br/>recheck authority and CI<br/>compile and verify complete HTML"]
+    READER["authenticated accepted reader<br/>named views and stable comment identities"]
   end
 
   PEOPLE["business reviewers"]
   AGENT["agents"]
+  WRITEBACK["separately approved source executor<br/>planned"]
 
-  DB --> DRV
-  FILES --> DRV
-  DRV --> MIRROR
-  MIRROR --> RAW
-  RAW --> TYPES
-  TYPES --> METRICS
-  HOOKS -.->|holds up| METRICS
-  SPEC --> GRAPH
-  SPEC --> CHECKS
-  GRAPH -->|comment on a node| PEOPLE
-  PEOPLE -->|corrections and definitions| AGENT
-  AGENT -->|reads| SPEC
-  AGENT -->|writes only through| OPS
-  OPS --> SPEC
-  OPS -.->|instruction, then confirmation| DB
+  DB --> ACCESS
+  FILES --> ACCESS
+  NEXUS -->|source and view grants| ACCESS
+  ACCESS --> BASELINE
+  AGENT -->|checked inputs and intent| AUTHOR
+  AUTHOR --> MODEL
+  MODEL --> MR
+  MR -->|automatic| CI
+  BASELINE -->|pinned source facts| CI
+  CI --> DRAFT
+  DRAFT --> PEOPLE
+  PEOPLE -->|comments and corrections| AGENT
+  PEOPLE -->|approve exact commit| MR
+  MR -->|authenticated approval event| PUBLISHER
+  BASELINE -->|same source identities| PUBLISHER
+  PUBLISHER -->|guarded fast-forward merge| MODEL
+  PUBLISHER -->|verified bytes and receipt| READER
+  READER --> PEOPLE
+  NEXUS -.->|model SSO integration planned| AUTHOR
+  MR -.->|separate migration review| WRITEBACK
+  NEXUS -.->|operation grant| WRITEBACK
+  WRITEBACK -.->|approved source change only| DB
 ```
 
 Four boundaries organise the implementation:
@@ -167,17 +174,23 @@ Four boundaries organise the implementation:
   authored records and formulas.
 * **Relationships are generated, never synchronised.** Anything stated twice can
   disagree with itself, so it is stated once and derived everywhere else.
-* **Ops are the only write path**, and a write states its intent. Landing a
-  change in a source system is an instruction plus a later confirmation, never a
-  direct write — the round trip is itself the control.
+* **Writes state their intent and require authority.** Model proposals use the
+  managed GitLab path; authors cannot push to the protected target or install
+  different CI. Source changes require their own reviewed migration and executor.
 
-The dotted line from `ops` back to a source system is the part that is designed
-but not built.
+The GitLab/runner/publisher path has passed actual isolated Docker deployment
+acceptance, including revision-bound review, rollback, artifact integrity and
+membership revocation. The source Gateway and its Nexus authority adapter are
+implemented separately. Dotted connections show work that is not connected in
+this managed deployment: customer Nexus SSO and approved source write-back.
+GitLab authenticates model reviewers; Nexus remains the source/data authority.
+Neither permission domain is replaced by a graph menu or a YAML approval flag.
 
-This is the shape only. Which technology sits in each box — where the spec is
-hosted, which gate governs which kind of write, what has to run inside a
-customer's own network — is a deployment matter and lives in the design page
-this README defers to, at §7.14.
+The current Northwind ShareOne URL is a separately hosted static review artifact,
+not a customer login deployment or an automatic destination of the GitLab fixture.
+See [installation and interfaces](infra/gitlab/README.md), the
+[acceptance evidence](docs/trials/gitlab-managed-2026-10-13.md), and the broader
+design at §7.14 for deployment choices inside a customer's network.
 
 ## The loop this exists to serve
 

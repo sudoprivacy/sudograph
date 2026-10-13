@@ -1,9 +1,12 @@
 # Managed deployment and automatic publication contract
 
-Status: agreed direction; provisioning, the GitLab adapter and the trusted
-publishing service are not implemented or deployed. Existing compiler checks,
-the authorised read Gateway and repository CI are components of this design,
-not evidence that the whole deployment exists.
+Status: private-project provisioning, operator-owned native CI, authenticated
+GitLab approval events and independent managed publication are implemented.
+The complete isolated Docker deployment passed
+[13 end-to-end checks](trials/gitlab-managed-2026-10-13.md).
+Customer Nexus SSO, browser OAuth, automatic ShareOne delivery and approved source
+write-back are not connected by that acceptance. Existing-instance TLS/network
+registration also requires acceptance in that customer's environment.
 
 ## Ownership
 
@@ -100,8 +103,17 @@ Accept the managed path only after a disposable, deployed workspace proves:
   artifact while preserving the original review share and stable identities.
 
 Repository unit tests cannot substitute for this deployed end-to-end acceptance.
-No GitLab instance was installed and no source database was written to establish
-this document.
+The acceptance installs actual GitLab CE and Runner images with separate
+synthetic accounts and an unrelated SQLite source. It verifies the native commit,
+CI, approval, hook, merge, reader and revocation paths. It never writes to the
+registered source database. Unit protocol fakes remain boundary tests, not a
+substitute for this deployment.
+
+Installation and the managed `contract`, `submit`, `status` and authenticated
+release interfaces are in [infra/gitlab](../infra/gitlab/README.md). Every caller
+is checked against both its operator-registered model role and its current GitLab
+project membership. CI cannot be supplied by a model branch. Git owns identity
+history; the publisher's identity index is derived from committed definitions.
 
 ## GitLab references
 
