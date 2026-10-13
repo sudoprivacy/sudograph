@@ -38,10 +38,17 @@ There are three distinct authorities:
 
 ## Phase boundary
 
-The phase boundary is authorship, not the presence of a calculation. A SQL view
+The phase boundary is the subject of the claim, not the presence of a calculation
+or whether an agent wrote a question. A SQL view
 already in the source database, including its expression and every result row,
 belongs to phase-one source projection. Copying that expression into an authored
 model does not move the original source view into phase two.
+
+Agent-authored data questions also belong in phase one when they check source
+precision, time coverage or record interpretation. They use a separate
+`source_review` layer with verification plans; orange questions do not rewrite
+the source or prove a defect. The pure projection remains available. Phase two
+proposes business meanings and policies rather than relabeling these data questions.
 
 Phase two explains, adopts or changes a business meaning. Calling a source result
 "net sales", changing date scope or introducing rounding is a separate proposal.

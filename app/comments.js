@@ -1,6 +1,12 @@
 /* Passage selectors belong to one stable object and readable surface.
    Native ranges need no text scan or input-catching overlay during camera moves. */
 const commentPassages=new Map();
+const commentMarksVisible={text:true,point:true};
+let commentTextSyncFrame=null;
+function requestCommentTextSync() {
+  if(commentTextSyncFrame!==null)return;
+  commentTextSyncFrame=requestAnimationFrame(()=>{commentTextSyncFrame=null;anchors.resyncText();});
+}
 function readableCommentText(container) {
   const nodes=[],walker=document.createTreeWalker(container,NodeFilter.SHOW_TEXT,{
     acceptNode:node=>node.parentElement.closest('script,style,noscript,template,[data-comment-only]')
@@ -18,8 +24,10 @@ async function annotateCommentText(container,id,surface) {
   container.dataset.shareoneAnchorId=id;container.dataset.commentSurface=surface;
   delete container.dataset.shareoneAnchorVersion;
   const content=readableCommentText(container).text,version=await commentTextVersion(container,content);
-  if(version&&container.isConnected&&readableCommentText(container).text===content)
-    container.dataset.shareoneAnchorVersion=version;
+  if(container.isConnected&&readableCommentText(container).text===content) {
+    if(version)container.dataset.shareoneAnchorVersion=version;
+    requestCommentTextSync();
+  }
 }
 async function captureCommentPassage(container,range) {
   const {text}=readableCommentText(container),before=document.createRange();
@@ -42,6 +50,7 @@ function passageRange(nodes,span) {
 }
 function paintCommentPassages() {
   if(!CSS.highlights||typeof Highlight==='undefined')return false;
+  if(!commentMarksVisible.text){CSS.highlights.delete('sudograph-comment-passage');return true;}
   CSS.highlights.set('sudograph-comment-passage',new Highlight(...[...commentPassages.values()].map(p=>p.range)));
   return true;
 }
@@ -50,21 +59,43 @@ function invalidateCommentPassages() {
   anchors.reportText([...commentPassages.keys()].map(commentId=>({commentId,state:'pending'})));
   commentPassages.clear();CSS.highlights?.delete('sudograph-comment-passage');
 }
-async function restoreCommentPassage({commentId,id,text,signal},api) {
+async function restoreCommentPassage({commentId,id,text,signal},api,{passive=false}={}) {
   commentPassages.delete(commentId);paintCommentPassages();
   if(signal.aborted||!api.resolveText||!text)return 'unresolved';
-  if(text.version&&!text.version.includes('/label/')&&!text.version.includes('/edge-label/')&&state.panelCollapsed) {
+  if(!passive&&text.version&&!text.version.includes('/label/')&&!text.version.includes('/edge-label/')&&state.panelCollapsed) {
     state.panelCollapsed=false;panelSizeChanged=true;syncPanelToggle();
   }
-  const matches=[];
+  const matches=[];let visible=0;
+  const surface=text.version?.match(/^(?:en|zh)\/([^/]+)\/[a-f0-9]{64}$/)?.[1];
   for(const container of document.querySelectorAll('[data-shareone-anchor-id="'+CSS.escape(id)+'"][data-comment-surface]')) {
-    if(!container.getClientRects().length)continue;
+    if((surface&&container.dataset.commentSurface!==surface)||!container.getClientRects().length)continue;
+    visible++;
     const content=readableCommentText(container),version=await commentTextVersion(container,content.text);
     const span=api.resolveText(content.text,text,version);
     if(span){const range=passageRange(content.nodes,span);if(range&&range.toString()===text.exact)matches.push(range);}
   }
-  if(signal.aborted||matches.length!==1)return 'unresolved';
-  commentPassages.set(commentId,{id,range:matches[0]});
+  if(signal.aborted)return 'pending';
+  if(!visible)return passive?'pending':'unresolved';
+  if(matches.length!==1)return 'unresolved';
+  const mark={id,range:matches[0]};commentPassages.set(commentId,mark);
+  signal.addEventListener('abort',()=>{
+    if(commentPassages.get(commentId)===mark){commentPassages.delete(commentId);paintCommentPassages();}
+  },{once:true});
   if(!paintCommentPassages()){commentPassages.delete(commentId);return 'unresolved';}
   return 'resolved';
 }
+async function resyncCommentPassages(passages,api) {
+  const keep=new Set(passages.map(p=>p.commentId));
+  for(const id of commentPassages.keys())if(!keep.has(id))commentPassages.delete(id);
+  paintCommentPassages();
+  return Promise.all(passages.filter(p=>p.changed).map(async p=>{
+    if(!p.visible){commentPassages.delete(p.commentId);paintCommentPassages();return{commentId:p.commentId,state:'pending'};}
+    return {commentId:p.commentId,state:await restoreCommentPassage(p,api,{passive:true})};
+  }));
+}
+document.addEventListener('click',event=>{
+  if(!commentMarksVisible.text||getSelection()?.toString()||event.target.closest('button,a,[data-comment-only]'))return;
+  const hits=[...commentPassages].filter(([,p])=>[...p.range.getClientRects()].some(r=>
+    event.clientX>=r.left&&event.clientX<=r.right&&event.clientY>=r.top&&event.clientY<=r.bottom));
+  if(hits.length===1)anchors.activateComment(hits[0][0]);
+},true);

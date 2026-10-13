@@ -2,15 +2,15 @@
   "status": "unreviewed-business-pilot",
   "language": "en",
   "artifact": "index.html",
-  "artifact_bytes": 11688296,
-  "artifact_sha256": "4049193e0b81be04b6254c5e6f83c3d40cb85435574d9e28393b43c233e84c7b",
+  "artifact_bytes": 11703380,
+  "artifact_sha256": "c0bb221e2515c4b99cc568918cdde2b50377303d0a5fc46837aec351adedf9c9",
   "overlay": "pilot.yaml",
-  "overlay_sha256": "a3b903b3868cca4e66753ec0c56c2e715b9efa1df8c67fd3992cf5588168395d",
+  "overlay_sha256": "c24e6452873d4e05fd786b5fd20f97876fc4942c6e1573216b60e009a5701329",
   "registry": "pilot.registry.json",
   "canonical_definitions": 9,
   "origins": {
-    "provided": 3,
-    "inferred": 6
+    "provided": 1,
+    "inferred": 8
   },
   "new_executable_metrics": false,
   "phase_one_source_unchanged": true,
@@ -19,13 +19,13 @@
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
     "artifact": "review.html",
-    "bytes": 11687309,
-    "sha256": "7e6667092bac5df019c14680deb99e767ef58dbe9788820ef4ee8737e7ab8d19",
+    "bytes": 11702352,
+    "sha256": "9db642ddc33960f5ab5a1b6656659d5a378c561ba53341b700f8eae9360d7edc",
     "language": "zh"
   },
   "contributors": {
-    "source": 3,
-    "model": 6,
+    "source": 1,
+    "model": 8,
     "business_user": 0
   },
   "source_objects_shared_by_identity": true,
@@ -33,10 +33,11 @@
     "source_connector_and_source_evidence": "--raw",
     "unreviewed_human_or_model_meaning": "--hook",
     "source_objects_and_fields": "--type",
-    "unreviewed_outline": "--hook"
+    "unreviewed_outline": "--hook",
+    "unconfirmed_source_question": "--hook"
   },
   "validation": {
-    "tests_passed": 326,
+    "tests_passed": 330,
     "browser_tool": "ai-dev-browser",
     "source_field_to_real_records": true,
     "source_node_references_shared_in_renderer": true,
@@ -62,10 +63,20 @@
     "real_phone_hardware_benchmark": false,
     "verification_gates_passed": 6,
     "business_purpose_and_evidence_role_enforcement": true,
-    "actual_shapes_in_legend": true
+    "actual_shapes_in_legend": true,
+    "source_review_plan_enforced": true,
+    "source_review_cannot_enter_business_views": true,
+    "source_review_needs_no_business_definition": true,
+    "source_view_filters_report_visible_question_counts": true,
+    "legend_icons_same_size_and_aligned": true
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
   "publication": "publication.json",
   "business_nodes": 4,
-  "supporting_evidence_notes": 5
+  "supporting_evidence_notes": 2,
+  "source_review_questions": 3,
+  "phase_one_presentations": [
+    "Data projection",
+    "Projection and data review"
+  ]
 }

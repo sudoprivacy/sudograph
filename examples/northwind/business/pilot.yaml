@@ -46,12 +46,13 @@ definitions:
     - sales-total
   extended-price:
     concept: source-extended-price
-    label: Source extended-price calculation
-    statement: The source view calculates ExtendedPrice from line UnitPrice, Quantity and Discount, including
-      /100 * 100. This observation preserves the source computation; it does not approve a revenue definition.
-    origin: provided
-    contributor: source
-    version: 4
+    label: Does the source expression round line amounts?
+    statement: The source ExtendedPrice expression contains /100 * 100. Does that expression actually
+      round its result, or preserve additional decimals? This is a question about the existing source
+      computation, not a proposed sales policy or a confirmed defect.
+    origin: inferred
+    contributor: model
+    version: 5
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Quantity
@@ -64,19 +65,20 @@ definitions:
         \ Details].ProductID, \n       Products.ProductName, \n\t   [Order Details].UnitPrice, \n    \
         \   [Order Details].Quantity, \n       [Order Details].Discount, \n      ([Order Details].UnitPrice*Quantity*(1-Discount)/100)*100\
         \ AS ExtendedPrice\nFROM Products \n     JOIN [Order Details] ON Products.ProductID = [Order Details].ProductID"
-    category: meaning
-    role: source_evidence
-    applies_to:
-    - sales-total
-    - price-meaning
+    category: issue
+    role: source_review
+    verification: Inspect the cited source SQL and SQLite operand types; compare real line outputs with
+      UnitPrice × Quantity × (1 − Discount), retaining source precision. Check for ROUND or casts before
+      describing the result as rounded.
   category-source-scope:
     concept: source-category-time-scope
-    label: Source category report scope
-    statement: Sales by Category groups by category and product and filters OrderDate to 1997. That scope
-      is already part of the phase-one source view.
-    origin: provided
-    contributor: source
-    version: 4
+    label: Check the source category report time coverage
+    statement: The source category report filters OrderDate between two 1997 timestamps. Which source
+      records fall inside those exact bounds, and is an empty or limited result expected for this snapshot?
+      A narrow source view is not itself an error and does not define a new annual-sales report.
+    origin: inferred
+    contributor: model
+    version: 5
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/CategoryID
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/ProductSales
@@ -91,10 +93,11 @@ definitions:
         \                \n           JOIN Orders \n             ON Orders.OrderID = [Order Details Extended].OrderID\
         \ \nWHERE Orders.OrderDate BETWEEN DATETIME('1997-01-01') And DATETIME('1997-12-31')\nGROUP BY\
         \ Categories.CategoryID, Categories.CategoryName, Products.ProductName"
-    category: meaning
-    role: source_evidence
-    applies_to:
-    - category-question
+    category: issue
+    role: source_review
+    verification: Read the cited source SQL, inspect the source view count and representative Orders.OrderDate
+      values, and check both timestamp boundaries, including times on December 31. Report the observed
+      coverage without replacing the source filter.
   category-question:
     concept: category-sales-scope
     label: 'Annual sales by category: reporting choice'
@@ -203,22 +206,20 @@ definitions:
   rounding-impact:
     concept: line-rounding-versus-total-rounding-impact
     category: issue
-    label: Rounding order can change a report total
-    statement: 'Conditional concern for the proposed report total: if included line amounts carry more
-      decimals than settlement precision, rounding each line and rounding only the final total can differ.
-      For two invented line amounts of 0.335 in a two-decimal currency, round then sum gives 0.68, whereas
-      sum then round gives 0.67. These are explanatory examples, not source records; no claim is made
-      that this dataset or the business has already suffered a discrepancy. Review this issue before accepting
-      the rule.'
+    label: Could source precision affect recombined totals?
+    statement: If source line amounts contain extra decimals, summing displayed rounded values can differ
+      from rounding their full-precision sum. Two hypothetical amounts of 0.335 illustrate 0.68 versus
+      0.67 at two decimals; they are not source records or evidence of an actual discrepancy. Does this
+      snapshot contain amounts for which this distinction matters?
     origin: inferred
     contributor: model
-    version: 2
+    version: 3
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice
-    applies_to:
-    - sales-total
-    - rounding-question
-    role: implementation_note
+    role: source_review
+    verification: Inspect actual ExtendedPrice decimal precision and source subtotal SQL. Compare aggregation
+      of original values with aggregation of values rounded only for display. Keep hypothetical examples
+      separate from observed records and do not impose a settlement policy.
 views:
   sales-meaning:
     label: Annual order-sales review
@@ -238,14 +239,6 @@ translations:
     ? The supplied README describes Northwind as a small-business ERP tutorial covering customers, orders,
       inventory, purchasing, suppliers, shipping and employees.
     : 原仓库 README 将 Northwind 描述为小企业 ERP 教学示例，涉及客户、订单、库存、采购、供应商、运输和员工。
-    Source extended-price calculation: 源库的明细金额计算
-    ? The source view calculates ExtendedPrice from line UnitPrice, Quantity and Discount, including /100
-      * 100. This observation preserves the source computation; it does not approve a revenue definition.
-    : 源视图使用明细 UnitPrice、Quantity、Discount 计算 ExtendedPrice，包含 /100 * 100。本项记录源库已有计算，不代表已确认收入口径。
-    Source category report scope: 源品类报表的时间范围
-    ? Sales by Category groups by category and product and filters OrderDate to 1997. That scope is already
-      part of the phase-one source view.
-    : Sales by Category 按品类和产品分组，筛选 1997 年 OrderDate。这个范围已属于阶段一源视图。
     Rounding rule for the proposed sales total: 订单明细金额总额的舍入规则
     ? 'Proposed rule for the order-line amount total: after the reporting scope is chosen, round each
       included line amount to the settlement precision, then sum those amounts. This sums line amounts
@@ -253,15 +246,6 @@ translations:
       The rule serves the referenced business metric. It is a proposal; currency, precision and settlement
       practice need review, and no new calculation is executed.'
     : 建议用于“订单明细金额总额”的规则：先选定报表范围，把纳入范围的每条明细金额按结算精度四舍五入，再求这些金额的总和。相加的是明细金额（单价 × 数量 × 折扣因子），不是商品标价或单价。本规则服务于连线指向的业务指标。币种、精度和结算惯例仍待确认；本版没有执行新的计算。
-    Rounding order can change a report total: 舍入顺序可能影响报表总额
-    ? 'Conditional concern for the proposed report total: if included line amounts carry more decimals
-      than settlement precision, rounding each line and rounding only the final total can differ. For
-      two invented line amounts of 0.335 in a two-decimal currency, round then sum gives 0.68, whereas
-      sum then round gives 0.67. These are explanatory examples, not source records; no claim is made
-      that this dataset or the business has already suffered a discrepancy. Review this issue before accepting
-      the rule.'
-    : 针对候选报表总额的条件性问题：如果明细金额的小数位多于结算精度，逐笔舍入和只在总额上舍入可能得到不同结果。以精确到分的币种、两笔假设金额各 0.335 为例，逐笔舍入再相加得 0.68，先相加再舍入得
-      0.67。这是解释差异的例子，不是源库记录，也不表示已发现这个数据集或实际业务存在差额。确认规则前应核对这一问题。
     Annual order sales (proposal): 年度订单销售额（草案）
     ? 'Proposed sales-management metric: group orders by the calendar year of Orders.OrderDate and sum
       the included order-line amounts for each year, so sales managers can compare annual order sales.
@@ -297,3 +281,31 @@ translations:
     : 确认年度订单销售额前，销售与财务须对齐：是否计入运费和税、退货或取消订单归入哪一年、报表采用什么币种。OrderDate 只确定下单年份，不能证明回款或收入确认日期。缺少退货、币种或税信息是口径缺口，不代表源数据库错误。
     Annual order-sales review: 年度订单销售额核对
     Annual-sales decisions to confirm: 年度销售额待确认决策
+    Does the source expression round line amounts?: 源明细金额表达式是否真的舍入？
+    ? The source ExtendedPrice expression contains /100 * 100. Does that expression actually round its
+      result, or preserve additional decimals? This is a question about the existing source computation,
+      not a proposed sales policy or a confirmed defect.
+    : 源库 ExtendedPrice 表达式包含 /100 * 100。它是否真的把结果舍入，还是保留了更多小数位？这是对源库已有计算的核对问题，不是新的销售口径，也不表示已经发现错误。
+    ? Inspect the cited source SQL and SQLite operand types; compare real line outputs with UnitPrice
+      × Quantity × (1 − Discount), retaining source precision. Check for ROUND or casts before describing
+      the result as rounded.
+    : 核对引用的源 SQL 和 SQLite 操作数类型；用真实明细比较源结果与 UnitPrice × Quantity × (1 − Discount)，保留原精度。确认是否有 ROUND 或类型转换后，再判断结果是否已舍入。
+    Check the source category report time coverage: 源品类报表的时间覆盖需要核对
+    ? The source category report filters OrderDate between two 1997 timestamps. Which source records fall
+      inside those exact bounds, and is an empty or limited result expected for this snapshot? A narrow
+      source view is not itself an error and does not define a new annual-sales report.
+    : 源品类报表用两个 1997 年时间戳筛选 OrderDate。哪些源记录落在这个精确范围内？本快照出现空结果或有限结果是否符合预期？范围较窄不代表源库出错，也不定义新的年度销售报表。
+    ? Read the cited source SQL, inspect the source view count and representative Orders.OrderDate values,
+      and check both timestamp boundaries, including times on December 31. Report the observed coverage
+      without replacing the source filter.
+    : 核对引用的源 SQL、源视图行数及 Orders.OrderDate 的代表性记录，检查两个时间戳边界，包括 12 月 31 日的时分秒。报告观察到的覆盖范围，不替换源筛选条件。
+    Could source precision affect recombined totals?: 源金额精度是否会影响重新汇总？
+    ? If source line amounts contain extra decimals, summing displayed rounded values can differ from
+      rounding their full-precision sum. Two hypothetical amounts of 0.335 illustrate 0.68 versus 0.67
+      at two decimals; they are not source records or evidence of an actual discrepancy. Does this snapshot
+      contain amounts for which this distinction matters?
+    : 如果源明细金额有更多小数位，把显示时舍入的值相加，可能不同于原精度相加后再舍入。两笔假设金额 0.335 可说明精确到分时 0.68 与 0.67 的差异；它们不是源记录，也不能证明已有差额。本快照中是否有需要区分这两种过程的金额？
+    ? Inspect actual ExtendedPrice decimal precision and source subtotal SQL. Compare aggregation of original
+      values with aggregation of values rounded only for display. Keep hypothetical examples separate
+      from observed records and do not impose a settlement policy.
+    : 核对真实 ExtendedPrice 的小数精度和源小计 SQL。比较按原值汇总与按显示时舍入值汇总的结果。区分假设例子和已观察到的记录，不据此制定结算口径。

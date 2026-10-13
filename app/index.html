@@ -114,9 +114,10 @@
   #legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-left:auto;
           font-size:11px;padding:3px 10px;border:1px solid var(--line);
           border-radius:6px;background:#0e1117}
-  #legend > span{white-space:nowrap;color:var(--ink)}
-  #legend i{width:11px;height:11px;border-radius:3px;display:inline-block;
+  #legend > span{display:inline-flex;align-items:center;white-space:nowrap;color:var(--ink)}
+  #legend i{width:16px;height:16px;box-sizing:border-box;flex:none;border-radius:3px;display:inline-block;
             border:1px solid #2b3140;margin-right:5px;vertical-align:middle}
+  #legend svg{width:16px;height:16px;flex:none;margin-right:5px;overflow:visible}
   #legend u{width:17px;height:0;border-top:1.5px solid;display:inline-block;
             margin-right:5px;vertical-align:middle}
   #legend em{color:var(--dim);font-style:normal;margin-left:5px}
@@ -147,7 +148,8 @@
   <label><span data-ui="桥">桥</span> <select id="bridge"></select></label>
   <button id="bridgeBtn" data-ui="桥视图">桥视图</button>
   <label><span data-ui="视图">视图</span> <select id="projection">
-    <option value="schema" data-ui="结构关系">结构关系</option>
+    <option value="schema" data-ui="数据投影">数据投影</option>
+    <option value="schema:review" data-ui="投影与数据核对">投影与数据核对</option>
     <option value="data" data-ui="记录与关联">记录与关联</option>
     <option value="all" data-ui="指标与规则">指标与规则</option>
   </select></label>
@@ -227,7 +229,8 @@ const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
                 expanded: new Set(), panel: 'checks', selected:null, selectedRelation:null, focus:null,
                 sources:!!BUNDLE.source_schema || BUNDLE.projection?.mode==='source_projection', edgeLabels:false, direction:'auto', layoutEngine:'auto',
                 projection: BUNDLE.source_schema ? 'schema' : Object.values(BUNDLE.views)[0].groups.some(g => g.backing) ? 'data' : 'all' };
-for(const option of $('projection').options)option.hidden=option.value.startsWith('schema')?!BUNDLE.source_schema:
+for(const option of $('projection').options)option.hidden=option.value==='schema:review'?!BUNDLE.business?.source_review:
+  option.value==='schema'?!BUNDLE.source_schema:option.value==='data'?!!BUNDLE.source_schema:
   option.value==='all'&&BUNDLE.projection?.mode==='source_projection';
 $('projection').value = state.projection;
 let panelSizeChanged=false;
@@ -389,7 +392,7 @@ const fillOf = n => {
 };
 
 function renderLegend() { $('legend').innerHTML =
-  isBusiness() ? businessLegend() :
+  isBusiness() ? businessLegend() : isSourceReview() ? sourceReviewLegend() :
   (isSchema()||(state.projection==='data'&&BUNDLE.source_schema)||BUNDLE.projection?.mode==='source_projection') ?
     [KINDS.raw,KINDS.type].map(k=>`<span><i style="background:var(${k.var})"></i>${k.name}</span>`).join('')+
     `<span><u style="border-top-color:var(--edge)"></u>${t('关系')}</span>` :
@@ -820,6 +823,7 @@ const anchors = (() => {
     for(const id of schemaNodes.keys())ids.add(id);
     for(const id of businessNodes.keys())ids.add(id);
     for(const v of Object.values(BUNDLE.business?.views||{}))for(const e of v.edges)ids.add(e.id);
+    for(const e of BUNDLE.business?.source_review?.edges||[])ids.add(e.id);
     for(const vv of Object.values(BUNDLE.views))for(const n of vv.nodes)ids.add(n.id);
     for(const vv of Object.values(BUNDLE.views))for(const e of vv.edges)ids.add(canvasEdgeId(e));
     if(BUNDLE.source_schema)for(const e of schemaGraph().edges)ids.add(canvasEdgeId(e));
@@ -869,6 +873,10 @@ const anchors = (() => {
     api.configure?.({marks:'page'});
     api.on('resync', async ids => {tracked.clear();for(const id of ids||[])tracked.add(id);
       await Promise.all((ids||[]).map(locateGraphAnchor));refreshCanvasCommentMarks();report();});
+    api.on('resync-text',passages=>resyncCommentPassages(passages,api));
+    api.on('marks',visible=>{
+      Object.assign(commentMarksVisible,visible);paintCommentPassages();refreshCanvasCommentMarks();
+    });
     api.on('hittest', rect => {
       const out = [];
       for (const id of known()) {
@@ -922,6 +930,8 @@ const anchors = (() => {
 
   return { get live() { return !!host(); }, report, marked:id=>tracked.has(id),
     activate:id=>host()?.activate?.(id),
+    activateComment:id=>host()?.activateComment?.(id),
+    resyncText:()=>host()?.resyncText?.(),
     reportText(entries) {return host()?.reportText?.(entries);},
     comment(id,label,context,rect=rectOf(id),text) {
       const api=host();if(!api?.select)return false;wire(api);

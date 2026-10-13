@@ -2,7 +2,8 @@
 const schemaObjects=(BUNDLE.source_schema?.sources||[]).flatMap(s=>s.objects);
 const schemaSources=(BUNDLE.source_schema?.sources||[]).map(s=>({...s,kind:'schema_source'}));
 const schemaNodes=new Map([...schemaSources,...schemaObjects.flatMap(o=>[o,...o.fields])].map(n=>[n.id,n]));
-const isSchema=()=>state.projection==='schema';
+const isSchema=()=>state.projection==='schema'||isSourceReview();
+const isSourceReview=()=>state.projection==='schema:review';
 const schemaObject=id=>schemaObjects.find(o=>o.id===id);
 function schemaGraph() {
   const edges=[];
@@ -25,7 +26,9 @@ function schemaGraph() {
     }
   }
   const original=BUNDLE.views[`${state.basis??''}|${coordKey()}`];
-  return {...original,nodes:[...schemaNodes.values()],edges,groups:[]};
+  const review=isSourceReview()?BUNDLE.business?.source_review:null;
+  if(review)edges.push(...review.edges.map(e=>({...e,via:t('数据核对目标')})));
+  return {...original,nodes:[...schemaNodes.values(),...(review?.definitions||[]).map(id=>businessNodes.get(id))],edges,groups:[]};
 }
 function sourceSupplyEdge(source,target,object) {
   return {id:'sg-relation/'+encodeURIComponent(JSON.stringify(['source_supplies',source,object])),
@@ -39,6 +42,7 @@ function sourceDataEdges(v) {
   });
 }
 function schemaRelationLabel(e,language=uiLanguage) {
+  if(e.rel==='source_review_target')return t('数据核对目标',{},language)+' · '+bt(businessNodes.get(e.to).label,language);
   if(e.rel==='source_supplies')return bt(schemaObject(e.to_object).label,language)+' '+t('取自',{},language)+' '+bt(schemaNodes.get(e.from).label,language);
   const from=schemaObject(e.from_object),to=schemaObject(e.to_object);
   if(e.rel==='source_view')return t('{from} 的源 SQL 引用了 {to}',
@@ -71,9 +75,17 @@ async function drawSchema(v,mine) {
   if(state.sources)for(const source of schemaSources)shown.set(source.id,source);
   for(const o of objects)if(state.schemaExpanded.has(o.id))
     for(const field of o.fields)shown.set(field.id,field);
+  if(isSourceReview())for(const id of BUNDLE.business.source_review.definitions) {
+    const note=businessNodes.get(id);
+    if(note.targets.some(id=>objects.some(o=>id===o.id||id.startsWith(o.id+'/field/'))))shown.set(id,note);
+  }
   const seen=new Set();
   let edges=v.edges.flatMap(e=>{
     if(e.rel==='source_supplies')return shown.has(e.from)&&shown.has(e.to)?[e]:[];
+    if(e.rel==='source_review_target') {
+      const target=schemaNodes.get(e.from),from=shown.has(e.from)?e.from:target.parent;
+      return shown.has(from)&&shown.has(e.to)?[{...e,from,source_target:e.from}]:[];
+    }
     const from=shown.has(e.from)?e.from:e.from_object;
     const to=shown.has(e.to)?e.to:e.to_object;
     if(!shown.has(from)||!shown.has(to))return [];
@@ -92,6 +104,10 @@ async function drawSchema(v,mine) {
   }
   $('overviewBtn').hidden=!state.focus;
   await drawCanvas(v,shown,edges,mine);
+  if(mine===drawSeq)$('status').textContent=t(isSourceReview()?'投影与数据核对':'数据投影')+' · '+shown.size+' '+t('节点')+
+    (isSourceReview()?' · '+t('数据问题：{visible}/{total}',{
+      visible:[...shown.values()].filter(n=>n.role==='source_review').length,
+      total:BUNDLE.business.source_review.definitions.length}):'');
 }
 function schemaCamera(id) {
   const node=cy?.getElementById(id);if(!node?.length)return;
@@ -112,13 +128,14 @@ async function revealSchema(id) {
     await draw();schemaCamera(id);return true;
   }
   const obj=node.parent?schemaObject(node.parent):node;
-  state.projection='schema';$('projection').value='schema';
+  if(!isSchema())state.projection='schema';$('projection').value=state.projection;
   if(state.schemaKind!=='all'&&state.schemaKind!==obj.object_kind)state.schemaKind='all';
   $('schemaKind').value=state.schemaKind;
   state.focus=null;if(node.parent)state.schemaExpanded.add(node.parent);
   state.selected=id;state.selectedRelation=null;state.panel='node';await draw();schemaCamera(id);return true;
 }
 async function revealSchemaRelation(e) {
+  if(e.rel==='source_review_target')return revealSourceReviewRelation(e);
   if(e.rel==='source_supplies') {
     state.sources=true;$('sources').checked=true;await revealSchema(e.to_object);
     state.selected=null;state.selectedRelation=canvasEdgeId(e);showSchemaRelation(e);return;
@@ -205,6 +222,7 @@ function showSchemaNode(n) {
 }
 function showSchemaRelation(e) {
   state.panel='schema_relation';state.relation=e;state.selected=null;state.selectedRelation=canvasEdgeId(e);updateCanvasSelection();
+  if(e.rel==='source_review_target')return showBusinessRelation(e);
   if(e.rel==='source_supplies') {
     $('panel').innerHTML=`<h2>${t('取数来源')}</h2><p>${esc(schemaRelationLabel(e))}</p>`+
       `<p>${t('源对象通过只读连接从这个数据源取得；连接配置留在受控环境中。')}</p>`;
@@ -281,6 +299,13 @@ function showSchemaSummary() {
     `<p>${schemaObjects.filter(o=>o.object_kind==='table').length} ${t('源表')} · ${schemaObjects.filter(o=>o.object_kind==='view').length} ${t('源视图')} · ${fields} ${t('字段')}</p>`+
     `<p>${t('展开表查看字段，点击字段核对来源或添加评论。')}</p>`+
     `<p class="muted">${t('记录从详情下钻；源视图和二进制字段也保留在投影中。')}</p>`;
+  if(isSourceReview()) {
+    $('panel').insertAdjacentHTML('beforeend',`<h2>${t('源数据待核对')}</h2><p>${t('橙色是待核对的问题，不表示源数据已经出错；不会改写源值。')}</p>`);
+    for(const id of BUNDLE.business.source_review.definitions) {
+      const note=businessNodes.get(id),b=document.createElement('button');b.textContent=bt(note.label);
+      b.onclick=()=>revealBusiness(id);$('panel').appendChild(b);
+    }
+  }
 }
 function showSourceCoverage() {
   state.panel='coverage';

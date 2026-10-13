@@ -19,6 +19,10 @@
   SQL formula establishes what the source computes, not an approved business
   meaning. Agent proposals need explicit provenance and human confirmation.
 - Source SQL calculations and their result rows remain phase-one facts. Phase
+  one can also show explicitly unconfirmed `source_review` questions about those
+  facts, with source targets and a concrete verification plan. Keep the pure
+  projection separate from this review presentation; neither rewrites source data.
+  Data-quality questions are not phase-two business definitions. Phase
   two adds interpretations or new definitions in a separate business overlay.
   Use `compiler.business` for the overlay; declare provided/inferred origins,
   cite supplied evidence, reuse canonical definitions and increment versions

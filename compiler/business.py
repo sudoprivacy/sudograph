@@ -1,4 +1,4 @@
-"""Checked phase-two definitions over a pinned, unchanged phase-one snapshot.
+"""Checked source-review questions and business definitions over a pinned snapshot.
 
 This first overlay records meanings and questions, not executable metrics. The
 source reader remains the evidence; an origin is never business approval.
@@ -87,14 +87,15 @@ def compile_document(doc, model, *, _history=False):
             required.add("role")
         mapping(
             item, required | {"evidence", "applies_to", "grain", "scope"}
-            | (set() if legacy else {"purpose"}),
+            | (set() if legacy else {"purpose", "verification"}),
             required, where,
         )
         role = "business" if legacy else item["role"]
-        if role not in {"business", "source_evidence", "implementation_note"}:
+        if role not in {"business", "source_review", "source_evidence", "implementation_note"}:
             raise ValueError(
-                f"{where}.role: use business, source_evidence or implementation_note; "
-                "source SQL observations and arithmetic notes belong in evidence details"
+                f"{where}.role: use business, source_review, source_evidence or "
+                "implementation_note; data questions belong in phase-one source_review; "
+                "business proposals need a purpose"
             )
         if not isinstance(item["category"], str) or item["category"] not in {
             "meaning", "metric", "rule", "issue",
@@ -102,6 +103,14 @@ def compile_document(doc, model, *, _history=False):
             raise ValueError(f"{where}.category: use meaning, metric, rule or issue")
         for name in ("concept", "label", "statement"):
             text(item[name], f"{where}.{name}")
+        if role == "source_review":
+            if item["category"] != "issue":
+                raise ValueError(
+                    f"{where}: source_review requires category: issue, not a business policy"
+                )
+            text(item.get("verification"), f"{where}.verification")
+        elif "verification" in item:
+            raise ValueError(f"{where}: verification belongs to a phase-one source_review question")
         if item["origin"] not in ("provided", "inferred"):
             raise ValueError(
                 f"{where}.origin: use provided with evidence, or inferred for model deduction"
@@ -226,7 +235,15 @@ def compile_document(doc, model, *, _history=False):
                 "named business "
                 "meaning or metric; source fields alone do not establish its business purpose"
             )
-        if not legacy and definition["role"] != "business" and not refs:
+        if not legacy and definition["role"] == "source_review" and refs:
+            raise ValueError(
+                f"definition {definition['key']}: source_review references source targets only; "
+                "phase one must not depend on phase-two business definitions"
+            )
+        if (
+            not legacy and definition["role"] in {"source_evidence", "implementation_note"}
+            and not refs
+        ):
             raise ValueError(
                 f"definition {definition['key']}: attach supporting evidence/notes through "
                 "applies_to; do not place them in the business view"
@@ -259,9 +276,10 @@ def compile_document(doc, model, *, _history=False):
         for target in definition["applies_to"]:
             dependents[target].append(identity)
     views = {}
-    if not isinstance(doc["views"], dict) or not doc["views"]:
-        raise ValueError("views: declare at least one business view using definition references")
-    used = set()
+    review_ids = [i for i, n in definitions.items() if n.get("role") == "source_review"]
+    if not isinstance(doc["views"], dict) or (not doc["views"] and not review_ids):
+        raise ValueError("views: declare business views, or source_review questions for phase one")
+    used = set(review_ids)
     for key, item in doc["views"].items():
         mapping(item, {"label", "definitions"}, {"label", "definitions"}, f"view {key}")
         text(item["label"], f"view {key}.label")
@@ -275,7 +293,8 @@ def compile_document(doc, model, *, _history=False):
         ids = [keys[k] for k in refs]
         if not legacy and any(definitions[i]["role"] != "business" for i in ids):
             raise ValueError(
-                f"view {key}: source_evidence and implementation_note belong in details; "
+                f"view {key}: source_review belongs in phase one; "
+                "evidence/notes belong in details; "
                 "reference business definitions with a stakeholder and decision purpose"
             )
         # A view reuses dependencies by identity. A rule cannot be shown with its
@@ -289,7 +308,8 @@ def compile_document(doc, model, *, _history=False):
         for identity in attached:
             for dependent in dependents[identity]:
                 if (
-                    not legacy and definitions[dependent]["role"] != "business"
+                    not legacy
+                    and definitions[dependent]["role"] in {"source_evidence", "implementation_note"}
                     and dependent not in supporting_ids
                 ):
                     supporting_ids.add(dependent)
@@ -342,6 +362,9 @@ def compile_document(doc, model, *, _history=False):
     vocabulary = {item[name] for item in definitions.values() for name in ("label", "statement")}
     vocabulary.update(item["scope"] for item in definitions.values() if "scope" in item)
     vocabulary.update(
+        item["verification"] for item in definitions.values() if "verification" in item
+    )
+    vocabulary.update(
         value for item in definitions.values() for value in item.get("purpose", {}).values()
     )
     vocabulary.update(v["label"] for v in views.values())
@@ -360,6 +383,19 @@ def compile_document(doc, model, *, _history=False):
         "document": doc,
         "definitions": definitions,
         "views": views,
+        **({"source_review": {
+            "definitions": review_ids,
+            "edges": [
+                {
+                    "id": "sg-relation/" + digest([identity, target, "source_review_target"]),
+                    "from": target, "to": identity, "rel": "source_review_target",
+                    "origin": definitions[identity]["origin"],
+                    "contributor": definitions[identity]["contributor"],
+                    "review_status": "unreviewed",
+                }
+                for identity in review_ids for target in definitions[identity]["targets"]
+            ],
+        }} if review_ids else {}),
         "source_digest": digest(model),
     }
 

@@ -1,39 +1,31 @@
 {
-  "status": "current-revision-verified-candidate-awaits-manual-review",
+  "status": "approved-revision-live-source-review-candidate-ready",
   "target_url": "https://s.shareone.vip/s/sudograph-northwind",
   "target_share_id": "aSoJi9Ny94gwxXFc",
   "current_publication": {
-    "commit": "959f1d717a6cbde3e4611d61141235efdf65af52",
-    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/959f1d717a6cbde3e4611d61141235efdf65af52/examples/northwind/business/review.html",
-    "bytes": 11686891,
-    "sha256": "082b88decbd24a8b53313eb7b5d7a8b71eea085a3062728d4014ff129166092b",
-    "owner_download_matches_git_blob": true
+    "commit": "83614cffa136c5843763eab99dfcb73e81fc71e6",
+    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/83614cffa136c5843763eab99dfcb73e81fc71e6/examples/northwind/business/review.html",
+    "bytes": 11687309,
+    "sha256": "7e6667092bac5df019c14680deb99e767ef58dbe9788820ef4ee8737e7ab8d19",
+    "owner_download_matches_git_blob": true,
+    "review_id": "2841822d-b37b-4374-94f8-652456d16bd2",
+    "review_status": "approved",
+    "review_approved": true,
+    "actual_iframe_browser_verified": true
   },
   "pending_update": {
     "artifact": "review.html",
-    "bytes": 11687309,
-    "sha256": "7e6667092bac5df019c14680deb99e767ef58dbe9788820ef4ee8737e7ab8d19",
+    "bytes": 11702352,
+    "sha256": "9db642ddc33960f5ab5a1b6656659d5a378c561ba53341b700f8eae9360d7edc",
     "published": false,
     "canonical_definition_ids_preserved": 9,
+    "new_definition_ids": 0,
     "business_nodes": 4,
-    "supporting_evidence_notes": 5,
+    "source_review_questions": 3,
+    "supporting_evidence_notes": 2,
     "business_definitions_confirmed": 0,
     "phase_one_source_schema_views_records_unchanged": true,
     "comments_embedded": false,
-    "manual_html_edits": false,
-    "candidate_commit": "83614cffa136c5843763eab99dfcb73e81fc71e6",
-    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/83614cffa136c5843763eab99dfcb73e81fc71e6/examples/northwind/business/review.html",
-    "review_id": "2841822d-b37b-4374-94f8-652456d16bd2",
-    "review_status": "manual_required",
-    "review_approved": null,
-    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38399996040",
-    "ci_conclusion": "success",
-    "sync_refusal": {
-      "error_code": "CONTENT_REVIEW_REQUIRED",
-      "http_status": 409,
-      "reason": "Complete content exceeds the synchronous review budget and needs complete background review; no violation decision has been made."
-    },
-    "automatic_review_completed_at": "2026-10-13T13:03:10.391654Z",
-    "automatic_review_reason": "The reviewer could not establish the safety of the supplied SHA-256 hash-list material; the candidate requires manual review."
+    "manual_html_edits": false
   }
 }
