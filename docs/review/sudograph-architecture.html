@@ -111,7 +111,7 @@ async function textVersion(el){const content=readable(el).text;
   return'en/label/'+[...new Uint8Array(hash)].map(n=>n.toString(16).padStart(2,'0')).join('');}
 function paintPassages(){if(!CSS.highlights||typeof Highlight==='undefined')return false;
   CSS.highlights.set('architecture-comment-passage',new Highlight(...passages.values()));return true;}
-async function revealText({commentId,id,text,signal}){const key=byAnchor.get(id);if(!key||!ready)return'unresolved';
+async function revealText({commentId,id,text,signal}){passages.delete(commentId);paintPassages();const key=byAnchor.get(id);if(!key||!ready)return'unresolved';
   focusNode(key);apply();if(signal?.aborted||!text||!bridge.resolveText)return'unresolved';
   const el=elements.get(key),content=readable(el),span=bridge.resolveText(content.text,text,await textVersion(el));
   if(!span||signal?.aborted)return'unresolved';
@@ -168,7 +168,7 @@ function endDrag(e){if(!drag)return;const moved=drag.moved;drag=null;viewport.cl
   try{viewport.releasePointerCapture(e.pointerId);}catch{}if(moved)e.preventDefault();}
 viewport.addEventListener('pointerup',endDrag);viewport.addEventListener('pointercancel',endDrag);
 viewport.addEventListener('click',e=>{const el=e.target.closest('g.node[data-source-node]');if(!el||document.body.classList.contains('shareone-point-comment-mode'))return;
-  if(commentMode){const rect=rectOf(el);if(rect)bridge?.select({id:idOf(el.dataset.sourceNode),label:source.nodes[el.dataset.sourceNode].replaceAll('<br/>',' / '),context:{diagram:'Where this sits',source_sha256:source.sha256}},rect);}
+  if(commentMode){const rect=rectOf(el);if(rect)bridge?.select({id:idOf(el.dataset.sourceNode),label:source.nodes[el.dataset.sourceNode].replaceAll('<br/>',' / '),context:JSON.stringify({diagram:'Where this sits',source_sha256:source.sha256})},rect);}
   else elements.forEach(n=>n.classList.toggle('selected',n===el));});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('diagram-section').classList.contains('expanded')){expand(false);$('expand').focus();}});
 new ResizeObserver(()=>{if(view.fitted)fit();else schedule();}).observe(viewport);
