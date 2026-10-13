@@ -1,0 +1,248 @@
+"""Publisher authority, revision binding and crash recovery on unrelated data."""
+
+import copy
+import hashlib
+import json
+
+import pytest
+import yaml
+
+from compiler import business, managed
+from compiler.gitlab import Client, GitLabError
+from tools.gitlab_stack import fixture_baseline
+
+SEED, FIRST, SECOND = "a" * 40, "b" * 40, "c" * 40
+
+
+def overlay(baseline, *, version=1, statement="Should refunds reduce ticket amounts?"):
+    obj = next(
+        o for o in baseline["source_schema"]["sources"][0]["objects"] if o["name"] == "Tickets"
+    )
+    return {
+        "format": business.FORMAT,
+        "namespace": "tickets",
+        "baseline": {"manifest": "registered-source-baseline", "sha256": business.digest(baseline)},
+        "definitions": {
+            "refund": {
+                "concept": "refund policy",
+                "category": "meaning",
+                "label": "Refund policy",
+                "statement": statement,
+                "origin": "inferred",
+                "contributor": "model",
+                "version": version,
+                "targets": [obj["id"]],
+            }
+        },
+        "views": {"meaning": {"label": "Business meaning", "definitions": ["refund"]}},
+    }
+
+
+class GitLabFixture:
+    """Protocol fake for unit boundaries; real deployment is checked separately."""
+
+    def __init__(self, baseline):
+        self.content = {
+            SEED: json.dumps(
+                {"format": managed.SOURCE_REQUEST, "baseline": overlay(baseline)["baseline"]}
+            ),
+            FIRST: yaml.safe_dump(overlay(baseline)),
+        }
+        self.head = SEED
+        self.mr_value = {
+            "iid": 1,
+            "source_project_id": 1,
+            "target_project_id": 1,
+            "target_branch": "main",
+            "author": {"id": 10},
+            "sha": FIRST,
+            "state": "opened",
+            "draft": False,
+            "head_pipeline": {"id": 30, "sha": FIRST, "status": "success"},
+        }
+        self.approved = [20]
+        self.lose_merge_response = False
+        self.merge_count = 0
+        self.extra_file = False
+
+    def request(self, path, *, method="GET", data=None, params=None):
+        if path == "/projects/1":
+            return {
+                "visibility": "private",
+                "ci_config_path": "pipeline.yml@operator/checks",
+                "only_allow_merge_if_pipeline_succeeds": True,
+                "allow_merge_on_skipped_pipeline": False,
+                "merge_method": "ff",
+            }
+        if path.endswith("/protected_branches/main"):
+            return {
+                "allow_force_push": False,
+                "push_access_levels": [{"access_level": 0}],
+                "merge_access_levels": [{"access_level": 40}],
+            }
+        if path.endswith("/repository/branches/main"):
+            return {"commit": {"id": self.head}}
+        if path.endswith("/approvals"):
+            return {"approved_by": [{"user": {"id": i}} for i in self.approved]}
+        if path.endswith("/merge") and method == "PUT":
+            assert data["sha"] == self.mr_value["sha"]
+            self.merge_count += 1
+            self.head = self.mr_value["sha"]
+            self.mr_value.update(state="merged", merge_commit_sha=self.head)
+            if self.lose_merge_response:
+                raise GitLabError("remote response lost")
+            return copy.deepcopy(self.mr_value)
+        raise AssertionError(path)
+
+    def file(self, project, name, ref):
+        return "operator-owned pipeline" if project == 2 else self.content[ref]
+
+    def pages(self, path, **params):
+        if path.endswith("/tree"):
+            result = [{"path": managed.MODEL_FILE, "mode": "100644"}]
+            return result + ([{"path": "review.html", "mode": "100644"}] if self.extra_file else [])
+        if path.endswith("/commits"):
+            sha = params["ref_name"]
+            ids = [SEED] if sha == SEED else [sha, SEED]
+            return [{"id": i} for i in ids]
+        if path.endswith("/jobs"):
+            return [{"name": "sudograph-verify", "status": "success"}]
+        raise AssertionError(path)
+
+    def mr(self, project, iid):
+        assert project == 1 and iid == 1
+        return copy.deepcopy(self.mr_value)
+
+
+@pytest.fixture
+def installed(tmp_path, monkeypatch):
+    baseline = fixture_baseline(tmp_path)
+    path = tmp_path / "baseline.json"
+    path.write_text(json.dumps(baseline), encoding="utf8")
+    fake = GitLabFixture(baseline)
+    monkeypatch.setattr(managed, "Client", lambda *args, **kwargs: fake)
+    policy = {
+        "gitlab_url": "https://gitlab.example",
+        "allow_http": False,
+        "token": "publisher",
+        "webhook_secret": "s" * 48,
+        "project_id": 1,
+        "pipeline_project_id": 2,
+        "ci_config_path": "pipeline.yml@operator/checks",
+        "ci_config_sha256": hashlib.sha256(b"operator-owned pipeline").hexdigest(),
+        "baseline_file": str(path),
+        "state_dir": str(tmp_path / "state"),
+        "authors": [10],
+        "reviewers": [20],
+        "language": "en",
+        "bootstrap_sha": SEED,
+        "namespace": "tickets",
+    }
+    return managed.Publisher(policy), fake, baseline
+
+
+def approve(publisher, *, sha=FIRST, reviewer=20, secret=None):
+    return publisher.review_event(
+        secret or publisher.policy["webhook_secret"],
+        {
+            "object_kind": "merge_request",
+            "project": {"id": 1},
+            "user": {"id": reviewer},
+            "object_attributes": {"iid": 1, "action": "approved", "last_commit": {"id": sha}},
+        },
+    )
+
+
+def test_source_namespace_and_versions_are_checked_without_caller_commands(installed):
+    publisher, _, baseline = installed
+    doc = overlay(baseline)
+    first, registry = managed.compile_model(yaml.safe_dump(doc), baseline, namespace="tickets")
+    assert first["source_schema"] == baseline["source_schema"]
+    doc["definitions"]["refund"]["statement"] = "A changed meaning"
+    with pytest.raises(ValueError, match="new version"):
+        managed.compile_model(yaml.safe_dump(doc), baseline, registry, namespace="tickets")
+    doc["definitions"]["refund"]["version"] = 2
+    second, _ = managed.compile_model(yaml.safe_dump(doc), baseline, registry, namespace="tickets")
+    assert set(first["business"]["definitions"]) == set(second["business"]["definitions"])
+    doc["namespace"] = "another-copy"
+    with pytest.raises(managed.Refused, match="namespace"):
+        managed.compile_model(yaml.safe_dump(doc), baseline, namespace="tickets")
+    pin = publisher.pin
+    with pytest.raises(managed.Refused, match="phase one"):
+        managed.compile_model(
+            json.dumps({"format": managed.SOURCE_REQUEST, "baseline": pin, "definitions": {}}),
+            baseline,
+        )
+
+
+def test_false_or_stale_or_self_approval_cannot_publish(installed):
+    publisher, fake, _ = installed
+    with pytest.raises(managed.Refused, match="no authenticated approval"):
+        publisher.release(1)
+    with pytest.raises(managed.Refused, match="could not be authenticated"):
+        approve(publisher, secret="forged")
+    with pytest.raises(managed.Refused, match="authorised reviewer"):
+        approve(publisher, reviewer=10)
+    approve(publisher)
+    fake.mr_value["sha"] = SECOND
+    with pytest.raises(managed.Refused, match="no authenticated approval"):
+        publisher.release(1)
+    with pytest.raises(managed.Refused, match="current open proposal"):
+        approve(publisher)
+    assert fake.merge_count == 0
+
+
+def test_withdrawn_approval_and_skipped_ci_are_not_authority(installed):
+    publisher, fake, _ = installed
+    approve(publisher)
+    fake.approved = []
+    with pytest.raises(managed.Refused, match="no authenticated approval"):
+        publisher.release(1)
+    fake.approved = [20]
+    fake.mr_value["head_pipeline"]["status"] = "skipped"
+    with pytest.raises(managed.Refused, match="successful pipeline"):
+        publisher.release(1)
+    fake.mr_value["head_pipeline"]["status"] = "success"
+    fake.extra_file = True
+    with pytest.raises(managed.Refused, match="unregistered files"):
+        publisher.release(1)
+    assert fake.merge_count == 0
+
+
+def test_lost_merge_response_recovers_exact_prepared_release(installed):
+    publisher, fake, baseline = installed
+    approve(publisher)
+    fake.lose_merge_response = True
+    with pytest.raises(GitLabError, match="response lost"):
+        publisher.release(1)
+    restarted = managed.Publisher(publisher.policy)
+    receipt = restarted.release(1)
+    assert receipt["source_sha"] == FIRST == receipt["merge_sha"]
+    assert receipt["baseline"]["sha256"] == business.digest(baseline)
+    assert receipt["business_confirmation"] == "not inferred from merge approval"
+    assert fake.merge_count == 1
+    assert restarted.release(1) == receipt
+
+
+def test_changed_prepared_artifact_is_not_recovered(installed):
+    publisher, fake, _ = installed
+    approve(publisher)
+    fake.lose_merge_response = True
+    with pytest.raises(GitLabError):
+        publisher.release(1)
+    (publisher.state / (FIRST + ".html")).write_text("edited HTML", encoding="utf8")
+    with pytest.raises(managed.Refused, match="differs from prepared release"):
+        managed.Publisher(publisher.policy).release(1)
+
+
+def test_gitlab_credentials_require_a_canonical_trusted_url():
+    for url in [
+        "http://gitlab.example",
+        "https://token@gitlab.example",
+        "https://gitlab.example?token=secret",
+        "file:///tmp/gitlab",
+    ]:
+        with pytest.raises(GitLabError):
+            Client(url, "credential")
+    with pytest.raises(GitLabError, match="credential"):
+        Client("https://gitlab.example", "credential\r\nInjected: true")
