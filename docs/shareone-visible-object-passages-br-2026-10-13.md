@@ -80,19 +80,27 @@ shared renderer; local browser checks verify exact native ranges, cached batches
 request-scoped cancellation, hidden-detail handling and independent mark visibility.
 Twenty camera updates caused zero readable-text scans and no graph rebuild.
 
-The published Sudograph revision is
-[`f8af300`](https://github.com/sudoprivacy/sudograph/commit/f8af300ec1f4c4dc54cd28874d95aa8124afe020).
-Its source-review presentations and whole-file publication are verified. However,
-the anonymous production iframe SDK still exposes only `configure`, `select`,
-`report`, `reportText`, `resolveText`, `activate` and `on`. Both
-`typeof window.__SHAREONE__.anchors.resyncText` and `activateComment` return
-`undefined`. Its `on` implementation also lacks the new marks/passive callbacks.
-The shell asset is `/assets/share-shell-DXITiRSp.js`. Reopening the share with
-Chrome network caching disabled produces the same result.
+The first production check preceded the ShareOne frontend deployment and found
+the new methods absent. ShareOne [PR #311](https://github.com/sudoprivacy/shareone/pull/311)
+has since passed all seven CI checks and deployed the shell and injected SDK
+together. The production iframe now exposes both methods; Skill 1.11.0 is
+available from the service and all three distribution channels.
 
-Please check that the frontend shell and generated iframe SDK from the new
-implementation are deployed together, and verify the public share host rather
-than only source tests or updated skill documentation. Keep this issue open
-until existing unchanged passages restore passively, mark switches affect both
-channels, and native passage clicks activate the exact existing thread.
-No test comments were submitted and no private comment text is included here.
+The original review URL now serves
+[`97e892e`](https://github.com/sudoprivacy/sudograph/commit/97e892e2b742d8e3f3112db879733e48c8e7dca4).
+Its full 11,702,718 bytes match the checked Git export. A fresh ai-dev-browser
+check on desktop and touch viewports verifies graph rendering, separate host
+mark switches, authorised reattachment controls and cancellation without writes.
+All 47 existing discussion threads and the prior approval record are unchanged.
+No test comments were submitted to this working review.
+
+The complete current renderer also passes local browser checks: two fresh
+passages restore without changing view, selection, panel state or camera;
+400 camera updates perform zero readable-text scans. Historical captures from
+changed label versions remain pending or unresolved as appropriate. They are
+not rewritten or silently rebound. Authenticated synthetic browser coverage
+verifies new-thread focus after mount, two passages on one object, exact thread
+activation, separate mark channels and changed-version rejection.
+An independent production QA share also passes trusted authenticated submission,
+two standing native passages, new-thread focus, exact comment activation and
+separate text/object visibility. The synthetic share and its comments were removed.

@@ -72,8 +72,9 @@
     "production_source_review_presentations_verified": true,
     "local_passive_passage_checks_passed": true,
     "local_passive_pan_text_scans": 0,
-    "production_passive_sdk_available": false,
-    "production_exact_thread_activation_available": false
+    "production_passive_sdk_available": true,
+    "production_exact_thread_activation_available": true,
+    "production_independent_mark_controls_verified": true
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
   "publication": "publication.json",
