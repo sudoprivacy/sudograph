@@ -40,3 +40,12 @@ outdated internal account-creation path and a verifier comparing the pre-YAML
 representation. The deployment now probes the public Rails sign-in endpoint,
 uses the supported Users API and verifies the exact submitted YAML representation.
 The checks were retained; no retry converts a failed check into success.
+
+A later clean deployment exposed a first-push race: GitLab's default-branch
+protection worker could recreate its default rule between an unprotect request
+and a replacement request, producing HTTP 409. Provisioning now installs and
+reads back the required protection on each empty repository before its first
+commit or any author membership. It never removes that initial protection.
+The ordering and rejection of permissive rules have regression coverage; a
+real local GitLab CE probe also verified initial commits by a non-admin project
+owner with the protection already installed.

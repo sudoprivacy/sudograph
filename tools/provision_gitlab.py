@@ -13,10 +13,32 @@ import secrets
 from pathlib import Path
 
 from compiler import business
-from compiler.gitlab import Client, GitLabError
+from compiler.gitlab import Client
 from compiler.managed import MODEL_FILE, SOURCE_REQUEST, compile_model
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def protect_main(client, project):
+    """Install protection before the first commit can trigger GitLab defaults."""
+    path = f"/projects/{project['id']}/protected_branches"
+    client.request(
+        path,
+        method="POST",
+        data={
+            "name": "main",
+            "push_access_level": 0,
+            "merge_access_level": 40,
+            "allow_force_push": False,
+        },
+    )
+    checked = client.request(path + "/main")
+    if (
+        checked.get("allow_force_push") is not False
+        or [row.get("access_level") for row in checked.get("push_access_levels", [])] != [0]
+        or [row.get("access_level") for row in checked.get("merge_access_levels", [])] != [40]
+    ):
+        raise ValueError("GitLab did not install the required main-branch protection")
 
 
 def provision(client, *, config, baseline):
@@ -68,6 +90,10 @@ def provision(client, *, config, baseline):
         for name in names
     ]
     infrastructure, model = projects
+    # Empty repositories can have protected branch names. Install the rules
+    # before GitLab's first-push worker or a registered author can write main.
+    for project in projects:
+        protect_main(client, project)
     pipeline = (
         (ROOT / "infra/gitlab/pipeline.yml")
         .read_text(encoding="utf8")
@@ -122,23 +148,6 @@ def provision(client, *, config, baseline):
             ],
         },
     )
-    # GitLab protects an initial default branch; replace that default explicitly.
-    for project in projects:
-        try:
-            client.request(f"/projects/{project['id']}/protected_branches/main", method="DELETE")
-        except GitLabError as exc:
-            if exc.status != 404:
-                raise
-        client.request(
-            f"/projects/{project['id']}/protected_branches",
-            method="POST",
-            data={
-                "name": "main",
-                "push_access_level": 0,
-                "merge_access_level": 40,
-                "allow_force_push": False,
-            },
-        )
     webhook_secret = secrets.token_urlsafe(48)
     client.request(
         f"/projects/{model['id']}/hooks",

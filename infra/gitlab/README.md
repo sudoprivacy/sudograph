@@ -65,7 +65,8 @@ python -m tools.provision_gitlab /private/config.json --baseline /private/source
 ```
 
 Provisioning authenticates the publisher and validates the baseline before
-creating resources. It writes operator-owned `policy.json`, `baseline.json`,
+creating resources. It installs and verifies main-branch protection before the
+initial commits and author memberships. It writes operator-owned `policy.json`, `baseline.json`,
 `worker.json` and `runner.toml`. Install those in the same private publisher state
 and read-only trusted-input mounts used by Compose. The generated runner's network
 and volume names belong to this Docker deployment profile; adapt them as operator
@@ -105,7 +106,8 @@ an unchecked combination of model inputs.
 
 GitLab CE's optional approvals alone are not a mandatory review gate. Only the
 service identity can perform managed merges; Sudograph requires the authenticated
-SHA-bound event as well as current native approval. It does not trust an author's
+SHA-bound event as well as current native approval and reviewer membership.
+It does not trust an author's
 success flag, an approval count for another revision or a model-branch CI script.
 Removing approval before the publisher's final check blocks the release. That
 check is the publication decision point; later revocation does not erase history

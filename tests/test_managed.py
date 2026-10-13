@@ -10,6 +10,7 @@ import yaml
 from compiler import business, managed
 from compiler.gitlab import Client, GitLabError
 from tools.gitlab_stack import fixture_baseline
+from tools.provision_gitlab import protect_main, provision
 
 SEED, FIRST, SECOND = "a" * 40, "b" * 40, "c" * 40
 
@@ -272,3 +273,84 @@ def test_native_approval_does_not_outlive_reviewer_membership(installed):
     with pytest.raises(managed.Refused, match="no authenticated approval"):
         publisher.release(1)
     assert fake.merge_count == 0
+
+
+def test_provision_protects_empty_projects_before_first_push_or_membership(installed, monkeypatch):
+    _, _, baseline = installed
+
+    class FirstPushDefaults:
+        url = "https://gitlab.example"
+
+        def __init__(self):
+            self.protected = {}
+            self.projects = 0
+            self.defaults_created = 0
+
+        def actor(self):
+            return {"id": 1}
+
+        def request(self, path, *, method="GET", data=None):
+            if path == "/projects":
+                self.projects += 1
+                return {"id": self.projects, "path_with_namespace": "owner/" + data["name"]}
+            if path == "/user/runners":
+                return {"token": "synthetic-runner"}
+            project = int(path.split("/")[2])
+            if path.endswith("/protected_branches"):
+                if project in self.protected:
+                    raise GitLabError("default protection already exists", status=409)
+                self.protected[project] = {
+                    "allow_force_push": data["allow_force_push"],
+                    "push_access_levels": [{"access_level": data["push_access_level"]}],
+                    "merge_access_levels": [{"access_level": data["merge_access_level"]}],
+                }
+                return self.protected[project]
+            if path.endswith("/protected_branches/main"):
+                assert method == "GET", "initial protection must never be removed"
+                return self.protected[project]
+            if path.endswith("/repository/commits"):
+                if project not in self.protected:
+                    self.defaults_created += 1
+                    self.protected[project] = {"push_access_levels": [{"access_level": 30}]}
+                return {"id": SEED}
+            if path.endswith("/members"):
+                assert self.protected[project]["push_access_levels"] == [{"access_level": 0}]
+                return {}
+            if path.endswith("/hooks") or path == f"/projects/{project}":
+                return {}
+            raise AssertionError(path)
+
+    class PublisherIdentity:
+        def actor(self):
+            return {"id": 40}
+
+    monkeypatch.setattr(
+        "tools.provision_gitlab.Client", lambda *args, **kwargs: PublisherIdentity()
+    )
+    client = FirstPushDefaults()
+    provision(
+        client,
+        config={
+            "pipeline_name": "checks", "model_name": "tickets", "publisher_id": 40,
+            "publisher_token": "synthetic", "authors": [10], "reviewers": [20],
+            "worker_gitlab_url": "https://gitlab.example", "allow_http": False,
+            "image": "operator-compiler", "language": "en",
+            "webhook_url": "https://publisher.example/hooks/gitlab",
+        },
+        baseline=baseline,
+    )
+    assert client.defaults_created == 0
+    assert len(client.protected) == 2
+
+
+def test_provision_refuses_a_protection_response_that_still_allows_pushes():
+    class PermissiveProtection:
+        def request(self, path, *, method="GET", data=None):
+            return {
+                "allow_force_push": False,
+                "push_access_levels": [{"access_level": 0}, {"access_level": 30}],
+                "merge_access_levels": [{"access_level": 40}],
+            }
+
+    with pytest.raises(ValueError, match="required main-branch protection"):
+        protect_main(PermissiveProtection(), {"id": 1})
