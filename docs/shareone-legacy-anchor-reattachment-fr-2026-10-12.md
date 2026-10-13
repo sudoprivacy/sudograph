@@ -1,5 +1,11 @@
 # FR: audited reattachment of legacy comments without a captured text range
 
+Status update (2026-10-13): ShareOne PR #306 implements the audited reattachment
+UI/API and is deployed. Production thread metadata exposes `viewer_can_reattach`
+and `anchor_binding`, and the binding-history endpoint is available. No existing
+review thread was migrated automatically: the commenter must explicitly select
+and confirm the replacement. The reproduction and request below are historical.
+
 Date: 2026-10-12. Scope: ShareOne's generic comment UI/API, not a Northwind
 special case. This is a feature request for legacy-comment repair, not a request
 to infer text that was never recorded. ShareOne source was inspected read-only.

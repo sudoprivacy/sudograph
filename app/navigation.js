@@ -47,7 +47,7 @@ $('navBack').onclick=navigationBack;
 document.addEventListener('click',event=>{
   const target=event.target;
   if(target.closest('#navBack, #language, .schema-comment, [data-comment-only], [data-binary-download]'))return;
-  if(target.closest('#panel button, #panel a, .canvas-label, .canvas-edge-label, .graph-tools button, header button'))navigationBegin();
+  if(target.closest('#detailsSidebar button, #panel a, #panelReveal, .canvas-label, .canvas-edge-label, .graph-tools button, header button'))navigationBegin();
 },true);
 document.addEventListener('change',event=>{
   if(event.target.id!=='language'&&event.target.closest('header, .graph-tools'))navigationBegin();

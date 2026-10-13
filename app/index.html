@@ -43,13 +43,21 @@
                 border-radius:5px;padding:4px 8px;font:inherit;font-size:12px}
   button{cursor:pointer}
   button.on{border-color:var(--entry);color:#fff}
-  main{flex:1;display:flex;min-height:0}
+  main{flex:1;display:flex;min-height:0;position:relative}
   #cy{flex:1;min-width:0;position:relative;overflow:hidden}
   /* The panel sits on the left because the carrier puts comments on the right:
      two columns of text on the same edge means the one you are reading and the
      one you are writing overlap, and a reader loses whichever is underneath. */
-  aside{order:-1;width:340px;border-right:1px solid var(--line);background:var(--panel);
-        overflow:auto;padding:14px 16px}
+  aside{order:-1;width:340px;flex-shrink:0;border-right:1px solid var(--line);background:var(--panel);
+        display:flex;flex-direction:column;min-height:0}
+  .panel-controls{display:flex;justify-content:flex-end;padding:8px 12px;
+    border-bottom:1px solid var(--line);flex-shrink:0}
+  #panel{overflow:auto;padding:14px 16px;min-height:0;flex:1}
+  #panelReveal{position:absolute;left:12px;bottom:12px;z-index:10;
+    width:40px;height:40px;border-radius:50%;padding:0;font-size:20px;
+    border-color:#687d9b;background:#26364d;box-shadow:0 2px 8px #0004}
+  #panelReveal:hover{background:#354967;border-color:#a8c4ed}
+  #panelToggle:focus-visible,#panelReveal:focus-visible{outline:2px solid #a8c4ed;outline-offset:3px}
   aside h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;
            color:var(--dim);margin:18px 0 8px;font-weight:600}
   aside h2:first-child{margin-top:0}
@@ -151,7 +159,6 @@
   <span id="legend"></span>
 </header>
 <div class="graph-tools">
-  <button id="panelToggle" aria-controls="panel" aria-expanded="true" data-ui="收起详情">收起详情</button>
   <button id="navBack" data-ui="返回上一步" disabled>返回上一步</button>
   <button id="fit" data-ui="适应画布">适应画布</button>
   <button id="relayout" data-ui="重新排布">重新排布</button>
@@ -178,7 +185,11 @@
 </div>
 <main>
   <div id="cy"></div>
-  <aside id="panel"><p class="muted" data-ui="点一个节点看它的来历。">点一个节点看它的来历。</p></aside>
+  <aside id="detailsSidebar">
+    <div class="panel-controls"><button id="panelToggle" aria-controls="detailsSidebar" aria-expanded="true" data-ui="收起详情">收起详情</button></div>
+    <div id="panel"><p class="muted" data-ui="点一个节点看它的来历。">点一个节点看它的来历。</p></div>
+  </aside>
+  <button id="panelReveal" aria-controls="detailsSidebar" aria-expanded="false" hidden><span aria-hidden="true">☷</span></button>
 </main>
 <footer><span id="status" style="display:flex;gap:16px;flex-wrap:wrap"></span><span id="edgeLabelNotice"></span><span id="accessNotice"></span></footer>
 
@@ -221,13 +232,21 @@ for(const option of $('projection').options)option.hidden=option.value.startsWit
 $('projection').value = state.projection;
 let panelSizeChanged=false;
 function syncPanelToggle() {
-  $('panel').hidden=state.panelCollapsed;
-  $('panelToggle').textContent=t(state.panelCollapsed?'展开详情':'收起详情');
+  $('detailsSidebar').hidden=state.panelCollapsed;
+  $('panelReveal').hidden=!state.panelCollapsed;
+  $('panelToggle').textContent=t('收起详情');
   $('panelToggle').setAttribute('aria-expanded',String(!state.panelCollapsed));
+  $('panelReveal').setAttribute('aria-label',t('展开详情'));
+  $('panelReveal').title=t('展开详情');
 }
-$('panelToggle').onclick=()=>{
+function togglePanel() {
+  const focused=document.activeElement=== $('panelToggle') || document.activeElement=== $('panelReveal');
   state.panelCollapsed=!state.panelCollapsed;panelSizeChanged=true;syncPanelToggle();
-};
+  if(focused)$(state.panelCollapsed?'panelReveal':'panelToggle').focus({preventScroll:true});
+}
+$('panelToggle').onclick=togglePanel;
+$('panelReveal').onclick=togglePanel;
+syncPanelToggle();
 $('projection').onchange = e => { state.projection = e.target.value; state.focus=null;draw(); };
 $('schemaKind').onchange=e=>{state.schemaKind=e.target.value;state.focus=null;draw();};
 $('checksBtn').onclick = () => { state.panel = 'checks'; showChecks(view()); };
