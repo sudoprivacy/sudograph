@@ -182,6 +182,35 @@ def test_managed_contract_and_write_path_enforce_business_purpose(installed):
         managed.compile_model(yaml.safe_dump(doc), baseline, namespace="tickets")
 
 
+def test_old_accepted_history_keeps_ids_and_versions_without_allowing_old_submissions(installed):
+    publisher, fake, baseline = installed
+    old = overlay(baseline)
+    old["format"] = "sudograph-business-overlay/v3"
+    for item in old["definitions"].values():
+        del item["role"]
+        del item["purpose"]
+    fake.content[FIRST] = yaml.safe_dump(old)
+    fake.head = FIRST
+    previous = publisher.registry(FIRST)
+    assert len(previous["definitions"]) == 1
+    identity = next(iter(previous["definitions"]))
+    assert previous["definitions"][identity]["version"] == 1
+    contract = publisher.contract()
+    assert contract["identity_registry"] == previous
+    assert contract["business_format"] == business.FORMAT
+    with pytest.raises(ValueError, match="use format"):
+        managed.compile_model(fake.content[FIRST], baseline, previous, namespace="tickets")
+    upgraded = overlay(baseline)
+    with pytest.raises(ValueError, match="new version"):
+        managed.compile_model(yaml.safe_dump(upgraded), baseline, previous, namespace="tickets")
+    upgraded["definitions"]["refund"]["version"] = 2
+    model, registry = managed.compile_model(
+        yaml.safe_dump(upgraded), baseline, previous, namespace="tickets"
+    )
+    assert set(model["business"]["definitions"]) == {identity}
+    assert registry["definitions"][identity]["version"] == 2
+
+
 def test_source_namespace_and_versions_are_checked_without_caller_commands(installed):
     publisher, _, baseline = installed
     doc = overlay(baseline)

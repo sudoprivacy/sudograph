@@ -157,6 +157,10 @@ the decision it supports. This enforces an explicit reviewable business purpose;
 it cannot prove that prose describes the right business or that a model chose
 the right role. Human review remains necessary. Older contract versions are
 refused, including by the managed publisher and direct renderer.
+The operator-anchored accepted Git history has a separate v3 decoder solely to
+rebuild the identity/version registry. It preserves old content digests; it
+cannot submit, render or release a v3 model. Upgrading a definition requires the
+same canonical ID, the new required fields and a higher content version.
 
 Every definition declares `category: meaning`, `metric`, `rule` or `issue`.
 Metrics require a source-field grain and an explicit proposed scope. A rule

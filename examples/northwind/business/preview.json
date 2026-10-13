@@ -36,7 +36,7 @@
     "unreviewed_outline": "--hook"
   },
   "validation": {
-    "tests_passed": 325,
+    "tests_passed": 326,
     "browser_tool": "ai-dev-browser",
     "source_field_to_real_records": true,
     "source_node_references_shared_in_renderer": true,

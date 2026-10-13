@@ -60,7 +60,7 @@ def parse_document(content):
         return read_document(str(path))
 
 
-def compile_model(content, baseline, previous=None, *, namespace=None):
+def compile_model(content, baseline, previous=None, *, namespace=None, _history=False):
     source_schema.validate(baseline["source_schema"])
     if (
         baseline.get("projection", {}).get("mode") != "source_projection"
@@ -91,7 +91,13 @@ def compile_model(content, baseline, previous=None, *, namespace=None):
                 "model changed its registered identity namespace",
                 "Reuse the namespace returned by contract; views do not allocate identities",
             )
-        model = business.build(doc, baseline)
+        if _history and doc.get("format") == "sudograph-business-overlay/v3":
+            # Only the operator-anchored target history uses this decoder. New
+            # submissions, CI, release checks and HTML rendering remain strict.
+            decoded = business.compile_document(doc, baseline["source_schema"], _history=True)
+            model = {"business": decoded}
+        else:
+            model = business.build(doc, baseline)
         registry = business.registry(model, previous or {})
     return model, registry
 
@@ -284,7 +290,8 @@ class Publisher:
         previous = {}
         for sha in reversed(history):
             _, previous = compile_model(
-                self.document(sha), self.baseline, previous, namespace=self.policy["namespace"]
+                self.document(sha), self.baseline, previous,
+                namespace=self.policy["namespace"], _history=True,
             )
         self.registry_cache[head] = previous
         return previous

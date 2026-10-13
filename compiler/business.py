@@ -50,14 +50,15 @@ def source_nodes(model):
     }
 
 
-def compile_document(doc, model):
+def compile_document(doc, model, *, _history=False):
     mapping(
         doc,
         {"format", "namespace", "baseline", "documents", "definitions", "views", "translations"},
         {"format", "namespace", "baseline", "definitions", "views"},
         "business overlay",
     )
-    if doc["format"] != FORMAT:
+    legacy = _history and doc["format"] == "sudograph-business-overlay/v3"
+    if doc["format"] != FORMAT and not legacy:
         raise ValueError(f"business overlay: use format: {FORMAT}")
     namespace = text(doc["namespace"], "namespace")
     mapping(doc["baseline"], {"manifest", "sha256"}, {"manifest", "sha256"}, "baseline pin")
@@ -80,13 +81,16 @@ def compile_document(doc, model):
         where = f"definition {key}"
         required = {
             "concept", "category", "label", "statement", "origin",
-            "contributor", "targets", "version", "role",
+            "contributor", "targets", "version",
         }
+        if not legacy:
+            required.add("role")
         mapping(
-            item, required | {"evidence", "applies_to", "grain", "scope", "purpose"},
+            item, required | {"evidence", "applies_to", "grain", "scope"}
+            | (set() if legacy else {"purpose"}),
             required, where,
         )
-        role = item["role"]
+        role = "business" if legacy else item["role"]
         if role not in {"business", "source_evidence", "implementation_note"}:
             raise ValueError(
                 f"{where}.role: use business, source_evidence or implementation_note; "
@@ -113,7 +117,7 @@ def compile_document(doc, model):
             or item["category"] != "meaning"
         ):
             raise ValueError(f"{where}: source_evidence requires a provided source observation")
-        if role == "business" and item["category"] in {"meaning", "metric"}:
+        if not legacy and role == "business" and item["category"] in {"meaning", "metric"}:
             purpose = mapping(
                 item.get("purpose"), {"stakeholder", "decision"},
                 {"stakeholder", "decision"}, f"{where}.purpose",
@@ -209,9 +213,11 @@ def compile_document(doc, model):
             raise ValueError(
                 f"definition {definition['key']}.applies_to: reference other canonical definitions"
             )
-        if definition["role"] == "business" and definition["category"] in {"rule", "issue"} and (
+        if (definition["category"] == "rule" or (
+            not legacy and definition["role"] == "business" and definition["category"] == "issue"
+        )) and (
             not refs or any(
-                definitions[keys[k]]["role"] != "business"
+                (not legacy and definitions[keys[k]]["role"] != "business")
                 or definitions[keys[k]]["category"] not in {"meaning", "metric"} for k in refs
             )
         ):
@@ -220,12 +226,12 @@ def compile_document(doc, model):
                 "named business "
                 "meaning or metric; source fields alone do not establish its business purpose"
             )
-        if definition["role"] != "business" and not refs:
+        if not legacy and definition["role"] != "business" and not refs:
             raise ValueError(
                 f"definition {definition['key']}: attach supporting evidence/notes through "
                 "applies_to; do not place them in the business view"
             )
-        if definition["role"] == "business" and any(
+        if not legacy and definition["role"] == "business" and any(
             definitions[keys[k]]["role"] != "business" for k in refs
         ):
             raise ValueError(
@@ -267,7 +273,7 @@ def compile_document(doc, model):
                 f"view {key}: duplicate or unknown definition; reference an existing key"
             )
         ids = [keys[k] for k in refs]
-        if any(definitions[i]["role"] != "business" for i in ids):
+        if not legacy and any(definitions[i]["role"] != "business" for i in ids):
             raise ValueError(
                 f"view {key}: source_evidence and implementation_note belong in details; "
                 "reference business definitions with a stakeholder and decision purpose"
@@ -282,7 +288,10 @@ def compile_document(doc, model):
         attached, supporting_ids = list(ids), set()
         for identity in attached:
             for dependent in dependents[identity]:
-                if definitions[dependent]["role"] != "business" and dependent not in supporting_ids:
+                if (
+                    not legacy and definitions[dependent]["role"] != "business"
+                    and dependent not in supporting_ids
+                ):
                     supporting_ids.add(dependent)
                     attached.append(dependent)
         supporting = [identity for identity in definitions if identity in supporting_ids]
@@ -347,7 +356,7 @@ def compile_document(doc, model):
                 "without changing source labels"
             )
     return {
-        "format": FORMAT,
+        "format": doc["format"],
         "document": doc,
         "definitions": definitions,
         "views": views,
