@@ -6,19 +6,51 @@ GitLab hooks and the publisher perform verification and publication automaticall
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import secrets
 from pathlib import Path
 
 from compiler import business
-from compiler.gitlab import GitLabError
-from compiler.managed import MODEL_FILE, SOURCE_REQUEST
+from compiler.gitlab import Client, GitLabError
+from compiler.managed import MODEL_FILE, SOURCE_REQUEST, compile_model
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def provision(client, *, config, baseline):
+    allowed = {
+        "pipeline_name",
+        "model_name",
+        "publisher_id",
+        "publisher_token",
+        "authors",
+        "reviewers",
+        "worker_gitlab_url",
+        "allow_http",
+        "image",
+        "language",
+        "webhook_url",
+    }
+    if set(config) != allowed or config["language"] not in ("en", "zh"):
+        raise ValueError("register the complete deployment configuration")
+    people = [*config["authors"], *config["reviewers"], config["publisher_id"]]
+    if (
+        not config["authors"]
+        or not config["reviewers"]
+        or any(type(i) is not int or i < 1 for i in people)
+        or set(config["authors"]) & set(config["reviewers"])
+        or config["publisher_id"] in [*config["authors"], *config["reviewers"]]
+    ):
+        raise ValueError("author, reviewer and publisher must be separate registered identities")
+    pin = {"manifest": "registered-source-baseline", "sha256": business.digest(baseline)}
+    compile_model(json.dumps({"format": SOURCE_REQUEST, "baseline": pin}), baseline)
+    publisher = Client(
+        client.url, config["publisher_token"], allow_http=config["allow_http"]
+    ).actor()
+    if publisher["id"] != config["publisher_id"]:
+        raise ValueError("publisher credential does not match its registered identity")
     owner = client.actor()
     names = [config["pipeline_name"], config["model_name"]]
     projects = [
@@ -179,3 +211,39 @@ check_interval = 1
         "project": model,
         "pipeline_project": infrastructure,
     }
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("private_configuration", help="operator credential and deployment fields")
+    parser.add_argument("--baseline", required=True, help="operator-checked phase-one model JSON")
+    parser.add_argument("--output", required=True, help="new private deployment directory")
+    args = parser.parse_args()
+    config = json.loads(Path(args.private_configuration).read_text(encoding="utf8"))
+    operator = config.pop("operator")
+    folder = Path(args.output).resolve()
+    folder.mkdir(parents=True, exist_ok=True)
+    if any(folder.iterdir()):
+        raise ValueError("deployment output must be empty; existing identities are not re-created")
+    client = Client(operator["url"], operator["token"], allow_http=config["allow_http"])
+    baseline = json.loads(Path(args.baseline).read_text(encoding="utf8"))
+    prepared = provision(client, config=config, baseline=baseline)
+    for name, value in [
+        ("baseline.json", baseline),
+        ("policy.json", prepared["policy"]),
+        ("worker.json", prepared["worker"]),
+    ]:
+        (folder / name).write_text(json.dumps(value, ensure_ascii=False), encoding="utf8")
+    (folder / "runner.toml").write_text(prepared["runner"], encoding="utf8")
+    print(
+        json.dumps(
+            {
+                "project": prepared["project"]["web_url"],
+                "pipeline_project": prepared["pipeline_project"]["web_url"],
+            }
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()

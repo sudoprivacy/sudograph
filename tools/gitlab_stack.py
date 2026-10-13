@@ -28,13 +28,26 @@ COMPOSE = ROOT / "infra/gitlab/compose.yaml"
 
 
 def command(args, *, data=None, timeout=900):
-    result = subprocess.run(
-        args, cwd=ROOT, input=data, capture_output=True, timeout=timeout, check=False
-    )
-    if result.returncode:
-        # Bootstrap stdout may contain a credential; never echo it on failure.
-        raise RuntimeError(f"deployment command failed (exit {result.returncode}): {args[:3]}")
-    return result.stdout
+    deadline = time.monotonic() + timeout
+    with subprocess.Popen(
+        args, cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    ) as process:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                process.kill()
+                process.communicate()
+                raise RuntimeError("deployment command exceeded its deadline: " + args[0])
+            try:
+                output, _ = process.communicate(input=data, timeout=min(30, remaining))
+                break
+            except subprocess.TimeoutExpired:
+                data = None
+                print("Waiting for deployment command: " + " ".join(args[:2]), flush=True)
+        if process.returncode:
+            # Bootstrap stdout may contain a credential; never echo it on failure.
+            raise RuntimeError(f"deployment command failed (exit {process.returncode}): {args[:3]}")
+        return output
 
 
 def wait_for(url, *, timeout=900):
@@ -89,13 +102,27 @@ puts 'SUDOGRAPH_BOOTSTRAP=' + actors.to_json
 def deploy(folder, *, baseline=None):
     folder = Path(folder).resolve()
     folder.mkdir(parents=True, exist_ok=True)
-    if (folder / "actors.json").exists():
-        raise RuntimeError("deployment already has identities; reuse it rather than re-bootstrap")
     password = folder / "root-password.txt"
-    password.write_text(secrets.token_urlsafe(48), encoding="utf8")
+    reused = (folder / "deployment.json").exists()
+    if reused:
+        registered = json.loads((folder / "baseline.json").read_text(encoding="utf8"))
+        if baseline is not None and baseline != registered:
+            raise RuntimeError("new source baseline requires a separate reviewed registration")
+    elif (folder / "actors.json").exists() or password.exists():
+        raise RuntimeError("partial deployment retained; inspect it before resuming bootstrap")
+    else:
+        password.write_text(secrets.token_urlsafe(48), encoding="utf8")
     os.environ["SUDOGRAPH_ROOT_PASSWORD_FILE"] = str(password)
     compose = ["docker", "compose", "-f", str(COMPOSE)]
     command([*compose, "up", "-d", "--build"])
+    if reused:
+        wait_for("http://127.0.0.1:8788/health", timeout=120)
+        return {
+            **json.loads((folder / "deployment.json").read_text(encoding="utf8")),
+            "actors": json.loads((folder / "actors.json").read_text(encoding="utf8")),
+            "baseline": registered,
+            "policy": json.loads((folder / "policy.json").read_text(encoding="utf8")),
+        }
     print("Waiting for the isolated GitLab service", flush=True)
     wait_for("http://127.0.0.1:8088/-/readiness?all=1")
     output = command(

@@ -18,7 +18,7 @@ import yaml
 
 from compiler import app, business
 from compiler.gitlab import Client, GitLabError
-from tools.gitlab_stack import deploy
+from tools.gitlab_stack import COMPOSE, command, deploy
 
 
 def service(token, body=None, *, path="/v1"):
@@ -193,7 +193,7 @@ def acceptance(folder):
     identities = set(model["business"]["definitions"])
     views = model["business"]["views"]
     assert views["meaning"]["definitions"] == views["questions"]["definitions"]
-    record("A signed GitLab approval causes automatic independent compile, merge and release")
+    record("A GitLab review event causes automatic independent compile, merge and release")
     record(
         "Two business views reuse one canonical definition and all source facts remain unchanged"
     )
@@ -235,6 +235,44 @@ def acceptance(folder):
         "A fresh authenticated approval releases the new version without reallocating identities"
     )
 
+    rollback_doc = document(contract, version=4)
+    rollback = submit(rollback_doc, "Restore the earlier wording with a new reviewed version")
+    rollback_mr = pipeline(rollback["proposal"])
+    approve(rollback["proposal"], rollback_mr["sha"])
+    release3 = wait(lambda: status(rollback["proposal"])["release"], "reviewed content rollback")
+    assert (
+        set(business.build(rollback_doc, installation["baseline"])["business"]["definitions"])
+        == identities
+    )
+    code, historical = service(author, path="/releases/" + release["source_sha"] + ".html")
+    assert code == 200 and historical == html
+    record(
+        "Reviewed content rollback keeps identities; the verified historical reader remains exact"
+    )
+
+    artifact = "/state/" + release["source_sha"] + ".html"
+    writer = (
+        "import sys;from pathlib import Path;Path(sys.argv[1]).write_bytes(sys.stdin.buffer.read())"
+    )
+    args = [
+        "docker",
+        "compose",
+        "-f",
+        str(COMPOSE),
+        "exec",
+        "-T",
+        "publisher",
+        "python",
+        "-c",
+        writer,
+        artifact,
+    ]
+    command(args, data=b"changed fixture artifact")
+    code, response = service(author, path="/releases/" + release["source_sha"] + ".html")
+    assert code == 503 and response["error"] == "ARTIFACT_CHANGED"
+    command(args, data=html)
+    record("Changing stored HTML is refused on read by the persisted artifact hash")
+
     # Direct Git commits are possible on proposal branches, but an added HTML file
     # fails the deployed trusted job rather than becoming publishable content.
     commit = client.request(
@@ -242,7 +280,7 @@ def acceptance(folder):
         method="POST",
         data={
             "branch": "attempt-html",
-            "start_sha": changed["id"],
+            "start_sha": release3["source_sha"],
             "commit_message": "Attempt HTML input",
             "actions": [{"action": "create", "file_path": "review.html", "content": "edited"}],
         },
@@ -266,7 +304,7 @@ def acceptance(folder):
         "environment": "isolated Docker deployment",
         "synthetic_accounts": True,
         "checks": checks,
-        "releases": [release, release2],
+        "releases": [release, release2, release3],
         "invalid_proposal": {"source_sha": commit["id"], "pipeline": "failed"},
         "source_sha256": source_digest,
         "scope": "model review and publication; source write-back and Nexus SSO are separate",

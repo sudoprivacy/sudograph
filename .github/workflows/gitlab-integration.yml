@@ -8,6 +8,10 @@ on:
     paths: ['compiler/managed.py', 'compiler/gitlab.py', 'infra/gitlab/**', 'tools/*gitlab*.py', '.github/workflows/gitlab-integration.yml']
   workflow_dispatch:
 
+concurrency:
+  group: gitlab-integration-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   deployed:
     runs-on: ubuntu-24.04

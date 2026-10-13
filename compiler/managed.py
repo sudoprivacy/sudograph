@@ -1,7 +1,7 @@
 """Managed model submissions, GitLab review events and verified publication.
 
 The model repository never supplies compiler code, policy, credentials or HTML.
-GitLab owns revision history and authenticates reviewers. A signed GitLab event
+GitLab owns revision history and authenticates reviewers. An authenticated GitLab event
 binds its approval to a revision; the publisher independently compiles that
 revision before it may merge or serve an artifact.
 """
@@ -309,6 +309,8 @@ class Publisher:
         return mr
 
     def contract(self):
+        self.audit()
+        target = self.target()
         return {
             "model_file": MODEL_FILE,
             "source_format": SOURCE_REQUEST,
@@ -316,6 +318,29 @@ class Publisher:
             "baseline": self.pin,
             "namespace": self.policy["namespace"],
             "source_schema": self.baseline["source_schema"],
+            "target_sha": target,
+            "current_model": self.document(target),
+            "identity_registry": self.registry(target),
+            "submit": {
+                "operation": "submit",
+                "model": "complete YAML text",
+                "intent": "1..255 character review intent",
+            },
+            "definition_required": [
+                "concept",
+                "category",
+                "label",
+                "statement",
+                "origin",
+                "contributor",
+                "targets",
+                "version",
+            ],
+            "definition_categories": ["meaning", "metric", "rule", "issue"],
+            "origin_rules": {
+                "provided": "cite exact registered source or document evidence",
+                "inferred": "model deduction; remains unreviewed",
+            },
             "workflow": (
                 "submit inputs; CI runs automatically; GitLab reviewer approves; service publishes"
             ),
