@@ -53,6 +53,15 @@ including a scrolled sidebar, an active older thread, polling/resync during
 submission, and several comments on the same object. Preserve the new comment
 ID through refresh and scroll after its thread is mounted.
 
+Read-only inspection of `frontend/src/components/comments/CommentSidebar.tsx`
+found a useful check point: its auto-scroll effect sets
+`handledAutoScrollIdRef.current` before the delayed callback checks that the
+comment element and scroller exist. A missing element exits without a retry,
+while the same ID is already considered handled. The callback also scrolls to
+`scrollHeight` instead of the target card position. Test a filtered/unmounted
+thread or a view/filter change within that delay. This is a source-level lead,
+not a claim that the intermittent production report was reproduced.
+
 ## Scope
 
 Sudograph's comment-marker button now uses the existing supported `activate(id)`
