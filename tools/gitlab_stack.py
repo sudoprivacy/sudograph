@@ -93,15 +93,7 @@ def credential(user)
   token.set_token(SecureRandom.hex(32)); token.save!
   {id: user.id, token: token.token}
 end
-actors = {}
-['author', 'reviewer', 'publisher'].each do |role|
-  $sudograph_step = 'synthetic ' + role + ' creation'
-  user = User.new(username: "sudograph-#{role}", name: "Sudograph acceptance #{role}",
-    email: "#{role}@acceptance.invalid", password: SecureRandom.base64(48))
-  user.skip_confirmation!; user.save!
-  actors[role] = credential(user)
-end
-actors['operator'] = credential(root)
+actors = {'operator' => credential(root)}
 puts 'SUDOGRAPH_BOOTSTRAP=' + actors.to_json
 rescue ActiveRecord::RecordInvalid => error
   puts 'SUDOGRAPH_BOOTSTRAP_ERROR=' + {
@@ -159,8 +151,31 @@ def deploy(folder, *, baseline=None):
     actors = json.loads(
         next(line.split("=", 1)[1] for line in lines if line.startswith("SUDOGRAPH_BOOTSTRAP="))
     )
-    (folder / "actors.json").write_text(json.dumps(actors), encoding="utf8")
     client = Client("http://127.0.0.1:8088", actors["operator"]["token"], allow_http=True)
+    # Use GitLab's supported Users API, which owns namespaces and organisations.
+    # Direct User.new no longer provisions those relationships in recent GitLab.
+    for role in ("author", "reviewer", "publisher"):
+        user = client.request(
+            "/users",
+            method="POST",
+            data={
+                "username": "sudograph-" + role,
+                "name": "Sudograph acceptance " + role,
+                "email": role + "@acceptance.invalid",
+                "password": secrets.token_urlsafe(48),
+                "skip_confirmation": True,
+            },
+        )
+        credential = client.request(
+            f"/users/{user['id']}/personal_access_tokens",
+            method="POST",
+            data={
+                "name": "sudograph-isolated-acceptance",
+                "scopes": ["api"],
+            },
+        )
+        actors[role] = {"id": user["id"], "token": credential["token"]}
+    (folder / "actors.json").write_text(json.dumps(actors), encoding="utf8")
     baseline = baseline or fixture_baseline(folder)
     config = {
         "pipeline_name": "sudograph-pipeline",
