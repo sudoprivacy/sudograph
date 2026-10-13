@@ -10,6 +10,7 @@ button,select{font:inherit;color:inherit;background:var(--panel);border:1px soli
 button{cursor:pointer}button:hover,button[aria-pressed=true]{background:var(--node);border-color:var(--accent)}button:focus-visible,select:focus-visible,#diagram-viewport:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 select{max-width:310px;min-width:130px;flex:1}.toolbar label{color:var(--muted);margin-left:5px}
 #diagram-viewport{position:relative;height:min(65vh,740px);min-height:290px;overflow:hidden;touch-action:none;cursor:grab;background-image:radial-gradient(var(--line) .6px,transparent .6px);background-size:20px 20px}
+#diagram-viewport,#diagram-viewport *{user-select:none;-webkit-user-select:none}
 #diagram-viewport.dragging{cursor:grabbing}#diagram-stage{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 #diagram-stage svg{display:block;max-width:none;overflow:visible}#diagram-stage .node{cursor:pointer}#diagram-stage .node.selected rect,#diagram-stage .node.selected path,#diagram-stage .node.selected polygon{stroke:var(--accent)!important;stroke-width:3px!important}
 #diagram-section.commenting #diagram-viewport{cursor:crosshair}#diagram-section.commenting .node{cursor:copy}

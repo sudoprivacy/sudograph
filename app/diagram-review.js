@@ -87,6 +87,7 @@ $('comment-mode').addEventListener('click',()=>{commentMode=!commentMode;$('comm
 viewport.addEventListener('wheel',e=>{if(!ready||document.body.classList.contains('shareone-point-comment-mode'))return;
   e.preventDefault();const r=viewport.getBoundingClientRect();zoomAt(view.scale*Math.exp(-Math.max(-100,Math.min(100,e.deltaY))*.004),e.clientX-r.left,e.clientY-r.top);},{passive:false});
 viewport.addEventListener('pointerdown',e=>{if(e.button!==0||commentMode||document.body.classList.contains('shareone-point-comment-mode'))return;
+  e.preventDefault();window.getSelection()?.removeAllRanges();viewport.focus({preventScroll:true});
   drag={id:e.pointerId,x:e.clientX,y:e.clientY,ox:view.x,oy:view.y,moved:false};});
 viewport.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
   if(!drag.moved){if(Math.hypot(dx,dy)<4)return;drag.moved=true;viewport.classList.add('dragging');try{viewport.setPointerCapture(e.pointerId);}catch{}}
