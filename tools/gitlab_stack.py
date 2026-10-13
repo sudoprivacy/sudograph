@@ -124,7 +124,10 @@ def deploy(folder, *, baseline=None):
             "policy": json.loads((folder / "policy.json").read_text(encoding="utf8")),
         }
     print("Waiting for the isolated GitLab service", flush=True)
-    wait_for("http://127.0.0.1:8088/-/readiness?all=1")
+    # A host-side Docker request is not container localhost. Monitoring probes
+    # have a loopback IP allowlist; the public sign-in page exercises Rails
+    # without weakening that allowlist.
+    wait_for("http://127.0.0.1:8088/users/sign_in")
     output = command(
         [*compose, "exec", "-T", "gitlab", "gitlab-rails", "runner", "-"], data=BOOTSTRAP.encode()
     )
