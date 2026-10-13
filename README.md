@@ -109,6 +109,14 @@ trial and production deployment remain separate acceptance work.
 
 ## Where this sits
 
+<!-- architecture-discussion:start -->
+**Design discussion:** [Comment on this architecture in ShareOne](https://s.shareone.vip/md/sudograph-architecture-review).
+The discussion document is generated from this section by
+`python -m tools.architecture_review`; CI refuses stale or independently edited
+copies. This temporary discussion reference will be removed after architecture
+alignment. The README remains the architecture source.
+<!-- architecture-discussion:end -->
+
 Source discovery reads databases and documents through registered access paths.
 The original systems own their facts. GitLab owns the history of source-bound
 configuration and canonical business definitions; snapshots and HTML are derived
