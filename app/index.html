@@ -132,9 +132,9 @@
     padding:0;font-size:16px;line-height:20px;border-color:#778399;cursor:pointer;
     user-select:none;background:#171b23;color:#dfe4ec}
   .graph-expand:hover{background:#2c3b52;border-color:#fff}
-  .canvas-label[data-has-comments="true"]::after,.canvas-edge-label[data-has-comments="true"]::after{
-    content:'';position:absolute;left:-8px;top:-5px;width:6px;height:6px;border-radius:50%;
-    background:#a8c4ed;box-shadow:0 0 0 2px #11141a;pointer-events:none}
+  .graph-comment-mark{position:absolute;left:-18px;top:-8px;width:14px;height:14px;
+    padding:0;border:0;border-radius:50%;font-size:10px;line-height:14px;
+    color:#a8c4ed;background:#11141a;cursor:pointer;user-select:none}
   @media (max-width:800px){ main{flex-direction:column} aside{width:auto;height:44%;
     border-left:none;border-top:1px solid var(--line)} }
 </style>
@@ -148,7 +148,7 @@
   <button id="bridgeBtn" data-ui="桥视图">桥视图</button>
   <label><span data-ui="视图">视图</span> <select id="projection">
     <option value="schema" data-ui="结构关系">结构关系</option>
-    <option value="data" data-ui="数据关系">数据关系</option>
+    <option value="data" data-ui="记录与关联">记录与关联</option>
     <option value="all" data-ui="指标与规则">指标与规则</option>
   </select></label>
   <button id="checksBtn" data-ui="检查">检查</button>
@@ -389,10 +389,7 @@ const fillOf = n => {
 };
 
 function renderLegend() { $('legend').innerHTML =
-  isBusiness() ? Object.values(BUSINESS_VISUALS).map(o=>`<span><i style="background:${o.colour}"></i>${o.name}</span>`).join('')+
-    `<span><i style="background:var(--type)"></i>${t('源字段与对象')}</span>`+
-    `<span><i style="background:transparent;border:2.5px solid var(--hook)"></i>${t('待业务确认')}</span><span>${t('来源不代表已确认')}</span>`+
-    '<span>∑ '+t('候选业务指标')+' · ⬡ '+t('业务规则')+' · ◯ '+t('待核对问题')+'</span>' :
+  isBusiness() ? businessLegend() :
   (isSchema()||(state.projection==='data'&&BUNDLE.source_schema)||BUNDLE.projection?.mode==='source_projection') ?
     [KINDS.raw,KINDS.type].map(k=>`<span><i style="background:var(${k.var})"></i>${k.name}</span>`).join('')+
     `<span><u style="border-top-color:var(--edge)"></u>${t('关系')}</span>` :
@@ -834,7 +831,11 @@ const anchors = (() => {
     return n ? bt(n.label) : edge ? (isSchema()?schemaRelationLabel(edge):bt(edge.via||edge.rel)) : id;
   };
   const rectOf = id => {
-    if(cy)return canvasRect(id);
+    if(cy){const r=canvasRect(id);if(r)return r;
+      const detail=$('panel').querySelector('[data-shareone-anchor-id="'+CSS.escape(id)+'"]');
+      if(detail?.getClientRects().length){const b=detail.getBoundingClientRect();return{x:b.x,y:b.y,width:b.width,height:b.height};}
+      return null;
+    }
     const g = scene && scene.querySelector('g.node[data-node-id="' + CSS.escape(id) + '"]');
     if (!g) return null;
     const r = g.getBoundingClientRect();
@@ -909,6 +910,8 @@ const anchors = (() => {
         if (t && !state.expanded.has(t)) { state.expanded.add(t); changed = true; }
       }
       if (changed) await draw(); else report();
+      for(const id of ids||[])if(businessNodes.get(id)?.role!=='business'&&businessNodes.has(id))showBusinessNode(businessNodes.get(id));
+      report();
     };
     api.on('reveal', ids => revealing=reveal(ids));
     api.on('reveal-text', async request => {
@@ -918,6 +921,7 @@ const anchors = (() => {
   };
 
   return { get live() { return !!host(); }, report, marked:id=>tracked.has(id),
+    activate:id=>host()?.activate?.(id),
     reportText(entries) {return host()?.reportText?.(entries);},
     comment(id,label,context,rect=rectOf(id),text) {
       const api=host();if(!api?.select)return false;wire(api);

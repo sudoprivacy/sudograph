@@ -90,7 +90,7 @@ in the `Authorization: Bearer ...` header. Never put credentials in a URL or YAM
 | `status` | `operation`, numeric `proposal` | Exact revision, pipeline state, SHA-bound review evidence and any release receipt. |
 
 The model repository accepts `model.yaml` only. Business models use the existing
-checked `sudograph-business-overlay/v3` language. Phase one accepts a source
+checked `sudograph-business-overlay/v4` language. Phase one accepts a source
 request referencing its registered baseline; authored meanings belong in phase
 two. The source URI, compiler, CI, policy and output destination are never model
 inputs. Business identities are derived once per canonical concept in a fixed

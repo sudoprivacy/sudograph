@@ -32,6 +32,11 @@ def base(tmp_path):
             "observed-total": {
                 "concept": "source total",
                 "category": "meaning",
+                "role": "business",
+                "purpose": {
+                    "stakeholder": "Support manager",
+                    "decision": "Review the available support budget.",
+                },
                 "label": "Source total",
                 "statement": "The source sums amount.",
                 "origin": "provided",
@@ -43,6 +48,11 @@ def base(tmp_path):
             "refund-question": {
                 "concept": "refund policy",
                 "category": "meaning",
+                "role": "business",
+                "purpose": {
+                    "stakeholder": "Support manager",
+                    "decision": "Choose the refund treatment for the support budget.",
+                },
                 "label": "Refunds",
                 "statement": "Should refunds reduce this amount?",
                 "origin": "inferred",
@@ -234,9 +244,12 @@ def test_rule_requires_named_subject_and_metric_requires_scope_and_source_grain(
         "concept": "ticket total", "category": "metric", "label": "Total tickets",
         "statement": "Sum included ticket amounts.", "origin": "inferred", "contributor": "model",
         "version": 1, "targets": [field["id"]], "grain": [field["id"]], "scope": "All tickets",
+        "role": "business",
+        "purpose": {"stakeholder": "Support manager", "decision": "Review ticket spend."},
     }
     rule = doc["definitions"]["refund-question"]
     rule["category"] = "rule"
+    del rule["purpose"]
     with pytest.raises(ValueError, match="named business"):
         business.build(doc, model)
     doc["definitions"]["ticket-total"] = metric
@@ -263,10 +276,63 @@ def test_missing_categories_unknown_purposes_and_cycles_are_refused(base):
     with pytest.raises(ValueError, match="category"):
         business.build(doc, model)
     item["category"] = "issue"
+    del item["purpose"]
     item["applies_to"] = ["invented-definition"]
     with pytest.raises(ValueError, match="canonical definitions"):
         business.build(doc, model)
     item["applies_to"] = ["observed-total"]
     doc["definitions"]["observed-total"]["applies_to"] = ["refund-question"]
     with pytest.raises(ValueError, match="cycle"):
+        business.build(doc, model)
+
+
+def test_evidence_and_arithmetic_notes_cannot_be_business_view_nodes(base):
+    model, doc = base
+    source = doc["definitions"]["observed-total"]
+    source["role"] = "source_evidence"
+    source.pop("purpose")
+    source["applies_to"] = ["refund-question"]
+    with pytest.raises(ValueError, match="belong in details"):
+        business.build(doc, model)
+    doc["views"]["meaning"]["definitions"] = ["refund-question"]
+    first = business.build(doc, model)
+    view = first["business"]["views"]["meaning"]
+    assert len(view["definitions"]) == len(view["supporting"]) == 1
+    source_id = view["supporting"][0]
+    assert source_id not in view["definitions"]
+    assert not any(source_id in {e["from"], e["to"]} for e in view["edges"])
+    previous = business.registry(first, {})
+    source["role"] = "implementation_note"
+    source["version"] += 1
+    second = business.build(doc, model)
+    assert second["business"]["views"]["meaning"]["supporting"] == [source_id]
+    business.registry(second, previous)
+    del source["applies_to"]
+    with pytest.raises(ValueError, match="attach supporting"):
+        business.build(doc, model)
+
+
+def test_business_purpose_and_question_subject_cannot_be_omitted(base):
+    model, doc = base
+    item = doc["definitions"]["refund-question"]
+    purpose = item.pop("purpose")
+    with pytest.raises(ValueError, match=r"purpose.*stakeholder"):
+        business.build(doc, model)
+    item["purpose"] = {**purpose, "decision": " "}
+    with pytest.raises(ValueError, match=r"decision.*non-empty"):
+        business.build(doc, model)
+    item.pop("purpose")
+    item["category"] = "issue"
+    with pytest.raises(ValueError, match="named business"):
+        business.build(doc, model)
+
+
+def test_old_contract_and_rendered_role_tampering_cannot_bypass_business_boundaries(base):
+    model, doc = base
+    overlay = business.build(doc, model)
+    next(iter(overlay["business"]["definitions"].values()))["role"] = "source_evidence"
+    with pytest.raises(ValueError, match=r"rebuild through compiler.business"):
+        app.render(overlay)
+    doc["format"] = "sudograph-business-overlay/v3"
+    with pytest.raises(ValueError, match="use format"):
         business.build(doc, model)

@@ -1,10 +1,10 @@
-# Sales meaning pilot
+# Annual order-sales pilot
 
 This phase-two overlay references the [frozen phase-one baseline](../../northwind-phase-one/README.md).
 It adds meanings and review questions without changing source SQL, source values,
 field identities or the accepted phase-one file. Source SQL computations already
-belong to phase one; an observation of those computations is cited here to help
-review a proposed business meaning.
+belong to phase one. Source observations and arithmetic notes are available in
+evidence details, outside the business canvas.
 
 The [English preview](index.html) and [Chinese customer-review variant](review.html)
 open locally in a browser. Both come from the same compiler and model. Their source and
@@ -22,44 +22,49 @@ working model and review URL; the business overlay is a checked input to that
 shared model, not a separate site. The public phase-one acceptance baseline
 remains separate as historical evidence.
 
-The pilot has nine definitions and two business views:
+The pilot keeps nine canonical identities and two business views:
 
-- Three supplied observations: the upstream README's business context, the source
-  extended-price expression and the source category report's time/grain scope.
-- Six model deductions or questions: reporting scope, product versus order-line
-  prices, a proposed line-amount total, its rounding rule, a rounding-impact
-  question, and freight/tax/currency treatment.
+- Four business nodes: an annual order-sales metric, a historical transaction
+  pricing policy, an inclusion/currency question and a category-reporting question.
+  Sales management compares annual order sales; finance helps review what the
+  amounts include. These are model proposals, not authenticated user instructions.
+- Three supplied source observations in evidence details: the upstream README,
+  the extended-price expression and the source category report's time/grain scope.
+- Two supporting implementation notes in details: a rounding proposal and the
+  conditional arithmetic effect of its rounding order. Neither is a main business
+  node merely because it concerns a number.
 - The second view reuses definitions and their dependencies by identity. It creates no additional
   definitions or independent copies of their meanings.
 
 **Green reuses the phase-one source colour. Orange marks business meanings to
 review, whether supplied by a person or inferred by a model. Grey reuses the
 phase-one object/field colour.** Source connectors are visible by default and use
-a barrel shape. Supplied source observations reuse green but remain definition
-nodes, with orange review outlines until reviewed. Details spell out the origin, so
-colour is not the only distinction. All definitions remain **unreviewed**. Having
+a barrel shape. All unreviewed business nodes use orange, including a proposal
+based on supplied information. Source evidence appears in details, outside the
+business canvas. Details spell out the origin. All business definitions remain
+**unreviewed**. Having
 a source citation does not establish that an interpretation is correct; inferred
 does not mean incorrect. Business approval is a separate decision.
 
 Meanings, candidate metrics, rules and issues have checked categories. A rule
 must name the business subject it applies to; a raw field alone is not its
 purpose. Metric definitions require grain and scope. Rules use a hexagon and
-issues an ellipse; category labels and the legend supplement shapes. Colour
-still expresses provenance and confirmation, not an agent's subjective confidence.
+issues an ellipse; the legend draws the same actual shapes as the selected view.
+There is no separate orange-outline legend with a competing meaning. Colour
+does not express an agent's subjective confidence.
 
 Open a definition to inspect its statement, origin, version and evidence. Follow
 a source field to the source reader and real paginated records. Switch views or
 language without allocating new field or definition identities. The source
 reader and archived phase-one baseline remain accessible.
 
-The two-price interpretation now proposes a catalogue reference price and an
-order-line price before its separate discount. The rounding interpretation
-applies to the new proposed total of included order-line amounts, not a sum of
-unit prices. Its metric defines line grain using OrderID and ProductID, and
-leaves reporting period, date, returns, cancellations and currency unconfirmed.
+The metric proposes one result per calendar year using Orders.OrderDate and
+historical order-line prices. Its line grain remains OrderID and ProductID.
+It measures ordered sales, not cash collected or recognised accounting revenue.
+Tax, freight, currency, returns and cancellations remain unconfirmed.
 The source's Order Subtotals SQL is cited as evidence of an existing order-level
 sum; the proposed broader business total is still an interpretation. A separate
-issue explains the conditional precision concern using an explicitly illustrative
+implementation note explains the conditional precision concern using an explicitly illustrative
 0.335 + 0.335 example. These proposals are neither approved nor executed. Domain specialists
 can use source evidence, pretrained knowledge, accumulated memory or specialised
 models to propose concrete meanings; those inputs do not replace human review.
@@ -73,8 +78,12 @@ The details panel starts expanded and can be hidden, including on mobile.
 Toggling only resizes the existing canvas and preserves graph, zoom and pan;
 it does not rerun ELK or rebuild nodes. Local Chrome checks at desktop and phone
 viewport sizes found no increase in scripted pan/zoom work. This is not a
-real-phone hardware benchmark. Object anchors currently do not retain precise
-text ranges; see the [ShareOne protocol request](../../../docs/shareone-object-text-anchor-fr-2026-10-12.md).
+real-phone hardware benchmark. New object comments retain precise text ranges
+and content versions; exact recovery works on an unchanged readable surface.
+Standing passage resync still needs the
+[ShareOne SDK follow-up](../../../docs/shareone-visible-object-passages-br-2026-10-13.md).
+The small comment button activates the existing object thread through the SDK;
+it does not obstruct label selection or normal node clicks.
 
 ## Generate and check
 
@@ -85,6 +94,16 @@ python -m compiler.business examples/northwind/business/pilot.yaml
 python -m compiler.business examples/northwind/business/pilot.yaml --app business-review.html --lang zh
 python -m compiler.business examples/northwind/business/pilot.yaml --app business-public.html --lang en
 ```
+
+The v4 contract requires `role: business`, `source_evidence` or
+`implementation_note`. A business meaning/metric must declare
+`purpose: {stakeholder: ..., decision: ...}`. Business rules/questions must name
+the business subject they serve. Evidence/notes require `applies_to` references
+and cannot appear in a view's `definitions`. They retain their identities,
+versions and comment references in evidence details. The managed write contract
+returns these requirements, and the parser, renderer and trusted publisher
+enforce them. Old format versions cannot bypass this gate. Structural validation
+cannot prove that a proposal expresses the correct business; people still review it.
 
 The compiler checks the phase-one manifest pin and its locked artifact before
 loading the overlay. An authored definition must declare `origin: provided` with
@@ -140,8 +159,8 @@ remains immutable.
 
 ## Current boundaries
 
-This version records definitions and questions, including an unreviewed rounding
-proposal. It introduces no executable sales formula, applied rounding policy,
+This version records annual-sales definitions and questions, including an
+unreviewed rounding note in evidence details. It introduces no executable sales formula, applied rounding policy,
 tax assumption or invented workflow owner. Executable
 metrics follow review of their intended meanings and must use the established
 checked expression/compiler path. Confirmation history and permissions must be
@@ -151,7 +170,9 @@ ShareOne content review approves exact candidate bytes and access scope; a prior
 revision's approval cannot authorise this revision. Hosting approval does not
 confirm any business definition. The
 phase-one source model, views and complete records equal the frozen baseline;
-all seven previous business identities are preserved and two are added. All nine
-definitions remain unreviewed. Approved source write-back and a GitLab adapter
-are not deployed; their [acceptance plan](../../../docs/source-writeback-acceptance.md)
-does not claim an existing full-flow CI test.
+all nine previous identities are preserved without allocating replacements.
+Managed GitLab deployment has a
+[real acceptance](../../../docs/trials/gitlab-managed-2026-10-13.md).
+Customer Nexus SSO, business confirmation history and approved source write-back
+remain separate work. The [write-back plan](../../../docs/source-writeback-acceptance.md)
+does not claim that source writes have been deployed.

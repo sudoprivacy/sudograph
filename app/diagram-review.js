@@ -6,7 +6,7 @@ const nodeIds=Object.keys(source.nodes),elements=new Map(),tracked=new Set(),pas
 const idOf=id=>'architecture/Where-this-sits/node/'+id;
 const byAnchor=new Map(nodeIds.map(id=>[idOf(id),id]));
 const view={x:0,y:0,scale:1,fitted:true},bounds={width:1,height:1};
-let ready=false,frame=0,commentMode=false,drag=null,bridge=null,renderTail=Promise.resolve();
+let ready=false,frame=0,interaction='pan',drag=null,bridge=null,renderTail=Promise.resolve();
 let theme=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light',renderCount=0;
 
 function apply(){stage.style.transform=`translate(${view.x}px,${view.y}px) scale(${view.scale})`;}
@@ -83,10 +83,13 @@ $('zoom-in').addEventListener('click',()=>zoomAt(view.scale*1.3));$('zoom-out').
 function expand(on){$('diagram-section').classList.toggle('expanded',on);document.body.classList.toggle('diagram-expanded',on);
   $('expand').setAttribute('aria-pressed',String(on));$('expand').textContent=on?'Close expanded view':'Expand';if(view.fitted)requestAnimationFrame(fit);else schedule();}
 $('expand').addEventListener('click',()=>expand(!$('diagram-section').classList.contains('expanded')));
-$('comment-mode').addEventListener('click',()=>{commentMode=!commentMode;$('comment-mode').setAttribute('aria-pressed',String(commentMode));$('diagram-section').classList.toggle('commenting',commentMode);});
+function setInteraction(mode){interaction=mode;drag=null;viewport.classList.remove('dragging');window.getSelection()?.removeAllRanges();
+  for(const [id,value] of [['pan-mode','pan'],['text-mode','text'],['comment-mode','node']])$(id).setAttribute('aria-pressed',String(mode===value));
+  $('diagram-section').classList.toggle('selecting-text',mode==='text');$('diagram-section').classList.toggle('commenting',mode==='node');}
+for(const [id,mode] of [['pan-mode','pan'],['text-mode','text'],['comment-mode','node']])$(id).addEventListener('click',()=>setInteraction(mode));
 viewport.addEventListener('wheel',e=>{if(!ready||document.body.classList.contains('shareone-point-comment-mode'))return;
   e.preventDefault();const r=viewport.getBoundingClientRect();zoomAt(view.scale*Math.exp(-Math.max(-100,Math.min(100,e.deltaY))*.004),e.clientX-r.left,e.clientY-r.top);},{passive:false});
-viewport.addEventListener('pointerdown',e=>{if(e.button!==0||commentMode||document.body.classList.contains('shareone-point-comment-mode'))return;
+viewport.addEventListener('pointerdown',e=>{if(e.button!==0||interaction!=='pan'||document.body.classList.contains('shareone-point-comment-mode'))return;
   e.preventDefault();window.getSelection()?.removeAllRanges();viewport.focus({preventScroll:true});
   drag={id:e.pointerId,x:e.clientX,y:e.clientY,ox:view.x,oy:view.y,moved:false};});
 viewport.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
@@ -95,8 +98,8 @@ viewport.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)retu
 function endDrag(e){if(!drag)return;const moved=drag.moved;drag=null;viewport.classList.remove('dragging');
   try{viewport.releasePointerCapture(e.pointerId);}catch{}if(moved)e.preventDefault();}
 viewport.addEventListener('pointerup',endDrag);viewport.addEventListener('pointercancel',endDrag);
-viewport.addEventListener('click',e=>{const el=e.target.closest('g.node[data-source-node]');if(!el||document.body.classList.contains('shareone-point-comment-mode'))return;
-  if(commentMode){const rect=rectOf(el);if(rect)bridge?.select({id:idOf(el.dataset.sourceNode),label:source.nodes[el.dataset.sourceNode].replaceAll('<br/>',' / '),context:JSON.stringify({diagram:'Where this sits',source_sha256:source.sha256})},rect);}
+viewport.addEventListener('click',e=>{const el=e.target.closest('g.node[data-source-node]');if(!el||interaction==='text'||document.body.classList.contains('shareone-point-comment-mode'))return;
+  if(interaction==='node'){const rect=rectOf(el);if(rect)bridge?.select({id:idOf(el.dataset.sourceNode),label:source.nodes[el.dataset.sourceNode].replaceAll('<br/>',' / '),context:JSON.stringify({diagram:'Where this sits',source_sha256:source.sha256})},rect);}
   else elements.forEach(n=>n.classList.toggle('selected',n===el));});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('diagram-section').classList.contains('expanded')){expand(false);$('expand').focus();}});
 new ResizeObserver(()=>{if(view.fitted)fit();else schedule();}).observe(viewport);

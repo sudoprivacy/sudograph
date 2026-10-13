@@ -1,4 +1,4 @@
-format: sudograph-business-overlay/v3
+format: sudograph-business-overlay/v4
 namespace: northwind-sales-review
 baseline:
   manifest: ../../northwind-phase-one/2026-10-10/baseline.json
@@ -33,7 +33,7 @@ definitions:
       orders, inventory, purchasing, suppliers, shipping and employees.
     origin: provided
     contributor: source
-    version: 3
+    version: 4
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders
     evidence:
@@ -41,6 +41,9 @@ definitions:
       ref: upstream-context
       quote: Northwind is an excellent tutorial schema for a small-business ERP
     category: meaning
+    role: source_evidence
+    applies_to:
+    - sales-total
   extended-price:
     concept: source-extended-price
     label: Source extended-price calculation
@@ -48,7 +51,7 @@ definitions:
       /100 * 100. This observation preserves the source computation; it does not approve a revenue definition.
     origin: provided
     contributor: source
-    version: 3
+    version: 4
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Quantity
@@ -62,6 +65,10 @@ definitions:
         \   [Order Details].Quantity, \n       [Order Details].Discount, \n      ([Order Details].UnitPrice*Quantity*(1-Discount)/100)*100\
         \ AS ExtendedPrice\nFROM Products \n     JOIN [Order Details] ON Products.ProductID = [Order Details].ProductID"
     category: meaning
+    role: source_evidence
+    applies_to:
+    - sales-total
+    - price-meaning
   category-source-scope:
     concept: source-category-time-scope
     label: Source category report scope
@@ -69,7 +76,7 @@ definitions:
       is already part of the phase-one source view.
     origin: provided
     contributor: source
-    version: 3
+    version: 4
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/CategoryID
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/ProductSales
@@ -85,29 +92,36 @@ definitions:
         \ \nWHERE Orders.OrderDate BETWEEN DATETIME('1997-01-01') And DATETIME('1997-12-31')\nGROUP BY\
         \ Categories.CategoryID, Categories.CategoryName, Products.ProductName"
     category: meaning
+    role: source_evidence
+    applies_to:
+    - category-question
   category-question:
     concept: category-sales-scope
-    label: 'Category sales: scope to confirm'
-    statement: For the business question, should we reuse the source 1997 report or define another reporting
-      period and category-level grain? The source view alone does not choose the new business scope.
+    label: 'Annual sales by category: reporting choice'
+    statement: For sales management, should the annual order-sales report also show category contributions
+      and year-to-year changes? If so, agree the reporting category and historical product-classification
+      policy. The existing 1997 category/product view is evidence, not the definition of every annual
+      report.
     origin: inferred
     contributor: model
-    version: 3
+    version: 4
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/ProductSales
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/CategoryID
     category: issue
+    role: business
+    applies_to:
+    - sales-total
   price-meaning:
     concept: unit-price-business-meaning
-    label: Catalogue price and order-line price
-    statement: 'Proposed meaning: Products.UnitPrice is the catalogue reference price; Order Details.UnitPrice
-      is the price used on that order line before its separate Discount. Calculate the transaction from
-      the order-line price, quantity and discount. Do not replace a historical order-line price with the
-      product reference price. This interpretation uses the source structure and common order models and
-      remains unreviewed.'
+    label: Historical transaction pricing for annual sales
+    statement: 'Proposed annual-sales policy: preserve the price recorded on each historical order line
+      and apply that line''s quantity and discount. Never revalue a prior year using today''s product
+      catalogue price. This determines which commercial transaction is counted in the annual order-sales
+      metric and requires business confirmation.'
     origin: inferred
     contributor: model
-    version: 4
+    version: 5
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/UnitPrice
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
@@ -115,7 +129,10 @@ definitions:
     - kind: source_sql
       ref: sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended
       quote: ([Order Details].UnitPrice*Quantity*(1-Discount)/100)*100 AS ExtendedPrice
-    category: meaning
+    category: rule
+    role: business
+    applies_to:
+    - sales-total
   rounding-question:
     concept: rounding-policy
     label: Rounding rule for the proposed sales total
@@ -126,37 +143,43 @@ definitions:
       practice need review, and no new calculation is executed.'
     origin: inferred
     contributor: model
-    version: 4
+    version: 5
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice
     category: rule
     applies_to:
     - sales-total
+    role: implementation_note
   tax-freight-question:
     concept: freight-tax-currency
-    label: Freight, tax and currency
-    statement: The line expression does not reference Freight. Confirm whether the intended sales amount
-      includes freight, whether UnitPrice already includes tax and which currency applies. These meanings
-      are not established by the expression.
+    label: Annual sales inclusion and currency policy
+    statement: Before accepting annual order sales, sales and finance must agree whether freight and tax
+      belong in the metric, how returns and cancelled orders affect the year, and which currency is reported.
+      OrderDate assigns the order year; it does not establish the date of payment or revenue recognition.
+      Missing refund, currency or tax data is a definition gap, not proof that the source database is
+      wrong.
     origin: inferred
     contributor: model
-    version: 3
+    version: 4
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/Freight
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
     category: issue
+    role: business
+    applies_to:
+    - sales-total
   sales-total:
     concept: order-line-sales-amount-total
     category: metric
-    label: Order-line amount total (scope to review)
-    statement: 'Candidate business metric: the sum of order-line extended amounts in a reviewed reporting
-      scope. Each line amount uses its order-line UnitPrice, Quantity and Discount. The purpose is to
-      inspect a report total and reconcile it with its contributing lines, not to sum catalogue prices.
-      Source Order Subtotals already groups those amounts by order; this separate candidate does not turn
-      that fact into an approved net-revenue definition or execute a new metric.'
+    label: Annual order sales (proposal)
+    statement: 'Proposed sales-management metric: group orders by the calendar year of Orders.OrderDate
+      and sum the included order-line amounts for each year, so sales managers can compare annual order
+      sales. Use each historical line price, quantity and discount. This measures ordered sales, not cash
+      collected or recognised accounting revenue. Freight, tax, currency, cancellations and returns need
+      business review before computation. No annual result is executed in this pilot.'
     origin: inferred
     contributor: model
-    version: 2
+    version: 3
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/OrderID
@@ -165,12 +188,18 @@ definitions:
     grain:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/OrderID
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ProductID
-    scope: Reporting period, included orders, returns/cancellations and currency are unresolved. No all-time
-      or annual total is approved. Use Orders.OrderDate when a date scope is chosen.
+    scope: 'Each calendar year is a separate result, using OrderDate from January 1 inclusive to the next
+      January 1 exclusive. Proposed population: source orders with an order date. Missing dates must be
+      reported separately. Currency, returns/cancellations, tax and freight remain unresolved; do not
+      silently combine currencies or treat absent records as zero.'
     evidence:
     - kind: source_sql
       ref: sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Subtotals
       quote: Sum(([Order Details].UnitPrice*Quantity*(1-Discount)/100)*100) AS Subtotal
+    role: business
+    purpose:
+      stakeholder: Sales management
+      decision: Compare annual order sales and review the causes of differences between years.
   rounding-impact:
     concept: line-rounding-versus-total-rounding-impact
     category: issue
@@ -183,33 +212,26 @@ definitions:
       the rule.'
     origin: inferred
     contributor: model
-    version: 1
+    version: 2
     targets:
     - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice
     applies_to:
     - sales-total
     - rounding-question
+    role: implementation_note
 views:
   sales-meaning:
-    label: Sales meaning review
+    label: Annual order-sales review
     definitions:
-    - business-context
-    - extended-price
-    - category-source-scope
-    - category-question
-    - price-meaning
-    - rounding-question
-    - tax-freight-question
     - sales-total
-    - rounding-impact
-  open-questions:
-    label: Open business questions
-    definitions:
-    - category-question
     - price-meaning
-    - rounding-question
     - tax-freight-question
-    - rounding-impact
+    - category-question
+  open-questions:
+    label: Annual-sales decisions to confirm
+    definitions:
+    - tax-freight-question
+    - category-question
 translations:
   zh:
     Business context from Northwind: Northwind 提供的业务背景
@@ -224,24 +246,6 @@ translations:
     ? Sales by Category groups by category and product and filters OrderDate to 1997. That scope is already
       part of the phase-one source view.
     : Sales by Category 按品类和产品分组，筛选 1997 年 OrderDate。这个范围已属于阶段一源视图。
-    'Category sales: scope to confirm': 按品类销售额：确认范围
-    ? For the business question, should we reuse the source 1997 report or define another reporting period
-      and category-level grain? The source view alone does not choose the new business scope.
-    : 业务问题应复用源库的 1997 年报表，还是另设报告期间、汇总到品类层级？源视图不能替业务人员选择新的范围。
-    Freight, tax and currency: 运费、税与币种
-    ? The line expression does not reference Freight. Confirm whether the intended sales amount includes
-      freight, whether UnitPrice already includes tax and which currency applies. These meanings are not
-      established by the expression.
-    : 明细表达式未引用 Freight。需要确认目标销售额是否包含运费、UnitPrice 是否含税、使用什么币种；这些含义不能仅由表达式确定。
-    Sales meaning review: 销售口径核对
-    Open business questions: 待确认业务问题
-    Catalogue price and order-line price: 商品参考价与订单单价
-    ? 'Proposed meaning: Products.UnitPrice is the catalogue reference price; Order Details.UnitPrice
-      is the price used on that order line before its separate Discount. Calculate the transaction from
-      the order-line price, quantity and discount. Do not replace a historical order-line price with the
-      product reference price. This interpretation uses the source structure and common order models and
-      remains unreviewed.'
-    : 建议解释：商品表 UnitPrice 是目录参考单价；订单明细 UnitPrice 是这笔订单采用的折扣前单价，Discount 另行扣除。核算这笔交易应使用明细单价、数量和折扣；不要拿商品参考价重算历史订单。这是结合源结构与常见订单模型提出的解释，仍待业务确认。
     Rounding rule for the proposed sales total: 订单明细金额总额的舍入规则
     ? 'Proposed rule for the order-line amount total: after the reporting scope is chosen, round each
       included line amount to the settlement precision, then sum those amounts. This sums line amounts
@@ -249,10 +253,6 @@ translations:
       The rule serves the referenced business metric. It is a proposal; currency, precision and settlement
       practice need review, and no new calculation is executed.'
     : 建议用于“订单明细金额总额”的规则：先选定报表范围，把纳入范围的每条明细金额按结算精度四舍五入，再求这些金额的总和。相加的是明细金额（单价 × 数量 × 折扣因子），不是商品标价或单价。本规则服务于连线指向的业务指标。币种、精度和结算惯例仍待确认；本版没有执行新的计算。
-    Order-line amount total (scope to review): 订单明细金额总额（范围待确认）
-    ? Reporting period, included orders, returns/cancellations and currency are unresolved. No all-time
-      or annual total is approved. Use Orders.OrderDate when a date scope is chosen.
-    : 报告期间、纳入哪些订单、退货或取消订单的处理、币种都未确认；目前没有获准的全量或年度总额。若按日期筛选，应核对 Orders.OrderDate。
     Rounding order can change a report total: 舍入顺序可能影响报表总额
     ? 'Conditional concern for the proposed report total: if included line amounts carry more decimals
       than settlement precision, rounding each line and rounding only the final total can differ. For
@@ -262,10 +262,38 @@ translations:
       the rule.'
     : 针对候选报表总额的条件性问题：如果明细金额的小数位多于结算精度，逐笔舍入和只在总额上舍入可能得到不同结果。以精确到分的币种、两笔假设金额各 0.335 为例，逐笔舍入再相加得 0.68，先相加再舍入得
       0.67。这是解释差异的例子，不是源库记录，也不表示已发现这个数据集或实际业务存在差额。确认规则前应核对这一问题。
-    ? 'Candidate business metric: the sum of order-line extended amounts in a reviewed reporting scope.
-      Each line amount uses its order-line UnitPrice, Quantity and Discount. The purpose is to inspect
-      a report total and reconcile it with its contributing lines, not to sum catalogue prices. Source
-      Order Subtotals already groups those amounts by order; this separate candidate does not turn that
-      fact into an approved net-revenue definition or execute a new metric.'
-    : 候选业务指标：把经确认的报表范围内，各条订单明细的金额相加，用于查看报表总额并与贡献该金额的明细核对。每条金额按本条订单的单价、数量和折扣计算，绝不是把商品标价相加。源 Order Subtotals
-      已按订单汇总这类金额；这里另提一个待确认的业务指标，不把源汇总等同于已确认净收入，也没有执行新的指标。
+    Annual order sales (proposal): 年度订单销售额（草案）
+    ? 'Proposed sales-management metric: group orders by the calendar year of Orders.OrderDate and sum
+      the included order-line amounts for each year, so sales managers can compare annual order sales.
+      Use each historical line price, quantity and discount. This measures ordered sales, not cash collected
+      or recognised accounting revenue. Freight, tax, currency, cancellations and returns need business
+      review before computation. No annual result is executed in this pilot.'
+    : 面向销售管理的候选指标：按 Orders.OrderDate 所属自然年归集订单，分别汇总各年纳入范围的订单明细金额，用于比较年度订单销售额。使用历史订单的明细单价、数量和折扣。这衡量已下单的销售金额，不等同于回款或会计确认收入。运费、税、币种、取消和退货的口径仍待业务确认；本试点尚未计算年度结果。
+    ? 'Each calendar year is a separate result, using OrderDate from January 1 inclusive to the next January
+      1 exclusive. Proposed population: source orders with an order date. Missing dates must be reported
+      separately. Currency, returns/cancellations, tax and freight remain unresolved; do not silently
+      combine currencies or treat absent records as zero.'
+    : 每个自然年分别出结果，使用 OrderDate，从当年 1 月 1 日（含）到次年 1 月 1 日（不含）。候选范围为源库有下单日期的订单；缺失日期须单独报告。币种、退货或取消、税和运费尚未确认；不能默认混合币种，也不能把不存在的记录视为零。
+    Sales management: 销售管理人员
+    Compare annual order sales and review the causes of differences between years.: 比较年度订单销售额，核对跨年差异的业务原因。
+    Historical transaction pricing for annual sales: 年度销售额采用历史成交价
+    ? 'Proposed annual-sales policy: preserve the price recorded on each historical order line and apply
+      that line''s quantity and discount. Never revalue a prior year using today''s product catalogue
+      price. This determines which commercial transaction is counted in the annual order-sales metric
+      and requires business confirmation.'
+    : 年度销售额的候选口径：采用历史订单明细记录的单价，并按该行数量和折扣计算。不能用今天的商品目录价格重估往年销售额。本规则决定年度订单销售额计入哪笔成交金额，仍须业务确认。
+    'Annual sales by category: reporting choice': 年度销售额是否按品类拆分
+    ? For sales management, should the annual order-sales report also show category contributions and
+      year-to-year changes? If so, agree the reporting category and historical product-classification
+      policy. The existing 1997 category/product view is evidence, not the definition of every annual
+      report.
+    : 面向销售管理，年度订单销售额是否还要展示各品类贡献和跨年变化？如果需要，须确认报表采用的品类口径及历史商品分类方式。源库现有的 1997 年品类／产品视图可作为证据，不替代新的年度报表定义。
+    Annual sales inclusion and currency policy: 年度销售额的纳入范围与币种
+    ? Before accepting annual order sales, sales and finance must agree whether freight and tax belong
+      in the metric, how returns and cancelled orders affect the year, and which currency is reported.
+      OrderDate assigns the order year; it does not establish the date of payment or revenue recognition.
+      Missing refund, currency or tax data is a definition gap, not proof that the source database is
+      wrong.
+    : 确认年度订单销售额前，销售与财务须对齐：是否计入运费和税、退货或取消订单归入哪一年、报表采用什么币种。OrderDate 只确定下单年份，不能证明回款或收入确认日期。缺少退货、币种或税信息是口径缺口，不代表源数据库错误。
+    Annual order-sales review: 年度订单销售额核对
+    Annual-sales decisions to confirm: 年度销售额待确认决策

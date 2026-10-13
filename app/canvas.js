@@ -7,7 +7,17 @@ function refreshCanvasCommentMarks() {
   for(const label of $('cy').querySelectorAll('.canvas-label,.canvas-edge-label')) {
     const id=label.dataset.nodeId||cy?.getElementById(label.dataset.edgeId).data('anchorId');
     label.dataset.hasComments=String(anchors.marked(id));
-    if(anchors.marked(id))label.title=t('此对象有评论，可在评论侧栏查看。');
+    const existing=label.querySelector('.graph-comment-mark');
+    if(anchors.marked(id)) {
+      label.title=t('此对象有评论，可在评论侧栏查看。');
+      if(!existing) {
+        const mark=document.createElement('button');mark.className='graph-comment-mark';
+        mark.dataset.commentOnly='true';mark.textContent='●';mark.title=label.title;
+        mark.setAttribute('aria-label',label.title);
+        mark.onpointerdown=e=>e.stopPropagation();
+        mark.onclick=e=>{e.stopPropagation();anchors.activate(id);};label.appendChild(mark);
+      }
+    }else{existing?.remove();label.removeAttribute('title');}
   }
 }
 function canvasEdgeId(e) {

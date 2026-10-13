@@ -27,6 +27,11 @@ def overlay(baseline, *, version=1, statement="Should refunds reduce ticket amou
             "refund": {
                 "concept": "refund policy",
                 "category": "meaning",
+                "role": "business",
+                "purpose": {
+                    "stakeholder": "Support manager",
+                    "decision": "Choose how refunds affect ticket spend.",
+                },
                 "label": "Refund policy",
                 "statement": statement,
                 "origin": "inferred",
@@ -160,6 +165,21 @@ def approve(publisher, *, sha=FIRST, reviewer=20, secret=None):
             "object_attributes": {"iid": 1, "action": "approved", "last_commit": {"id": sha}},
         },
     )
+
+
+def test_managed_contract_and_write_path_enforce_business_purpose(installed):
+    publisher, _, baseline = installed
+    contract = publisher.contract()
+    assert contract["business_format"] == "sudograph-business-overlay/v4"
+    assert "role" in contract["definition_required"]
+    assert "stakeholder" in contract["definition_roles"]["business"]
+    doc = overlay(baseline)
+    del doc["definitions"]["refund"]["purpose"]
+    with pytest.raises(ValueError, match="purpose"):
+        managed.compile_model(yaml.safe_dump(doc), baseline, namespace="tickets")
+    doc["format"] = "sudograph-business-overlay/v3"
+    with pytest.raises(ValueError, match="use format"):
+        managed.compile_model(yaml.safe_dump(doc), baseline, namespace="tickets")
 
 
 def test_source_namespace_and_versions_are_checked_without_caller_commands(installed):

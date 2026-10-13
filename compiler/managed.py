@@ -345,6 +345,7 @@ class Publisher:
             "definition_required": [
                 "concept",
                 "category",
+                "role",
                 "label",
                 "statement",
                 "origin",
@@ -353,6 +354,14 @@ class Publisher:
                 "version",
             ],
             "definition_categories": ["meaning", "metric", "rule", "issue"],
+            "definition_roles": {
+                "business": "meanings/metrics require purpose: stakeholder and decision; "
+                "rules/issues require a named business subject",
+                "source_evidence": "provided source observation with a checked quote; "
+                "attach through applies_to; details only",
+                "implementation_note": "supporting calculation/implementation detail; "
+                "attach through applies_to; details only",
+            },
             "origin_rules": {
                 "provided": "cite exact registered source or document evidence",
                 "inferred": "model deduction; remains unreviewed",

@@ -19,7 +19,7 @@ from urllib.parse import quote, urlparse
 from . import source_schema
 from .spec import read_document
 
-FORMAT = "sudograph-business-overlay/v3"
+FORMAT = "sudograph-business-overlay/v4"
 REGISTRY = "sudograph-business-registry/v1"
 
 
@@ -80,9 +80,18 @@ def compile_document(doc, model):
         where = f"definition {key}"
         required = {
             "concept", "category", "label", "statement", "origin",
-            "contributor", "targets", "version",
+            "contributor", "targets", "version", "role",
         }
-        mapping(item, required | {"evidence", "applies_to", "grain", "scope"}, required, where)
+        mapping(
+            item, required | {"evidence", "applies_to", "grain", "scope", "purpose"},
+            required, where,
+        )
+        role = item["role"]
+        if role not in {"business", "source_evidence", "implementation_note"}:
+            raise ValueError(
+                f"{where}.role: use business, source_evidence or implementation_note; "
+                "source SQL observations and arithmetic notes belong in evidence details"
+            )
         if not isinstance(item["category"], str) or item["category"] not in {
             "meaning", "metric", "rule", "issue",
         }:
@@ -99,6 +108,25 @@ def compile_document(doc, model):
                 f"{where}.contributor: {item['origin']} requires one of {contributors}; "
                 "keep source material, business-user input and model deduction distinct"
             )
+        if role == "source_evidence" and (
+            item["origin"] != "provided" or item["contributor"] != "source"
+            or item["category"] != "meaning"
+        ):
+            raise ValueError(f"{where}: source_evidence requires a provided source observation")
+        if role == "business" and item["category"] in {"meaning", "metric"}:
+            purpose = mapping(
+                item.get("purpose"), {"stakeholder", "decision"},
+                {"stakeholder", "decision"}, f"{where}.purpose",
+            )
+            for name in ("stakeholder", "decision"):
+                text(purpose[name], f"{where}.purpose.{name}")
+        elif "purpose" in item:
+            raise ValueError(
+                f"{where}: purpose belongs to business meanings/metrics; "
+                "attach rules, questions and supporting notes through applies_to"
+            )
+        if role != "business" and item["category"] == "metric":
+            raise ValueError(f"{where}: a metric must have a business purpose")
         if type(item["version"]) is not int or item["version"] < 1:
             raise ValueError(
                 f"{where}.version: use a positive integer and increment it when edited"
@@ -181,14 +209,28 @@ def compile_document(doc, model):
             raise ValueError(
                 f"definition {definition['key']}.applies_to: reference other canonical definitions"
             )
-        if definition["category"] == "rule" and (
+        if definition["role"] == "business" and definition["category"] in {"rule", "issue"} and (
             not refs or any(
-                definitions[keys[k]]["category"] not in {"meaning", "metric"} for k in refs
+                definitions[keys[k]]["role"] != "business"
+                or definitions[keys[k]]["category"] not in {"meaning", "metric"} for k in refs
             )
         ):
             raise ValueError(
-                f"definition {definition['key']}: a rule must apply to a named business "
+                f"definition {definition['key']}: a rule or question must apply to a "
+                "named business "
                 "meaning or metric; source fields alone do not establish its business purpose"
+            )
+        if definition["role"] != "business" and not refs:
+            raise ValueError(
+                f"definition {definition['key']}: attach supporting evidence/notes through "
+                "applies_to; do not place them in the business view"
+            )
+        if definition["role"] == "business" and any(
+            definitions[keys[k]]["role"] != "business" for k in refs
+        ):
+            raise ValueError(
+                f"definition {definition['key']}: business dependencies must reference business "
+                "subjects; attach evidence/notes to the subject in their own applies_to"
             )
         definition["applies_to"] = [keys[k] for k in refs]
     visiting, visited = set(), set()
@@ -206,6 +248,10 @@ def compile_document(doc, model):
 
     for identity in definitions:
         dependencies(identity)
+    dependents = {identity: [] for identity in definitions}
+    for identity, definition in definitions.items():
+        for target in definition["applies_to"]:
+            dependents[target].append(identity)
     views = {}
     if not isinstance(doc["views"], dict) or not doc["views"]:
         raise ValueError("views: declare at least one business view using definition references")
@@ -221,11 +267,26 @@ def compile_document(doc, model):
                 f"view {key}: duplicate or unknown definition; reference an existing key"
             )
         ids = [keys[k] for k in refs]
+        if any(definitions[i]["role"] != "business" for i in ids):
+            raise ValueError(
+                f"view {key}: source_evidence and implementation_note belong in details; "
+                "reference business definitions with a stakeholder and decision purpose"
+            )
         # A view reuses dependencies by identity. A rule cannot be shown with its
         # business purpose silently omitted, and no extra definition is copied.
         for identity in ids:
             ids.extend(v for v in definitions[identity]["applies_to"] if v not in ids)
         used.update(ids)
+        # Supporting evidence is attached by reference, outside the business
+        # canvas. Include nested notes without copying or changing identities.
+        attached, supporting_ids = list(ids), set()
+        for identity in attached:
+            for dependent in dependents[identity]:
+                if definitions[dependent]["role"] != "business" and dependent not in supporting_ids:
+                    supporting_ids.add(dependent)
+                    attached.append(dependent)
+        supporting = [identity for identity in definitions if identity in supporting_ids]
+        used.update(supporting)
         targets = sorted(
             {target for identity in ids for target in definitions[identity]["targets"]}
         )
@@ -257,18 +318,23 @@ def compile_document(doc, model):
         views[key] = {
             "label": item["label"],
             "definitions": ids,
+            "supporting": supporting,
             "targets": targets,
             "edges": edges,
         }
     if used != set(definitions):
         raise ValueError(
-            "definitions: unreferenced definitions; include them in a view or remove them"
+            "definitions: unreferenced definitions; use a business view or attach "
+            "supporting evidence to a visible business subject"
         )
     translations = doc.get("translations", {})
     if not isinstance(translations, dict) or set(translations) - {"en", "zh"}:
         raise ValueError("translations: use the supported en/zh catalogues")
     vocabulary = {item[name] for item in definitions.values() for name in ("label", "statement")}
     vocabulary.update(item["scope"] for item in definitions.values() if "scope" in item)
+    vocabulary.update(
+        value for item in definitions.values() for value in item.get("purpose", {}).values()
+    )
     vocabulary.update(v["label"] for v in views.values())
     for language, terms in translations.items():
         if (

@@ -1,165 +1,25 @@
 {
-  "status": "reviewed_native_remote_url",
+  "status": "current-revision-verified-new-candidate-not-published",
   "target_url": "https://s.shareone.vip/s/sudograph-northwind",
   "target_share_id": "aSoJi9Ny94gwxXFc",
-  "candidate_commit": "d888a7a3ea15ebf0f8ac4bd04c0f70ff61fdc6e4",
-  "candidate_remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/d888a7a3ea15ebf0f8ac4bd04c0f70ff61fdc6e4/examples/northwind/business/review.html",
-  "candidate_filename": "northwind.html",
-  "candidate_bytes": 11658489,
-  "candidate_sha256": "75b21d26af0e4ddb914657b07a946afcaf2e514f8e5a28c6d6acf2898279e3b3",
-  "review_id": "b976999c-ecf9-4369-9b54-c9bf9c0f40b7",
-  "review_approved": true,
-  "rejection": {
-    "http_status": 409,
-    "error_code": "CONTENT_REVIEW_REQUIRED",
-    "reason": "完整内容超过自动审核预算，需要人工复核；尚未作出内容违规判断。",
-    "retryable": false
-  },
-  "current_review_page_updated": true,
-  "current_review_page_bytes_unchanged": false,
-  "comments_preserved": true,
-  "comments_embedded_in_candidate": false,
-  "phase_one_source_views_and_records_unchanged": true,
-  "review_candidate_download_matches_bytes": true,
-  "public_phase_one_remote_url_verified": true,
-  "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38149419610",
-  "ci_conclusion": "success",
-  "reviewed_at": "2026-10-11T15:18:24.081687Z",
-  "reviewer_note": "opensource sample",
-  "publication_operation": "PUT /api/v1/pages/{share_id}",
-  "remote_url_bound": true,
-  "allow_comments": true,
-  "owner_download_matches_candidate_bytes": true,
-  "force_refresh_verified": true,
-  "remote_fetch_failures": 0,
-  "remote_last_error": null,
-  "existing_comment_threads_preserved": 32,
-  "verified_at": "2026-10-11T15:26:24.826757+00:00",
-  "anonymous_browser": {
-    "tool": "ai-dev-browser",
-    "language": "zh",
-    "source_objects": 30,
-    "source_fields": 204,
-    "canonical_definitions": 7,
-    "visible_views": [
-      {
-        "value": "schema",
-        "label": "结构关系"
-      },
-      {
-        "value": "data",
-        "label": "数据关系"
-      },
-      {
-        "value": "business:sales-meaning",
-        "label": "业务视图 · 销售口径核对"
-      },
-      {
-        "value": "business:open-questions",
-        "label": "业务视图 · 待确认业务问题"
-      }
-    ],
-    "source_field_to_real_records": true,
-    "shared_source_node_references": true,
-    "business_identity_reused_across_views": true,
-    "language_switch": true,
-    "shareone_comment_sdk_present": true,
-    "source_connector_visible_and_checkbox_synchronised": true,
-    "automatic_layout_flow": "DOWN",
-    "automatic_layout_candidates": [
-      {
-        "direction": "DOWN",
-        "bounds": {
-          "width": 2032.6666666666667,
-          "height": 583
-        },
-        "scale": 0.6267628730731387
-      },
-      {
-        "direction": "RIGHT",
-        "bounds": {
-          "width": 923,
-          "height": 1769
-        },
-        "scale": 0.44870866308648955
-      }
-    ],
-    "existing_annotated_node_clicks_and_neighbour_highlight": true,
-    "selected_phrase_quote_preserves_stable_identity": true,
-    "definition_version_in_expandable_details": true,
-    "rounding_example_visible": true,
-    "pan_and_zoom_did_not_run_layout": true,
-    "reload_verified": true,
-    "test_comments_created": false
-  },
-  "previous_publication": {
-    "candidate_commit": "f6daf34eaa6decf3b264276ad72f41aac4ec5dcf",
-    "candidate_remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/f6daf34eaa6decf3b264276ad72f41aac4ec5dcf/examples/northwind/business/review.html",
-    "candidate_filename": "northwind.html",
-    "candidate_bytes": 11649692,
-    "candidate_sha256": "6516219c90929cb44913c2c63ae37ef23e0b9f567d0ad62fe9d6941127be4230",
-    "review_id": "dfea5fb6-ee42-4186-b70e-246c783ef2a4",
-    "reviewed_at": "2026-10-10T17:02:16.946721Z",
-    "verified_at": "2026-10-11T03:07:31.376199+00:00",
-    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38062032214"
-  },
-  "existing_replies_preserved": true,
-  "source_schema_views_records_equal_to_frozen_baseline": true,
-  "canonical_definition_ids_preserved": 7,
-  "business_definitions_confirmed": 0,
-  "comment_round": {
-    "threads_reviewed": 4,
-    "design_discussion_resolved": 1,
-    "page_change_threads_verified_and_resolved": 3,
-    "summary_after_resolution": {
-      "total": 32,
-      "open": 0,
-      "in_progress": 0,
-      "resolved": 32,
-      "dismissed": 0,
-      "last_activity_at": "2026-10-11T15:25:32.409947Z"
-    },
-    "resolution_does_not_confirm_business_meaning": true
+  "current_publication": {
+    "commit": "959f1d717a6cbde3e4611d61141235efdf65af52",
+    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/959f1d717a6cbde3e4611d61141235efdf65af52/examples/northwind/business/review.html",
+    "bytes": 11686891,
+    "sha256": "082b88decbd24a8b53313eb7b5d7a8b71eea085a3062728d4014ff129166092b",
+    "owner_download_matches_git_blob": true
   },
   "pending_update": {
-    "status": "manual-review-required-current-share-unchanged",
-    "candidate_bytes": 11680576,
-    "candidate_sha256": "e53d203e0b14207554006d3c000af3d31d6217465be223c7ba807fdf70a478eb",
-    "candidate_filename": "northwind.html",
-    "business_definitions": 9,
+    "artifact": "review.html",
+    "bytes": 11687309,
+    "sha256": "7e6667092bac5df019c14680deb99e767ef58dbe9788820ef4ee8737e7ab8d19",
+    "published": false,
+    "canonical_definition_ids_preserved": 9,
+    "business_nodes": 4,
+    "supporting_evidence_notes": 5,
     "business_definitions_confirmed": 0,
-    "phase_one_source_schema_views_records_equal_to_frozen_baseline": true,
-    "original_definition_ids_preserved": 7,
-    "new_definition_ids": 2,
-    "current_review_page_updated": false,
-    "manual_html_edits": false,
-    "default_details_panel_expanded": true,
-    "candidate_commit": "6eab35ec4e02c5cac85c91275c4cad738f5e08ea",
-    "candidate_remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/6eab35ec4e02c5cac85c91275c4cad738f5e08ea/examples/northwind/business/review.html",
-    "review_id": "65d9f3d4-d7dd-49e4-b451-36002b09e20b",
-    "review_status": "manual_required",
-    "review_approved": null,
-    "automatic_review_evidence": {
-      "policy": "complete-content-review/v2",
-      "model": "deepseek-v3.2-azure",
-      "scripts": 3,
-      "static_context_sha256": "72db3a1f5a2e8cb2a14bb9fd516f2e67f780644ba357e9909dbf0298f2e475e2",
-      "baseline_review_id": null,
-      "reused": [],
-      "data_rule": "JSON literals are data; their use by scripts still requires review. Encoded data alone does not establish malicious code. Decode-to-execute or document replacement requires manual review.",
-      "parts": 142,
-      "input_characters": 11648637,
-      "reviewed_characters": 11924752,
-      "synthesis_context_characters": 2466872,
-      "synthesis_context_sha256": "b4c9b892a9872b0273dc0bce8fd0a8366e7560b9c46374472fee61399162929a",
-      "synthesis_context": "complete fragment execution findings",
-      "error_class": "ExceptionGroup",
-      "reason": "后台自动复核未能完成，需要管理员复核。",
-      "is_safe": false
-    },
-    "moderation_reason": "完整内容超过自动审核预算，需要人工复核；尚未作出内容违规判断。",
-    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38158885400",
-    "ci_conclusion": "success",
-    "local_browser_verified": true
+    "phase_one_source_schema_views_records_unchanged": true,
+    "comments_embedded": false,
+    "manual_html_edits": false
   }
 }

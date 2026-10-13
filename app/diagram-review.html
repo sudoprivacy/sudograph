@@ -19,14 +19,16 @@
     <button id="zoom-out" aria-label="Zoom out">−</button>
     <button id="zoom-in" aria-label="Zoom in">+</button>
     <button id="expand" aria-pressed="false">Expand</button>
+    <button id="pan-mode" aria-pressed="true">Move</button>
+    <button id="text-mode" aria-pressed="false">Select text</button>
     <button id="comment-mode" aria-pressed="false">Comment nodes</button>
     <label for="focus-node">Jump to</label><select id="focus-node"><option value="">Choose a node</option></select>
   </div>
-  <div id="diagram-viewport" tabindex="0" aria-label="Diagram canvas; drag to pan, scroll to zoom">
+  <div id="diagram-viewport" tabindex="0" aria-label="Diagram canvas; choose Move to drag, or Select text to highlight">
     <div id="diagram-stage"></div>
     <p id="diagram-status" role="status">Loading the diagram…</p>
   </div>
-  <p class="diagram-help">To comment, enable “Comment nodes” and click a node, or use ShareOne’s region tool. Select text in the document for a passage comment.</p>
+  <p class="diagram-help">Move: drag the diagram. Select text: highlight words on the diagram to comment. Comment nodes: click a node to comment. Document text and ShareOne’s region tool remain available.</p>
 </section>
 <article>@@ARTICLE@@</article>
 <script type="module">@@SCRIPT@@</script>

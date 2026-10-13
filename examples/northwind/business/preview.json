@@ -2,10 +2,10 @@
   "status": "unreviewed-business-pilot",
   "language": "en",
   "artifact": "index.html",
-  "artifact_bytes": 11681561,
-  "artifact_sha256": "3e42b4ab077c683c64f00f26ae014f66554793babac86a0f97c5242da5167d87",
+  "artifact_bytes": 11688296,
+  "artifact_sha256": "4049193e0b81be04b6254c5e6f83c3d40cb85435574d9e28393b43c233e84c7b",
   "overlay": "pilot.yaml",
-  "overlay_sha256": "cc197d6f760afc9de74ea85122271cb53eb70d72309aa3d98267b3135fa57365",
+  "overlay_sha256": "a3b903b3868cca4e66753ec0c56c2e715b9efa1df8c67fd3992cf5588168395d",
   "registry": "pilot.registry.json",
   "canonical_definitions": 9,
   "origins": {
@@ -19,8 +19,8 @@
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
     "artifact": "review.html",
-    "bytes": 11680576,
-    "sha256": "e53d203e0b14207554006d3c000af3d31d6217465be223c7ba807fdf70a478eb",
+    "bytes": 11687309,
+    "sha256": "7e6667092bac5df019c14680deb99e767ef58dbe9788820ef4ee8737e7ab8d19",
     "language": "zh"
   },
   "contributors": {
@@ -36,13 +36,13 @@
     "unreviewed_outline": "--hook"
   },
   "validation": {
-    "tests_passed": 309,
+    "tests_passed": 325,
     "browser_tool": "ai-dev-browser",
     "source_field_to_real_records": true,
     "source_node_references_shared_in_renderer": true,
     "business_definition_and_reference_edge_attribution": true,
     "language_switch_preserves_identities": true,
-    "canonical_definition_ids_preserved": 7,
+    "canonical_definition_ids_preserved": 9,
     "phase_one_source_and_views_equal_to_original_review": true,
     "comments_in_artifact": false,
     "source_connectors_visible_by_default": true,
@@ -54,14 +54,18 @@
     "verification_status": "passed",
     "phase_one_source_views_and_complete_records_equal_to_frozen_baseline": true,
     "whole_html_regeneration_check": true,
-    "new_definition_ids": 2,
+    "new_definition_ids": 0,
     "business_purpose_dependencies": true,
     "local_panel_toggle_does_not_rebuild_or_relayout": true,
     "local_phone_viewport_canvas_height_expanded_px": 274.421875,
     "local_phone_viewport_canvas_height_collapsed_px": 490.03125,
     "real_phone_hardware_benchmark": false,
-    "verification_gates_passed": 6
+    "verification_gates_passed": 6,
+    "business_purpose_and_evidence_role_enforcement": true,
+    "actual_shapes_in_legend": true
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
-  "publication": "publication.json"
+  "publication": "publication.json",
+  "business_nodes": 4,
+  "supporting_evidence_notes": 5
 }

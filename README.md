@@ -21,6 +21,10 @@ that understanding inspectable and reusable. **Git is the history.**
    checks what the source actually contains. Phase two adds reviewed meanings,
    rules and metrics that reference that foundation. A plausible column name or
    LLM guess does not establish a business definition.
+   Business definitions name the stakeholder and decision they support. Source
+   SQL observations and implementation notes remain supporting evidence in
+   details; they cannot enter a business view as business nodes. The compiler
+   enforces that structure, while people judge the proposed business meaning.
    Phase two continues the same working model and review share, adding business
    content and named views. Source objects and fields keep their identities;
    definitions can be refined with versioned review. Preserve source views and

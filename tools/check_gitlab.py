@@ -59,6 +59,11 @@ def document(contract, *, version=1, statement="Should refunds reduce ticket amo
             "refund": {
                 "concept": "refund policy",
                 "category": "meaning",
+                "role": "business",
+                "purpose": {
+                    "stakeholder": "Support manager",
+                    "decision": "Choose how refunds affect ticket spend.",
+                },
                 "label": "Refund policy",
                 "statement": statement,
                 "origin": "inferred",

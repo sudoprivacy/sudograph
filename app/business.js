@@ -3,12 +3,23 @@ const BUSINESS_VISUALS={
   evidence:{get colour(){return css(KINDS.raw.var)},get name(){return t('取数点与资料依据')}},
   proposal:{get colour(){return css(KINDS.hook.var)},get name(){return t('待确认业务理解')}},
 };
-const businessColour=n=>(n.origin==='provided'&&n.contributor==='source'?BUSINESS_VISUALS.evidence:BUSINESS_VISUALS.proposal).colour;
+const businessColour=n=>(n.role==='source_evidence'?BUSINESS_VISUALS.evidence:BUSINESS_VISUALS.proposal).colour;
 const BUSINESS_CONTRIBUTORS={source:'源资料',business_user:'业务人员提供',model:'模型推演'};
 const businessContributor=(n,language=uiLanguage)=>t(BUSINESS_CONTRIBUTORS[n.contributor],{},language);
 const businessNodes=new Map(Object.entries(BUNDLE.business?.definitions||{}));
 const BUSINESS_CATEGORIES={meaning:'业务理解',metric:'候选业务指标',rule:'业务规则',issue:'待核对问题'};
 const BUSINESS_SHAPES={meaning:'roundrectangle',metric:'roundrectangle',rule:'hexagon',issue:'ellipse'};
+function businessLegend() {
+  const chosen=BUNDLE.business.views[state.projection.slice('business:'.length)];
+  const categories=new Set(chosen.definitions.map(id=>businessNodes.get(id).category));
+  const symbols={roundrectangle:'<rect x="1" y="1" width="22" height="14" rx="3"/>',
+    hexagon:'<polygon points="1,8 6,1 18,1 23,8 18,15 6,15"/>',
+    ellipse:'<ellipse cx="12" cy="8" rx="11" ry="7"/>'};
+  return `<span><i style="background:var(--raw)"></i>${t('取数点与资料依据')}</span>`+
+    `<span><i style="background:var(--hook)"></i>${t('待业务确认')}</span>`+
+    `<span><i style="background:var(--type)"></i>${t('源字段与对象')}</span>`+
+    [...categories].map(category=>`<span><svg width="24" height="16" viewBox="0 0 24 16" aria-hidden="true" style="fill:var(--hook)">${symbols[BUSINESS_SHAPES[category]]}</svg>${t(BUSINESS_CATEGORIES[category])}</span>`).join('');
+}
 const isBusiness=()=>state.projection.startsWith('business:');
 for(const [key,v] of Object.entries(BUNDLE.business?.views||{})) {
   const option=document.createElement('option');option.value='business:'+key;
@@ -58,12 +69,17 @@ async function drawBusiness(v,mine) {
 }
 function showBusinessNode(n) {
   state.panel='node';
-  $('panel').innerHTML=`<h2>${t('业务定义草案')}</h2><strong>${esc(bt(n.label))}</strong>`+
+  const supporting=n.role!=='business';
+  $('panel').innerHTML=`<h2>${t(supporting?'引用证据':'业务定义草案')}</h2><strong data-business-label>${esc(bt(n.label))}</strong>`+
     `<p data-business-statement>${esc(bt(n.statement))}</p><div class="kv"><span>${t('信息来源')}</span><span>${businessContributor(n)}</span></div>`+
     `<div class="kv"><span>${t('定义类别')}</span><span>${t(BUSINESS_CATEGORIES[n.category])}</span></div>`+
-    `<div class="kv"><span>${t('确认状态')}</span><span>${t('待业务确认')}</span></div>`+
+    (supporting?'':`<div class="kv"><span>${t('确认状态')}</span><span>${t('待业务确认')}</span></div>`)+
     `<p class="muted">${t('来源不代表已确认')}</p>`;
+  if(supporting)void annotateCommentText($('panel').querySelector('[data-business-label]'),n.id,'label');
   void annotateCommentText($('panel').querySelector('[data-business-statement]'),n.id,'statement');
+  if(n.purpose) {
+    const p=document.createElement('p');p.textContent=bt(n.purpose.stakeholder)+' · '+bt(n.purpose.decision);$('panel').appendChild(p);
+  }
   const controls=document.createElement('div');controls.className='schema-actions';
   const button=(label,action)=>{const b=document.createElement('button');b.textContent=t(label);b.onclick=action;controls.appendChild(b);};
   button('核对源字段',async()=>{state.focus=n.id;await draw();});
@@ -86,6 +102,10 @@ function showBusinessNode(n) {
     const related=businessNodes.get(id),b=document.createElement('button');
     b.textContent=t(n.category==='rule'?'规则适用对象':'问题影响对象')+' · '+bt(related.label);
     b.onclick=()=>revealBusiness(id);$('panel').appendChild(b);
+  }
+  for(const note of businessNodes.values())if(note.role!=='business'&&note.applies_to.includes(n.id)) {
+    const b=document.createElement('button');b.textContent=t('引用证据')+' · '+bt(note.label);
+    b.onclick=()=>revealBusiness(note.id);$('panel').appendChild(b);
   }
   for(const evidence of n.evidence||[]) {
     const details=document.createElement('details'),summary=document.createElement('summary');
@@ -139,10 +159,15 @@ function showBusinessSummary() {
     `<p class="muted">${t('本版只记录定义与问题；口径确认后再实现指标计算。')}</p>`;
 }
 async function revealBusiness(id) {
-  const entry=Object.entries(BUNDLE.business.views).find(([,v])=>v.definitions.includes(id));
+  const entry=Object.entries(BUNDLE.business.views).find(([,v])=>v.definitions.includes(id)||v.supporting.includes(id));
   if(!entry)return false;
   state.projection='business:'+entry[0];$('projection').value=state.projection;state.focus=null;
-  state.selected=id;state.selectedRelation=null;state.panel='node';await draw();return true;
+  state.selected=id;state.selectedRelation=null;state.panel='node';await draw();
+  if(businessNodes.get(id).role!=='business') {
+    if(state.panelCollapsed){state.panelCollapsed=false;panelSizeChanged=true;syncPanelToggle();}
+    showBusinessNode(businessNodes.get(id));anchors.report();
+  }
+  return true;
 }
 async function revealBusinessRelation(id) {
   const entry=Object.entries(BUNDLE.business?.views||{}).find(([,v])=>v.edges.some(e=>e.id===id));
