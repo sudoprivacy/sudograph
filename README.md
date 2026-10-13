@@ -21,8 +21,14 @@ that understanding inspectable and reusable. **Git is the history.**
    checks what the source actually contains. Phase two adds reviewed meanings,
    rules and metrics that reference that foundation. A plausible column name or
    LLM guess does not establish a business definition.
+   Phase one also welcomes questions about source precision, time coverage,
+   missing values or field meaning. The pure projection and projection with
+   source-review questions reuse the same objects, fields and record reader.
+   Orange questions carry a verification plan; they neither change source facts
+   nor prove that those facts are wrong. These questions do not substitute for
+   phase-two business reasoning.
    Business definitions name the stakeholder and decision they support. Source
-   SQL observations and implementation notes remain supporting evidence in
+   SQL citations and implementation notes remain supporting evidence in
    details; they cannot enter a business view as business nodes. The compiler
    enforces that structure, while people judge the proposed business meaning.
    Phase two continues the same working model and review share, adding business
@@ -242,8 +248,12 @@ How well the loop actually runs is measured, not asserted — the criteria are i
 | 3 | **Business use** | Agents answer business questions and perform authorised workflows using the reviewed model; failures and new evidence return to review. Source-system write-back remains a design, not a deployed capability. |
 
 These are stages of the workflow, not automatic names for three graph menus.
-Phase one currently provides the shared **Structure relationships**
-and **Data projection** presentations. They are infrastructure-defined
+Phase one provides **Data projection** and, when checked questions exist,
+**Projection and data review**. The second uses the same source graph plus
+unconfirmed questions with verification plans. Real records are a shared
+drilldown and pagination capability, not a separate competing source graph.
+The internal legacy records graph remains available for existing record anchors.
+These are infrastructure-defined
 capabilities; an agent does not invent a replacement viewer for each database.
 Availability follows the compiled content and authorised delivery scope.
 
@@ -255,7 +265,9 @@ to one presentation. A menu toggle alone does not preserve a historical snapshot
 The current compiler separates `source_projection` and `business` modes and
 supplies shared field identities. `compiler.business` compiles a pinned phase-one
 baseline and versioned canonical definitions into one reader with separate source
-and business views. Typed definitions distinguish meanings, candidate metrics,
+review and business views. `source_review` requires a source target and verification
+plan, works without business definitions, and cannot enter business view definitions
+or depend on a phase-two subject. Typed business definitions distinguish meanings, candidate metrics,
 rules and issues; rules reference their business subjects and metrics declare
 grain and scope. The registry rejects duplicate identities and unversioned edits.
 Trusted human confirmation, identity migrations and authenticated overlay delivery

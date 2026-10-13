@@ -336,3 +336,78 @@ def test_old_contract_and_rendered_role_tampering_cannot_bypass_business_boundar
     doc["format"] = "sudograph-business-overlay/v3"
     with pytest.raises(ValueError, match="use format"):
         business.build(doc, model)
+
+
+def source_question(model):
+    obj = next(o for o in model["source_schema"]["sources"][0]["objects"] if o["name"] == "Tickets")
+    return {
+        "concept": "missing ticket amounts", "category": "issue", "role": "source_review",
+        "label": "Check empty amounts", "statement": "Is a missing amount expected for a ticket?",
+        "origin": "inferred", "contributor": "model", "version": 1,
+        "targets": [next(f["id"] for f in obj["fields"] if f["column"] == "amount")],
+        "verification": "Inspect the source NULL count and the corresponding real ticket records.",
+    }
+
+
+def test_phase_one_questions_work_without_business_definitions_and_preserve_source(base):
+    model, doc = base
+    question = source_question(model)
+    doc["definitions"] = {"missing-amount": question}
+    doc["views"] = {}
+    overlay = business.build(doc, model)
+    business.validate(overlay)
+    assert overlay["views"] is model["views"] and overlay["records"] is model["records"]
+    assert overlay["source_schema"] is model["source_schema"]
+    review = overlay["business"]["source_review"]
+    identity = review["definitions"][0]
+    assert overlay["business"]["views"] == {}
+    assert review["edges"][0]["from"] == question["targets"][0]
+    assert review["edges"][0]["to"] == identity
+    assert overlay["business"]["definitions"][identity]["review_status"] == "unreviewed"
+    # Direct rendering is checked too; removing the plan from the DTO cannot
+    # bypass the parser by submitting precompiled graph data.
+    app.render(overlay)
+    overlay["business"]["definitions"][identity].pop("verification")
+    with pytest.raises(ValueError, match=r"rebuild through compiler.business"):
+        app.render(overlay)
+
+
+def test_source_questions_cannot_be_business_nodes_or_depend_on_business(base):
+    model, doc = base
+    doc["definitions"]["missing-amount"] = source_question(model)
+    doc["views"]["meaning"]["definitions"].append("missing-amount")
+    with pytest.raises(ValueError, match="source_review belongs in phase one"):
+        business.build(doc, model)
+    doc["views"]["meaning"]["definitions"].pop()
+    question = doc["definitions"]["missing-amount"]
+    question["applies_to"] = ["refund-question"]
+    with pytest.raises(ValueError, match="phase one must not depend"):
+        business.build(doc, model)
+    question.pop("applies_to")
+    verification = question.pop("verification")
+    with pytest.raises(ValueError, match=r"verification.*non-empty"):
+        business.build(doc, model)
+    question["verification"] = verification
+    question["category"] = "rule"
+    with pytest.raises(ValueError, match="not a business policy"):
+        business.build(doc, model)
+
+
+def test_moving_existing_note_to_phase_one_keeps_identity_and_requires_new_version(base):
+    model, doc = base
+    note = source_question(model)
+    note.update(role="implementation_note", applies_to=["refund-question"])
+    plan = note.pop("verification")
+    doc["definitions"]["missing-amount"] = note
+    first = business.build(doc, model)
+    saved = business.registry(first, {})
+    old_id = first["business"]["views"]["questions"]["supporting"][0]
+    note.update(role="source_review", verification=plan)
+    note.pop("applies_to")
+    second = business.build(doc, model)
+    assert second["business"]["source_review"]["definitions"] == [old_id]
+    assert second["business"]["views"]["questions"]["supporting"] == []
+    with pytest.raises(ValueError, match="content changed without a new version"):
+        business.registry(second, saved)
+    note["version"] += 1
+    business.registry(business.build(doc, model), saved)

@@ -364,10 +364,26 @@ class Publisher:
             "definition_roles": {
                 "business": "meanings/metrics require purpose: stakeholder and decision; "
                 "rules/issues require a named business subject",
+                "source_review": "phase-one data question; category: issue; source targets and "
+                "a verification plan required; no business dependencies or view entries",
                 "source_evidence": "provided source observation with a checked quote; "
                 "attach through applies_to; details only",
                 "implementation_note": "supporting calculation/implementation detail; "
                 "attach through applies_to; details only",
+            },
+            "authoring_guidance": {
+                "phase_one": "Preserve the complete source projection. Put questions about source "
+                "precision, missing values, keys or source-view time coverage in source_review, "
+                "with a verification plan. A question is not proof of a source defect.",
+                "phase_two": "Propose what the business means and how people use it: stakeholders, "
+                "decisions, metrics, policies and business relationships. Annual sales needs its "
+                "order-year definition, reporting population and commercial price policy. "
+                "Renaming source SQL or adding a data-quality question does not "
+                "establish business meaning.",
+                "shared_identity": "Reuse current_model and identity_registry. Edit an existing "
+                "definition with its version incremented; views reference it without copying it.",
+                "review": "Structure and exact evidence are enforced; prose meaning requires human "
+                "review. Mark model deductions inferred, not source facts or confirmed decisions.",
             },
             "origin_rules": {
                 "provided": "cite exact registered source or document evidence",

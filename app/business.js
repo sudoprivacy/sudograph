@@ -18,7 +18,12 @@ function businessLegend() {
   return `<span><i style="background:var(--raw)"></i>${t('取数点与资料依据')}</span>`+
     `<span><i style="background:var(--hook)"></i>${t('待业务确认')}</span>`+
     `<span><i style="background:var(--type)"></i>${t('源字段与对象')}</span>`+
-    [...categories].map(category=>`<span><svg width="24" height="16" viewBox="0 0 24 16" aria-hidden="true" style="fill:var(--hook)">${symbols[BUSINESS_SHAPES[category]]}</svg>${t(BUSINESS_CATEGORIES[category])}</span>`).join('');
+    [...categories].map(category=>`<span><svg viewBox="0 0 24 16" aria-hidden="true" style="fill:var(--hook)">${symbols[BUSINESS_SHAPES[category]]}</svg>${t(BUSINESS_CATEGORIES[category])}</span>`).join('');
+}
+function sourceReviewLegend() {
+  return `<span><i style="background:var(--raw)"></i>${t('取数点与资料依据')}</span>`+
+    `<span><i style="background:var(--type)"></i>${t('源字段与对象')}</span>`+
+    `<span><svg viewBox="0 0 24 16" aria-hidden="true" style="fill:var(--hook)"><ellipse cx="12" cy="8" rx="11" ry="7"/></svg>${t('源数据待核对')}</span>`;
 }
 const isBusiness=()=>state.projection.startsWith('business:');
 for(const [key,v] of Object.entries(BUNDLE.business?.views||{})) {
@@ -27,7 +32,8 @@ for(const [key,v] of Object.entries(BUNDLE.business?.views||{})) {
 }
 if(BUNDLE.business) {
   $('projection').querySelector('option[value="all"]').hidden=true;
-  state.projection='business:'+Object.keys(BUNDLE.business.views)[0];$('projection').value=state.projection;
+  const first=Object.keys(BUNDLE.business.views)[0];
+  state.projection=first?'business:'+first:'schema:review';$('projection').value=state.projection;
 }
 function businessGraph() {
   const selected=BUNDLE.business.views[state.projection.slice('business:'.length)];
@@ -49,7 +55,7 @@ function businessGraph() {
 }
 function businessLines(n,language) {
   return [{cls:'',parts:[bt(n.label,language)]},
-    ...(n.category==='meaning'?[]:[{cls:'mark',parts:[t(BUSINESS_CATEGORIES[n.category],{},language)]}])];
+    ...(n.category==='meaning'?[]:[{cls:'mark',parts:[t(n.role==='source_review'?'源数据待核对':BUSINESS_CATEGORIES[n.category],{},language)]}])];
 }
 async function drawBusiness(v,mine) {
   $('schemaFilter').hidden=true;
@@ -70,20 +76,25 @@ async function drawBusiness(v,mine) {
 function showBusinessNode(n) {
   state.panel='node';
   const supporting=n.role!=='business';
-  $('panel').innerHTML=`<h2>${t(supporting?'引用证据':'业务定义草案')}</h2><strong data-business-label>${esc(bt(n.label))}</strong>`+
+  const sourceReview=n.role==='source_review';
+  $('panel').innerHTML=`<h2>${t(sourceReview?'源数据待核对':supporting?'引用证据':'业务定义草案')}</h2><strong data-business-label>${esc(bt(n.label))}</strong>`+
     `<p data-business-statement>${esc(bt(n.statement))}</p><div class="kv"><span>${t('信息来源')}</span><span>${businessContributor(n)}</span></div>`+
     `<div class="kv"><span>${t('定义类别')}</span><span>${t(BUSINESS_CATEGORIES[n.category])}</span></div>`+
     (supporting?'':`<div class="kv"><span>${t('确认状态')}</span><span>${t('待业务确认')}</span></div>`)+
     `<p class="muted">${t('来源不代表已确认')}</p>`;
-  if(supporting)void annotateCommentText($('panel').querySelector('[data-business-label]'),n.id,'label');
+  if(supporting&&!sourceReview)void annotateCommentText($('panel').querySelector('[data-business-label]'),n.id,'label');
   void annotateCommentText($('panel').querySelector('[data-business-statement]'),n.id,'statement');
   if(n.purpose) {
     const p=document.createElement('p');p.textContent=bt(n.purpose.stakeholder)+' · '+bt(n.purpose.decision);$('panel').appendChild(p);
   }
+  if(sourceReview) {
+    const p=document.createElement('p');p.textContent=t('核对方法')+'：'+bt(n.verification);$('panel').appendChild(p);
+    const note=document.createElement('p');note.className='muted';note.textContent=t('橙色是待核对的问题，不表示源数据已经出错；不会改写源值。');$('panel').appendChild(note);
+  }
   const controls=document.createElement('div');controls.className='schema-actions';
   const button=(label,action)=>{const b=document.createElement('button');b.textContent=t(label);b.onclick=action;controls.appendChild(b);};
   button('核对源字段',async()=>{state.focus=n.id;await draw();});
-  if(anchors.live){button('评论业务定义',()=>anchors.comment(n.id,bt(n.label),bt(n.statement)));controls.lastChild.dataset.commentOnly='true';}
+  if(anchors.live){button(sourceReview?'评论数据问题':'评论业务定义',()=>anchors.comment(n.id,bt(n.label),bt(n.statement)));controls.lastChild.dataset.commentOnly='true';}
   $('panel').prepend(controls);
   const refs=document.createElement('div');
   for(const id of n.targets) {
@@ -134,14 +145,14 @@ function showBusinessRelation(e) {
       b.onclick=()=>revealBusiness(node.id);$('panel').appendChild(b);}
     return;
   }
-  const target=schemaNodes.get(e.from),definition=businessNodes.get(e.to);
+  const target=schemaNodes.get(e.source_target||e.from),definition=businessNodes.get(e.to);
   const sourceName=(target.parent?schemaNodes.get(target.parent).name+'.':'')+(target.column||target.name);
-  $('panel').innerHTML=`<h2>${t('依据或核对目标')}</h2><p>${esc(sourceName)} → ${esc(bt(definition.label))}</p>`+
+  $('panel').innerHTML=`<h2>${t(e.rel==='source_review_target'?'数据核对目标':'依据或核对目标')}</h2><p>${esc(sourceName)} → ${esc(bt(definition.label))}</p>`+
     `<div class="kv"><span>${t('提供者类别')}</span><span>${businessContributor(e)}</span></div>`+
-    `<p>${t('待业务确认')} · ${t('来源不代表已确认')}</p>`+
+    `<p>${t(e.rel==='source_review_target'?'源数据待核对':'待业务确认')} · ${t('来源不代表已确认')}</p>`+
     `<p class="muted">${t('这条线引用源对象或字段；不是源库外键，也不是新的计算公式。')}</p>`;
   const controls=document.createElement('div');controls.className='schema-actions';
-  for(const [label,action] of [[sourceName,()=>revealSchema(e.from)],
+  for(const [label,action] of [[sourceName,()=>revealSchema(e.source_target||e.from)],
     [bt(definition.label),()=>revealBusiness(e.to)]]) {
     const button=document.createElement('button');button.textContent=label;button.onclick=action;controls.appendChild(button);
   }
@@ -159,6 +170,12 @@ function showBusinessSummary() {
     `<p class="muted">${t('本版只记录定义与问题；口径确认后再实现指标计算。')}</p>`;
 }
 async function revealBusiness(id) {
+  if(businessNodes.get(id)?.role==='source_review') {
+    state.projection='schema:review';$('projection').value=state.projection;state.focus=null;
+    const n=businessNodes.get(id);state.schemaKind='all';$('schemaKind').value='all';
+    for(const target of n.targets)if(schemaNodes.get(target)?.parent)state.schemaExpanded.add(schemaNodes.get(target).parent);
+    state.selected=id;state.selectedRelation=null;state.panel='node';await draw();schemaCamera(id);return true;
+  }
   const entry=Object.entries(BUNDLE.business.views).find(([,v])=>v.definitions.includes(id)||v.supporting.includes(id));
   if(!entry)return false;
   state.projection='business:'+entry[0];$('projection').value=state.projection;state.focus=null;
@@ -170,10 +187,16 @@ async function revealBusiness(id) {
   return true;
 }
 async function revealBusinessRelation(id) {
+  const sourceEdge=BUNDLE.business?.source_review?.edges.find(e=>e.id===id);
+  if(sourceEdge)return revealSourceReviewRelation(sourceEdge);
   const entry=Object.entries(BUNDLE.business?.views||{}).find(([,v])=>v.edges.some(e=>e.id===id));
   if(!entry)return false;
   state.projection='business:'+entry[0];$('projection').value=state.projection;state.focus=null;
   const edge=entry[1].edges.find(e=>e.id===id);
   state.selected=null;state.selectedRelation=id;state.panel='relation';state.relation={...edge,via:t('依据或核对目标')};
   await draw();return true;
+}
+async function revealSourceReviewRelation(e) {
+  await revealBusiness(e.to);state.selected=null;state.selectedRelation=e.id;
+  state.relation=e;state.panel='schema_relation';showSchemaRelation(e);anchors.report();return true;
 }

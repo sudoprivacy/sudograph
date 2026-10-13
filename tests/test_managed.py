@@ -182,6 +182,27 @@ def test_managed_contract_and_write_path_enforce_business_purpose(installed):
         managed.compile_model(yaml.safe_dump(doc), baseline, namespace="tickets")
 
 
+def test_managed_source_review_requires_a_plan_and_is_separate_from_business(installed):
+    publisher, _, baseline = installed
+    contract = publisher.contract()
+    assert "verification" in contract["definition_roles"]["source_review"]
+    assert set(contract["authoring_guidance"]) == {
+        "phase_one", "phase_two", "shared_identity", "review",
+    }
+    doc = overlay(baseline)
+    question = doc["definitions"]["refund"]
+    question.update(role="source_review", category="issue", statement="Are empty amounts expected?")
+    question.pop("purpose")
+    doc["views"] = {}
+    with pytest.raises(ValueError, match="verification"):
+        managed.compile_model(yaml.safe_dump(doc), baseline, namespace="tickets")
+    question["verification"] = "Count source NULL amounts and inspect the affected ticket rows."
+    model, registry = managed.compile_model(yaml.safe_dump(doc), baseline, namespace="tickets")
+    assert model["business"]["views"] == {}
+    assert model["business"]["source_review"]["definitions"] == list(registry["definitions"])
+    assert model["source_schema"] == baseline["source_schema"]
+
+
 def test_old_accepted_history_keeps_ids_and_versions_without_allowing_old_submissions(installed):
     publisher, fake, baseline = installed
     old = overlay(baseline)

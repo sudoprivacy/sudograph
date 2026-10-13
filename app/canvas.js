@@ -17,6 +17,7 @@ function refreshCanvasCommentMarks() {
         mark.onpointerdown=e=>e.stopPropagation();
         mark.onclick=e=>{e.stopPropagation();anchors.activate(id);};label.appendChild(mark);
       }
+      label.querySelector('.graph-comment-mark').hidden=!commentMarksVisible.point;
     }else{existing?.remove();label.removeAttribute('title');}
   }
 }
@@ -174,8 +175,8 @@ async function drawCanvas(v, shown, edges, mine) {
       position:saved?.positions[n.id] || {x:p.x+p.width/2,y:p.y+p.height/2}};}),
       ...edges.map((e,i)=>({data:{id:'edge-'+i,source:e.from,target:e.to,
         label:bt(e.via || ''),anchorId:canvasEdgeId(e),meta:e,loop:e.from===e.to,
-        color:e.rel.startsWith('business_')?businessColour(e):css(inferred(e)?EDGES.guessed.colour:edgeStyle(e.rel).colour),
-        dash:e.rel.startsWith('business_')?(e.origin==='inferred'?'dashed':'solid'):
+        color:e.rel.startsWith('business_')||e.rel==='source_review_target'?businessColour(e):css(inferred(e)?EDGES.guessed.colour:edgeStyle(e.rel).colour),
+        dash:e.rel.startsWith('business_')||e.rel==='source_review_target'?(e.origin==='inferred'?'dashed':'solid'):
           inferred(e)?'dotted':edgeStyle(e.rel).dash?'dashed':'solid'}}))],
     style:[{selector:'node',style:{shape:'data(shape)','background-color':'data(color)',
       width:'data(w)',height:'data(h)','border-width':'data(borderWidth)','border-color':'data(borderColor)',

@@ -1,17 +1,17 @@
 /* Passage selectors belong to one stable object and readable surface.
    Native ranges need no text scan or input-catching overlay during camera moves. */
 const commentPassages=new Map();
-let commentMarks={text:true,point:true},commentResyncFrame=0;
+let commentMarksVisible={text:true,point:true},commentResyncFrame=0;
 function scheduleCommentResync() {
   if(commentResyncFrame)return;
   commentResyncFrame=requestAnimationFrame(()=>{commentResyncFrame=0;anchors.resyncText();});
 }
 function setCommentMarks(marks) {
-  commentMarks={text:marks.text!==false,point:marks.point!==false};
+  commentMarksVisible={text:marks.text!==false,point:marks.point!==false};
   paintCommentPassages();refreshCanvasCommentMarks();
 }
 function activateCommentPassage(event) {
-  if(!commentMarks.text||getSelection()?.toString())return false;
+  if(!commentMarksVisible.text||getSelection()?.toString()||event.target?.closest?.('button,a,[data-comment-only]'))return false;
   const ids=[];
   for(const [id,passage] of commentPassages) {
     if(!passage.range.startContainer.isConnected)continue;
@@ -42,8 +42,8 @@ async function annotateCommentText(container,id,surface) {
   container.dataset.shareoneAnchorId=id;container.dataset.commentSurface=surface;
   delete container.dataset.shareoneAnchorVersion;
   const content=readableCommentText(container).text,version=await commentTextVersion(container,content);
-  if(version&&container.isConnected&&readableCommentText(container).text===content) {
-    container.dataset.shareoneAnchorVersion=version;
+  if(container.isConnected&&readableCommentText(container).text===content) {
+    if(version)container.dataset.shareoneAnchorVersion=version;
     scheduleCommentResync();
   }
 }
@@ -68,7 +68,7 @@ function passageRange(nodes,span) {
 }
 function paintCommentPassages() {
   if(!CSS.highlights||typeof Highlight==='undefined')return false;
-  if(!commentMarks.text){CSS.highlights.delete('sudograph-comment-passage');return true;}
+  if(!commentMarksVisible.text){CSS.highlights.delete('sudograph-comment-passage');return true;}
   CSS.highlights.set('sudograph-comment-passage',new Highlight(...[...commentPassages.values()].map(p=>p.range)));
   return true;
 }
@@ -85,8 +85,9 @@ async function restoreCommentPassage({commentId,id,text,signal},api,passive=fals
     state.panelCollapsed=false;panelSizeChanged=true;syncPanelToggle();
   }
   const matches=[];let readable=false;
+  const surface=text.version?.match(/^(?:en|zh)\/([^/]+)\/[a-f0-9]{64}$/)?.[1];
   for(const container of document.querySelectorAll('[data-shareone-anchor-id="'+CSS.escape(id)+'"][data-comment-surface]')) {
-    if(!container.getClientRects().length)continue;
+    if((surface&&container.dataset.commentSurface!==surface)||!container.getClientRects().length)continue;
     readable=true;
     const content=readableCommentText(container),version=await commentTextVersion(container,content.text);
     const span=api.resolveText(content.text,text,version);

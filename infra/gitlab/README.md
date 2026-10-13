@@ -85,14 +85,21 @@ in the `Authorization: Bearer ...` header. Never put credentials in a URL or YAM
 
 | Operation | Inputs | Result |
 | --- | --- | --- |
-| `contract` | `operation` only | Registered source schema/pin, namespace, current model and canonical identity versions. |
+| `contract` | `operation` only | Registered source schema/pin, namespace, current model, canonical identity versions and phase-specific authoring requirements. |
 | `submit` | `operation`, complete `model` YAML text, `intent` | Automatically created Git commit and merge request; compiler errors include a repair direction. |
 | `status` | `operation`, numeric `proposal` | Exact revision, pipeline state, SHA-bound review evidence and any release receipt. |
 
 The model repository accepts `model.yaml` only. Business models use the existing
 checked `sudograph-business-overlay/v4` language. Phase one accepts a source
 request referencing its registered baseline; authored meanings belong in phase
-two. The source URI, compiler, CI, policy and output destination are never model
+two. A checked overlay can also contain phase-one `source_review` questions:
+`category: issue`, existing source `targets`, and a nonempty `verification` plan,
+without business dependencies. They appear over the same source projection,
+separate from business meanings and policies. The contract guides agents to
+propose stakeholder decisions and business definitions in phase two instead of
+relabeling data-quality observations. Compiler and renderer enforce the typed
+references; people review whether the prose captures the intended business.
+The source URI, compiler, CI, policy and output destination are never model
 inputs. Business identities are derived once per canonical concept in a fixed
 namespace; current Git history enforces monotonic content versions.
 
