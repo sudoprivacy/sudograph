@@ -65,6 +65,7 @@ class GitLabFixture:
         self.merge_count = 0
         self.extra_file = False
         self.membership = 30
+        self.reviewer_member = True
 
     def actor(self):
         return {"id": 10, "state": "active"}
@@ -87,6 +88,8 @@ class GitLabFixture:
             }
         if path.endswith("/repository/branches/main"):
             return {"commit": {"id": self.head}}
+        if "/members/all/" in path:
+            return {"access_level": 30 if self.reviewer_member else 0, "state": "active"}
         if path.endswith("/approvals"):
             return {"approved_by": [{"user": {"id": i}} for i in self.approved]}
         if path.endswith("/merge") and method == "PUT":
@@ -260,3 +263,12 @@ def test_registered_identity_cannot_outlive_its_gitlab_membership(installed):
     with pytest.raises(managed.Refused) as error:
         publisher.actor("author")
     assert error.value.code == "ACTOR_DENIED"
+
+
+def test_native_approval_does_not_outlive_reviewer_membership(installed):
+    publisher, fake, _ = installed
+    approve(publisher)
+    fake.reviewer_member = False
+    with pytest.raises(managed.Refused, match="no authenticated approval"):
+        publisher.release(1)
+    assert fake.merge_count == 0

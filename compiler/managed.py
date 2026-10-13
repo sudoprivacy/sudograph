@@ -315,6 +315,15 @@ class Publisher:
             )
         return mr
 
+    def reviewer_current(self, identity):
+        try:
+            member = self.client.request(f"/projects/{self.project}/members/all/{identity}")
+        except GitLabError as error:
+            if error.status in (403, 404):
+                return False
+            raise
+        return member.get("state") == "active" and member.get("access_level", 0) >= 30
+
     def contract(self):
         self.audit()
         target = self.target()
@@ -437,6 +446,13 @@ class Publisher:
                     409,
                 )
             self.checked(sha)
+            if not self.reviewer_current(reviewer):
+                raise Refused(
+                    "REVIEWER_DENIED",
+                    "reviewer has no current project authority",
+                    "Ask a current registered project reviewer to approve",
+                    403,
+                )
             approval = self.client.request(
                 f"/projects/{self.project}/merge_requests/{iid}/approvals"
             )
@@ -507,6 +523,7 @@ class Publisher:
             active = {a["user"]["id"] for a in approval.get("approved_by", [])}
             reviewers = {e[0] for e in evidence} & active & set(self.policy["reviewers"])
             reviewers.discard(mr["author"]["id"])
+            reviewers = {r for r in reviewers if self.reviewer_current(r)}
             if not reviewers:
                 raise Refused(
                     "APPROVAL_REQUIRED",
@@ -568,7 +585,9 @@ class Publisher:
                     409,
                 )
             active = self.client.request(f"/projects/{self.project}/merge_requests/{iid}/approvals")
-            if not reviewers & {a["user"]["id"] for a in active.get("approved_by", [])}:
+            reviewers &= {a["user"]["id"] for a in active.get("approved_by", [])}
+            reviewers = {r for r in reviewers if self.reviewer_current(r)}
+            if not reviewers:
                 raise Refused(
                     "APPROVAL_REQUIRED",
                     "reviewer approval was withdrawn during compilation",
