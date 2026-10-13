@@ -64,6 +64,10 @@ class GitLabFixture:
         self.lose_merge_response = False
         self.merge_count = 0
         self.extra_file = False
+        self.membership = 30
+
+    def actor(self):
+        return {"id": 10, "state": "active"}
 
     def request(self, path, *, method="GET", data=None, params=None):
         if path == "/projects/1":
@@ -73,6 +77,7 @@ class GitLabFixture:
                 "only_allow_merge_if_pipeline_succeeds": True,
                 "allow_merge_on_skipped_pipeline": False,
                 "merge_method": "ff",
+                "permissions": {"project_access": {"access_level": self.membership}},
             }
         if path.endswith("/protected_branches/main"):
             return {
@@ -246,3 +251,12 @@ def test_gitlab_credentials_require_a_canonical_trusted_url():
             Client(url, "credential")
     with pytest.raises(GitLabError, match="credential"):
         Client("https://gitlab.example", "credential\r\nInjected: true")
+
+
+def test_registered_identity_cannot_outlive_its_gitlab_membership(installed):
+    publisher, fake, _ = installed
+    assert publisher.actor("author")["id"] == 10
+    fake.membership = 0
+    with pytest.raises(managed.Refused) as error:
+        publisher.actor("author")
+    assert error.value.code == "ACTOR_DENIED"

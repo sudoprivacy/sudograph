@@ -18,6 +18,7 @@ import yaml
 
 from compiler import app, business
 from compiler.gitlab import Client, GitLabError
+from compiler.managed import compile_model
 from tools.gitlab_stack import COMPOSE, command, deploy
 
 
@@ -187,7 +188,9 @@ def acceptance(folder):
     assert code == 200 and hashlib.sha256(html).hexdigest() == release["artifact_sha256"]
     path = folder / "released.html"
     path.write_bytes(html)
-    model = business.build(doc, installation["baseline"])
+    model, _ = compile_model(
+        yaml.safe_dump(doc), installation["baseline"], namespace=contract["namespace"]
+    )
     app.check_export(path, model, language="en")
     assert model["source_schema"] == installation["baseline"]["source_schema"]
     identities = set(model["business"]["definitions"])
@@ -299,6 +302,21 @@ def acceptance(folder):
     record("Hand-edited HTML committed directly to GitLab fails the real trusted CI job")
     assert hashlib.sha256((folder / "source.db").read_bytes()).hexdigest() == source_digest
     record("No step writes to the registered source database")
+    operator = Client(client.url, actors["operator"]["token"], allow_http=True)
+    operator.request(f"/projects/{project}/members/{actors['author']['id']}", method="DELETE")
+    code, _ = service(author, {"operation": "contract"})
+    assert code == 403
+    code, _ = service(author, path="/releases/" + release["source_sha"] + ".html")
+    assert code == 403
+    operator.request(
+        f"/projects/{project}/members",
+        method="POST",
+        data={
+            "user_id": actors["author"]["id"],
+            "access_level": 30,
+        },
+    )
+    record("GitLab membership revocation blocks model and artifact reads immediately")
     return {
         "format": "sudograph-managed-acceptance/v1",
         "environment": "isolated Docker deployment",

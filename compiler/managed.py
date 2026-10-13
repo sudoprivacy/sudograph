@@ -176,13 +176,20 @@ class Publisher:
 
     def actor(self, token, roles=("authors", "reviewers")):
         try:
-            actor = Client(
-                self.policy["gitlab_url"], token, allow_http=self.policy["allow_http"]
-            ).actor()
+            caller = Client(self.policy["gitlab_url"], token, allow_http=self.policy["allow_http"])
+            actor = caller.actor()
+            project = caller.request(f"/projects/{self.project}")
+            permission = project.get("permissions", {})
+            levels = [
+                (permission.get(key) or {}).get("access_level", 0)
+                for key in ("project_access", "group_access")
+            ]
+            if max(levels) < 30:
+                raise GitLabError("GitLab project membership is no longer authorised")
         except GitLabError:
             raise Refused(
                 "ACTOR_DENIED",
-                "GitLab credential could not be authenticated",
+                "GitLab identity or current project access could not be authorised",
                 "Use an authorised account",
                 403,
             ) from None
