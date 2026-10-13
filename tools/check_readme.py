@@ -42,6 +42,9 @@ import shlex
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
+
+from tools.architecture_review import check as check_architecture_review
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -101,6 +104,9 @@ def main(argv: list[str] | None = None) -> int:
     "ok" — the one failure mode that looks exactly like success.
     """
     path = (argv or [None])[0] or os.path.join(ROOT, "README.md")
+    if Path(path).resolve() == Path(ROOT) / "README.md":
+        check_architecture_review()
+        print("  ok    architecture review is generated from the README")
     with open(path, encoding="utf-8") as fh:
         found = commands(fh.read())
     if not found:
