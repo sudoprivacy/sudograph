@@ -70,3 +70,29 @@ The standing passage and precise comment-ID requests above require a ShareOne
 SDK/shell change. No ShareOne source was modified for this report. Existing
 reattachment support is present; old uncaptured text must still be rebound
 explicitly by its author, never guessed or silently migrated.
+
+## Deployment follow-up, 2026-10-14
+
+ShareOne Skill v1.11.0 now documents `resync-text`, `marks`, `resyncText()` and
+`activateComment(commentId)`. The local ShareOne `app-anchors.ts` also implements
+these interfaces. Sudograph implements the documented page callbacks in its
+shared renderer; local browser checks verify exact native ranges, cached batches,
+request-scoped cancellation, hidden-detail handling and independent mark visibility.
+Twenty camera updates caused zero readable-text scans and no graph rebuild.
+
+The published Sudograph revision is
+[`f8af300`](https://github.com/sudoprivacy/sudograph/commit/f8af300ec1f4c4dc54cd28874d95aa8124afe020).
+Its source-review presentations and whole-file publication are verified. However,
+the anonymous production iframe SDK still exposes only `configure`, `select`,
+`report`, `reportText`, `resolveText`, `activate` and `on`. Both
+`typeof window.__SHAREONE__.anchors.resyncText` and `activateComment` return
+`undefined`. Its `on` implementation also lacks the new marks/passive callbacks.
+The shell asset is `/assets/share-shell-DXITiRSp.js`. Reopening the share with
+Chrome network caching disabled produces the same result.
+
+Please check that the frontend shell and generated iframe SDK from the new
+implementation are deployed together, and verify the public share host rather
+than only source tests or updated skill documentation. Keep this issue open
+until existing unchanged passages restore passively, mark switches affect both
+channels, and native passage clicks activate the exact existing thread.
+No test comments were submitted and no private comment text is included here.

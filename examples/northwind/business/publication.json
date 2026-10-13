@@ -1,8 +1,26 @@
 {
-  "status": "approved-revision-live-source-review-candidate-ready",
+  "status": "source-review-and-business-views-live-production-sdk-follow-up-open",
   "target_url": "https://s.shareone.vip/s/sudograph-northwind",
   "target_share_id": "aSoJi9Ny94gwxXFc",
   "current_publication": {
+    "commit": "f8af300ec1f4c4dc54cd28874d95aa8124afe020",
+    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/f8af300ec1f4c4dc54cd28874d95aa8124afe020/examples/northwind/business/review.html",
+    "bytes": 11702352,
+    "sha256": "9db642ddc33960f5ab5a1b6656659d5a378c561ba53341b700f8eae9360d7edc",
+    "owner_download_matches_git_blob": true,
+    "actual_iframe_browser_verified": true,
+    "content_review_mode": "server-paused-ordinary-publication",
+    "previous_approval_applies_to_previous_revision_only": true,
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38426277283",
+    "ci_conclusion": "success",
+    "canonical_definition_ids_preserved": 9,
+    "business_nodes": 4,
+    "source_review_questions": 3,
+    "phase_one_source_schema_views_records_unchanged": true,
+    "comments_embedded": false,
+    "manual_html_edits": false
+  },
+  "previous_publication": {
     "commit": "83614cffa136c5843763eab99dfcb73e81fc71e6",
     "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/83614cffa136c5843763eab99dfcb73e81fc71e6/examples/northwind/business/review.html",
     "bytes": 11687309,
@@ -13,19 +31,12 @@
     "review_approved": true,
     "actual_iframe_browser_verified": true
   },
-  "pending_update": {
-    "artifact": "review.html",
-    "bytes": 11702352,
-    "sha256": "9db642ddc33960f5ab5a1b6656659d5a378c561ba53341b700f8eae9360d7edc",
-    "published": false,
-    "canonical_definition_ids_preserved": 9,
-    "new_definition_ids": 0,
-    "business_nodes": 4,
-    "source_review_questions": 3,
-    "supporting_evidence_notes": 2,
-    "business_definitions_confirmed": 0,
-    "phase_one_source_schema_views_records_unchanged": true,
-    "comments_embedded": false,
-    "manual_html_edits": false
+  "production_sdk_follow_up": {
+    "page_callbacks_implemented": true,
+    "local_native_range_checks_passed": true,
+    "production_resyncText_available": false,
+    "production_activateComment_available": false,
+    "cache_disabled_check_same_result": true,
+    "report": "../../../docs/shareone-visible-object-passages-br-2026-10-13.md"
   }
 }

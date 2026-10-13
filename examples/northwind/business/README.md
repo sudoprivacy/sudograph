@@ -92,6 +92,11 @@ clears only its own Range. Text and object mark switches are independent, and a
 click on a unique native passage activates its exact comment thread. The earlier
 [ShareOne SDK follow-up](../../../docs/shareone-visible-object-passages-br-2026-10-13.md)
 records the original gap; publication acceptance checks the deployed SDK as well.
+At the 2026-10-14 production check the injected ShareOne SDK still lacks
+`resyncText` and `activateComment`, including with browser caching disabled.
+The page adaptation and local native-Range checks are complete; passive recovery,
+independent mark controls and exact-thread activation are not yet a production
+acceptance. Explicit recovery and object activation retain their existing path.
 The small comment button activates the existing object thread through the SDK;
 it does not obstruct label selection or normal node clicks.
 
