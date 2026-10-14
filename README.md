@@ -151,6 +151,7 @@ flowchart LR
     DRAFT["verified review draft<br/>business meaning remains unconfirmed"]
     PUBLISHER["trusted publisher<br/>recheck authority and CI<br/>compile and verify complete HTML"]
     READER["authenticated accepted reader<br/>named views and stable comment identities"]
+    CONTEXT["authenticated agent context<br/>ordered knowledge blocks and exact reads"]
   end
 
   PEOPLE["business reviewers"]
@@ -175,6 +176,9 @@ flowchart LR
   PUBLISHER -->|guarded fast-forward merge| MODEL
   PUBLISHER -->|verified bytes and receipt| READER
   READER --> PEOPLE
+  MODEL -->|current checked revision| CONTEXT
+  BASELINE -->|same source identities and snapshots| CONTEXT
+  AGENT -->|authenticated context and paginated reads| CONTEXT
   NEXUS -.->|model SSO integration planned| AUTHOR
   MR -.->|separate migration review| WRITEBACK
   NEXUS -.->|operation grant| WRITEBACK
@@ -248,6 +252,10 @@ How well the loop actually runs is measured, not asserted — the criteria are i
 | 3 | **Business use** | Agents answer business questions and perform authorised workflows using the reviewed model; failures and new evidence return to review. Source-system write-back remains a design, not a deployed capability. |
 
 These are stages of the workflow, not automatic names for three graph menus.
+The [agent-context adapter](docs/agent-context.md) derives ordered knowledge
+blocks and exact source/definition/record reads from this same checked model.
+It reuses sudocode's existing prompt append contract; automatic session wiring,
+business confirmation and the format-comparison evaluation remain separate work.
 Phase one provides **Data projection** and, when checked questions exist,
 **Projection and data review**. The second uses the same source graph plus
 unconfirmed questions with verification plans. Real records are a shared
@@ -750,7 +758,7 @@ way they are.
 |---|---|---|
 | [TheApeironLab/ontology](https://github.com/TheApeironLab/ontology) | A Palantir-Foundry-shaped ontology engine on PostgreSQL: objects, links, action types, markings | The closest in spirit. We took the per-property owner split, the audit spine with a required intent, approval defaulting to two people, and the eval harness shape. We did not take PostgreSQL as the store — the spec lives in git, so history and rollback come for free |
 | [fuyuxiang/ontology](https://github.com/fuyuxiang/ontology) (元枢) | A Python/Vue platform where an LLM drafts the ontology from documents and schemas | The wizard idea is right, and its prompts deliberately avoid modelling jargon when talking to business users. But human corrections there live only in browser storage, so the loop never closes. That is why edit records here are structured and versioned |
-| [microsoft/Ontology-Playground](https://github.com/microsoft/Ontology-Playground) | A static teaching site and catalogue for Microsoft Fabric IQ | Worth borrowing for interaction patterns — inspector panels, path finding, honest "lost anchor" behaviour. Not for the data model: its RDF/OWL carries 956 classes and zero `rdfs:subClassOf`, so the standard's syntax is paid for without its semantics |
+| [microsoft/Ontology-Playground](https://github.com/microsoft/Ontology-Playground) | A static teaching site, designer and catalogue for Microsoft Fabric IQ, supporting a documented RDF/XML subset | Useful interaction patterns and RDF interoperability examples. Its current importer/exporter preserves supported class hierarchies. A sample's subclass count does not establish whether RDF has useful semantics; our business provenance, versions, execution and permission contracts still require explicit mappings and enforcement |
 
 ## Data discipline
 

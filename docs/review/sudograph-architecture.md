@@ -4,7 +4,7 @@
 
 This is the commentable counterpart of the [README architecture](https://github.com/sudoprivacy/sudograph#where-this-sits). The diagram, labels and boundaries come from that single source. Select readable text in the node and relationship inventories below to comment on a specific responsibility or connection. The README discussion link is temporary and will be removed after design alignment.
 
-Diagram source SHA-256: `a8c7d4122dd182a680683f4d229d047b2beec18cda88ee897fb04e3c1689fb8f`.
+Diagram source SHA-256: `e66ec0cc1218c1807eaec2438e3d90a9a0c445e1fd5e8625753587ee7977e94c`.
 
 **Markdown viewer issue:** region comments on Mermaid nodes currently lose their element location after reload. Prefer text comments on the inventories while the [ShareOne BR/FR](https://github.com/sudoprivacy/sudograph/blob/main/docs/shareone-markdown-mermaid-comments-br-2026-10-13.md) is pending. The complete diagram remains the visual reference.
 
@@ -34,6 +34,7 @@ flowchart LR
     DRAFT["verified review draft<br/>business meaning remains unconfirmed"]
     PUBLISHER["trusted publisher<br/>recheck authority and CI<br/>compile and verify complete HTML"]
     READER["authenticated accepted reader<br/>named views and stable comment identities"]
+    CONTEXT["authenticated agent context<br/>ordered knowledge blocks and exact reads"]
   end
 
   PEOPLE["business reviewers"]
@@ -58,6 +59,9 @@ flowchart LR
   PUBLISHER -->|guarded fast-forward merge| MODEL
   PUBLISHER -->|verified bytes and receipt| READER
   READER --> PEOPLE
+  MODEL -->|current checked revision| CONTEXT
+  BASELINE -->|same source identities and snapshots| CONTEXT
+  AGENT -->|authenticated context and paginated reads| CONTEXT
   NEXUS -.->|model SSO integration planned| AUTHOR
   MR -.->|separate migration review| WRITEBACK
   NEXUS -.->|operation grant| WRITEBACK
@@ -111,6 +115,7 @@ Identifiers below are the node names in the Mermaid source. Labels, layout and a
 | `DRAFT` | verified review draft / business meaning remains unconfirmed |
 | `PUBLISHER` | trusted publisher / recheck authority and CI / compile and verify complete HTML |
 | `READER` | authenticated accepted reader / named views and stable comment identities |
+| `CONTEXT` | authenticated agent context / ordered knowledge blocks and exact reads |
 | `PEOPLE` | business reviewers |
 | `AGENT` | agents |
 | `WRITEBACK` | separately approved source executor / planned |
@@ -139,6 +144,9 @@ Every source edge is retained, including separate edges between the same endpoin
 | `PUBLISHER` | `MODEL` | Current path | guarded fast-forward merge |
 | `PUBLISHER` | `READER` | Current path | verified bytes and receipt |
 | `READER` | `PEOPLE` | Current path | Unlabelled in the source diagram |
+| `MODEL` | `CONTEXT` | Current path | current checked revision |
+| `BASELINE` | `CONTEXT` | Current path | same source identities and snapshots |
+| `AGENT` | `CONTEXT` | Current path | authenticated context and paginated reads |
 | `NEXUS` | `AUTHOR` | Planned connection | model SSO integration planned |
 | `MR` | `WRITEBACK` | Planned connection | separate migration review |
 | `NEXUS` | `WRITEBACK` | Planned connection | operation grant |

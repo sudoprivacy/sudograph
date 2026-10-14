@@ -3,6 +3,10 @@
 import copy
 import hashlib
 import json
+import threading
+import urllib.error
+import urllib.request
+from http.server import ThreadingHTTPServer
 
 import pytest
 import yaml
@@ -165,6 +169,73 @@ def approve(publisher, *, sha=FIRST, reviewer=20, secret=None):
             "object_attributes": {"iid": 1, "action": "approved", "last_commit": {"id": sha}},
         },
     )
+
+
+def test_knowledge_reads_recheck_membership_and_refuse_stale_model_context(installed):
+    publisher, fake, _ = installed
+    packet = publisher.knowledge("author", {"operation": "context"})
+    assert packet["inventory"]["objects"] > 0
+    assert packet["inventory"]["record_rows_preloaded"] == 0
+    identity = publisher.baseline["source_schema"]["sources"][0]["objects"][0]["id"]
+    request = {"operation": "context_read", "revision": packet["revision"],
+               "context_digest": packet["context_digest"], "id": identity, "records": True}
+    result = publisher.knowledge("author", request)
+    assert result["result"]["data_kind"] == "registered_source_snapshot"
+    with pytest.raises(ValueError, match="requires"):
+        publisher.knowledge("author", {**request, "file": "some-other-database"})
+    fake.head = FIRST
+    with pytest.raises(managed.Refused, match="revision changed"):
+        publisher.knowledge("author", request)
+    fresh = publisher.knowledge("author", {"operation": "context"})
+    assert fresh["revision"] == FIRST
+    fake.membership = 0
+    with pytest.raises(managed.Refused, match="authorised"):
+        publisher.knowledge("author", {"operation": "context"})
+
+
+def test_knowledge_http_routes_use_existing_auth_and_stale_response(installed, monkeypatch):
+    publisher, fake, _ = installed
+    original_actor = publisher.actor
+
+    def actor(token, *args):
+        if not token:
+            raise managed.Refused("ACTOR_DENIED", "credential required", "Authenticate", 403)
+        return original_actor(token, *args)
+
+    monkeypatch.setattr(publisher, "actor", actor)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), managed.handler(publisher))
+    worker = threading.Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+
+    def post(body, token="author"):
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{server.server_port}/v1",
+            data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json", "Authorization": "Bearer " + token},
+        )
+        return urllib.request.urlopen(request, timeout=5)
+
+    try:
+        with pytest.raises(urllib.error.HTTPError) as denied:
+            post({"operation": "context"}, token="")
+        assert denied.value.code == 403
+        with post({"operation": "context"}) as response:
+            packet = json.load(response)["result"]
+        identity = publisher.baseline["source_schema"]["sources"][0]["objects"][0]["id"]
+        request = {"operation": "context_read", "revision": packet["revision"],
+                   "context_digest": packet["context_digest"], "id": identity,
+                   "records": True, "limit": 1}
+        with post(request) as response:
+            assert len(json.load(response)["result"]["result"]["rows"]) == 1
+        fake.head = FIRST
+        with pytest.raises(urllib.error.HTTPError) as stale:
+            post(request)
+        assert stale.value.code == 409
+        assert json.load(stale.value)["error"] == "CONTEXT_STALE"
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=5)
 
 
 def test_managed_contract_and_write_path_enforce_business_purpose(installed):

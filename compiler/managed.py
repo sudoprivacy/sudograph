@@ -22,6 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import app, business, source_schema
+from .context import Reader, registered_pointers
 from .gitlab import Client, GitLabError
 from .spec import read_document
 
@@ -121,8 +122,9 @@ class Publisher:
             "bootstrap_sha",
             "namespace",
         }
-        if set(policy) != allowed:
+        if set(policy) - {"knowledge_pointers"} != allowed:
             raise ValueError("operator policy has missing or unknown fields")
+        self.knowledge_pointers = registered_pointers(policy.get("knowledge_pointers", []))
         if (
             not policy["authors"]
             or not policy["reviewers"]
@@ -336,6 +338,7 @@ class Publisher:
         target = self.target()
         return {
             "model_file": MODEL_FILE,
+            "knowledge_operations": ["context", "context_read"],
             "source_format": SOURCE_REQUEST,
             "business_format": business.FORMAT,
             "baseline": self.pin,
@@ -395,6 +398,34 @@ class Publisher:
             "html_inputs": "refused",
             "self_approval": "refused",
         }
+
+    def knowledge(self, credential, request):
+        """Exact project-scoped knowledge; reuse the existing authenticated boundary.
+
+        This does not widen project membership or implement field-level grants.
+        Source records come from the operator's pinned snapshot, not caller SQL.
+        """
+        self.actor(credential)
+        self.audit()
+        target = self.target()
+        _, model, _ = self.checked(target)
+        reader = Reader(model, revision=target, pointers=self.knowledge_pointers)
+        if request == {"operation": "context"}:
+            return reader.pack()
+        allowed = {"operation", "revision", "context_digest", "id", "records", "offset", "limit"}
+        if (set(request) - allowed or request.get("operation") != "context_read"
+                or not {"revision", "context_digest", "id"} <= request.keys()):
+            raise ValueError("context_read requires revision, context_digest and canonical id")
+        if request["revision"] != target or request["context_digest"] != reader.digest:
+            raise Refused(
+                "CONTEXT_STALE", "knowledge revision changed",
+                "Refresh with operation context; do not combine model revisions", 409,
+            )
+        if type(request.get("records", False)) is not bool:
+            raise ValueError("records must be a boolean")
+        return {"revision": target, "context_digest": reader.digest,
+                "result": reader.read(request["id"], **{k: request[k]
+                                      for k in ("records", "offset", "limit") if k in request})}
 
     def submit(self, token, body):
         self.actor(token, ("authors",))
@@ -716,6 +747,8 @@ def handler(publisher):
                     publisher.actor(self.credential())
                     if body == {"operation": "contract"}:
                         result = publisher.contract()
+                    elif body.get("operation") in {"context", "context_read"}:
+                        result = publisher.knowledge(self.credential(), body)
                     elif body.get("operation") == "submit":
                         result = publisher.submit(self.credential(), body)
                     elif set(body) == {"operation", "proposal"} and body["operation"] == "status":

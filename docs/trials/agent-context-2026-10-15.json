@@ -1,0 +1,23 @@
+{
+  "source_database_sha256": "2f4f5c68dfcd33ba27373eae48c7a4869800c68095ee0f9f0da494f83382a877",
+  "inventory": {
+    "objects": 30,
+    "fields": 204,
+    "definitions": 9,
+    "record_rows_preloaded": 0
+  },
+  "prompt_bytes": 87893,
+  "block_bytes": {
+    "source_catalog": 72084,
+    "business_definitions": 7999,
+    "source_review": 5435,
+    "evidence": 1132,
+    "pointers": 1235
+  },
+  "checked_pages_against_read_only_sqlite": 62,
+  "context_digest": "ec22b91397a6706b9c3afe56acdd0afe54d9f71823181f7918e91bc0ee600fb3",
+  "source_digest": "38896e0406aba8663d6fa4d62f956300cea631687b9d99ff870a11659c4eb88d",
+  "llm_comprehension_evaluation": "not_run",
+  "sudocode_session_injection": "adapter_payload_ready_not_deployed",
+  "compiler_tree_sha256": "3c606dfdbf4f5052c14e27f54df63097c2adb9aa5c299b71ce4b69eda6488277"
+}
