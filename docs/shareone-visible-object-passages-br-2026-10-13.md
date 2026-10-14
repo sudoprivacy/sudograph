@@ -104,3 +104,24 @@ activation, separate mark channels and changed-version rejection.
 An independent production QA share also passes trusted authenticated submission,
 two standing native passages, new-thread focus, exact comment activation and
 separate text/object visibility. The synthetic share and its comments were removed.
+
+## Existing long-thread activation check
+
+A further read-only check confirms that the new production SDK passively restores
+an unchanged open passage. Native mouse clicking that passage emits the exact
+comment ID, opens the sidebar and gives the correct thread its active blue class.
+Independent text/object switches work; twenty camera updates cause zero page text
+reads and no graph rebuild. No comments were submitted or rebound.
+
+The same check found a remaining scrolling case: the active thread header was
+about 4,956 CSS pixels below the viewport, following a preceding thread about
+4,675 pixels tall. Its active state was correct, but the reader still saw the
+preceding thread. This observes the existing-thread activation path; authenticated
+submit-success focus was not exercised in this check.
+
+Please test activation after opening a sidebar containing long reply chains,
+including layout changes and comment resync during focus. Verify the target
+header's actual viewport position, not just its active class or the emitted ID.
+The current focus hook and scroll-preservation layout effect should be checked
+together; the exact cause has not been established. Private thread text and
+screenshots are intentionally omitted from this public report.
