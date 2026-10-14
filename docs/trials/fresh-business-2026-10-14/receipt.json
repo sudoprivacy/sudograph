@@ -1,0 +1,56 @@
+{
+  "status": "accepted-local-clean-context-business-proposal",
+  "agent": "clean_business_author",
+  "inherited_conversation": false,
+  "inputs": [
+    "Publisher.contract from a synthetic GitLab protocol fixture",
+    "registered phase-one source schema and source SQL",
+    "public ERP context",
+    "generic business request: understand sales performance over time"
+  ],
+  "prior_business_definitions": 0,
+  "source_objects": 30,
+  "source_fields": 204,
+  "namespace": "northwind-clean-business-trial-20261014",
+  "source_pin": {
+    "manifest": "registered-source-baseline",
+    "sha256": "0633a398a7bd25c95434eda8c9913783f041548960c1d08ee51293a5e1db299b"
+  },
+  "model_sha256": "eec61b5a5d7377f3d2e217ebc94ee5b851fdf327ce240786773771ad5ea60ab8",
+  "compiler_revision": "a53d0de8fcc9fd42b057a48ed99b9b3db0e46ea8",
+  "result": {
+    "status": "accepted",
+    "canonical_definitions": 15,
+    "roles": {
+      "source_evidence": 2,
+      "business": 12,
+      "implementation_note": 1
+    },
+    "views": [
+      "annual_sales_performance",
+      "category_mix_over_time"
+    ],
+    "source_schema_and_all_records_unchanged": true,
+    "business_confirmation": "unreviewed",
+    "html_sha256": "4f4351d6cd038cfbb43aa6ec2212479f78a08496b636bf1626e0b48d25a2aef1"
+  },
+  "annual_sales_identity": "sg-business/northwind-clean-business-trial-20261014/c3498c0c09115702017ee25dd551fef2ee06953cf58c5bc838b40e7b9bb1c9a9",
+  "annual_sales_reused_in_views": [
+    "annual_sales_performance",
+    "category_mix_over_time"
+  ],
+  "production_model_changed": false,
+  "discussion_comments_used": false,
+  "compiler_refusals": 0,
+  "draft_repairs": 0,
+  "environment_issue": "Default Python outside the repository lacked SQLGlot; the existing repository .venv interpreter ran the unchanged adapter.",
+  "semantic_assessment": "Business proposals identify stakeholders, commercial decisions, time attribution, population and price policies. They are not only source-quality observations.",
+  "policy_difference": "The fresh proposal preserves calculation precision until aggregation and rounds displayed totals; the working pilot retains an unconfirmed per-line settlement-rounding proposal. Neither policy is approved.",
+  "limitations": [
+    "One conversation-level isolation trial, not an OS sandbox",
+    "Synthetic transport, not deployed GitLab acceptance",
+    "No metric execution or business confirmation",
+    "No claim that every clean agent will reproduce this proposal",
+    "Trial namespace is separate from the production registry; do not promote its identities blindly"
+  ]
+}

@@ -1,0 +1,413 @@
+format: sudograph-business-overlay/v4
+namespace: northwind-clean-business-trial-20261014
+baseline:
+  manifest: registered-source-baseline
+  sha256: 0633a398a7bd25c95434eda8c9913783f041548960c1d08ee51293a5e1db299b
+definitions:
+  order_year:
+    concept: sales-management-calendar-order-year
+    category: meaning
+    role: business
+    label: Calendar order year
+    statement: 'Proposal: assign an order to the calendar year of Orders.OrderDate as stored. A year is
+      the half-open interval from January 1 inclusive to January 1 of the following year exclusive. This
+      date represents the timing of recorded customer demand for this analysis. It does not establish
+      shipment, invoicing, cash receipt or revenue-recognition timing. Missing or unparseable dates remain
+      unassigned. Fiscal-year and timezone requirements need business confirmation.'
+    origin: inferred
+    contributor: model
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderDate
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/ShippedDate
+    version: 1
+    purpose:
+      stakeholder: Sales manager
+      decision: Review demand trends in a consistent annual period and choose which periods require further
+        investigation.
+  reporting_population:
+    concept: recorded-sales-order-reporting-population
+    category: meaning
+    role: business
+    label: Recorded orders in the reporting population
+    statement: 'Proposal: include every recorded Orders.OrderID in the pinned source snapshot that has
+      a parseable OrderDate and at least one matching Order Details line. Include shipped and unshipped
+      orders and lines for products now marked discontinued; current catalogue status does not erase historical
+      demand. Use the same included orders for sales value, order count and average order value. Preserve
+      and disclose orders excluded for absent lines or unusable dates in a separate unresolved cohort.
+      The source structure supplies no cancellation, return or payment-status policy, so this is recorded
+      order activity subject to lifecycle confirmation.'
+    origin: inferred
+    contributor: model
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderDate
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/ShippedDate
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/Discontinued
+    version: 1
+    purpose:
+      stakeholder: Sales manager
+      decision: Choose a consistent scope for demand review so changes in reported sales do not come from
+        silently changing order eligibility.
+  discounted_line_value:
+    concept: discounted-recorded-order-line-value
+    category: meaning
+    role: business
+    label: Discounted order-line value
+    statement: 'Proposal: interpret the order-line UnitPrice as the recorded commercial unit price, Quantity
+      as the units ordered, and Discount as a fractional reduction of that line value. A line contributes
+      UnitPrice multiplied by Quantity multiplied by (1 minus Discount). This is a proposed measure of
+      the value of products ordered after recorded line discounts. It excludes freight, tax adjustments,
+      returns, rebates outside the line and cost of goods. It is neither gross margin nor confirmed accounting
+      revenue.'
+    origin: inferred
+    contributor: model
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/ProductID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Quantity
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Discount
+    version: 1
+    purpose:
+      stakeholder: Sales manager and commercial finance partner
+      decision: Evaluate the commercial value of demand without substituting a current catalogue price
+        for the price recorded on an order.
+  product_category:
+    concept: sales-management-current-catalogue-category
+    category: meaning
+    role: business
+    label: Product category for sales mix
+    statement: 'Proposal: use Products.CategoryID and Categories.CategoryID to group order-line products
+      into the category recorded in this snapshot, with CategoryName as a display label. This expresses
+      an assortment grouping for sales management; it is not a customer segment or profit centre. These
+      fields supply a present classification, without an effective-date history. Historical sales by category
+      therefore reflect this snapshot classification and must be labelled accordingly.'
+    origin: inferred
+    contributor: model
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/ProductID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/ProductID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/CategoryID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Categories/field/CategoryID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Categories/field/CategoryName
+    version: 1
+    purpose:
+      stakeholder: Sales manager and category managers
+      decision: Select product groups for campaign or assortment review and understand where annual demand
+        is concentrated.
+  annual_order_sales:
+    concept: annual-discounted-recorded-order-sales
+    category: metric
+    role: business
+    label: Annual discounted order sales
+    statement: 'Proposal: for each calendar order year, sum discounted order-line value once for every
+      included Order Details line whose parent order is in the reporting population. The result represents
+      recorded product demand after line discounts. Read annual changes alongside order count and average
+      order value to decide whether to investigate fewer orders, smaller orders or a changing assortment.
+      The same value may be sliced by product category without changing the underlying price or population
+      policy. No totals have been calculated by this model proposal.'
+    origin: inferred
+    contributor: model
+    targets: &id001
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderDate
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/ProductID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Quantity
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Discount
+    version: 1
+    purpose:
+      stakeholder: Sales manager
+      decision: Identify years in which the value of recorded demand changed and prioritize a commercial
+        review of its drivers.
+    applies_to:
+    - order_year
+    - reporting_population
+    - discounted_line_value
+    grain:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/ProductID
+    scope: 'Atomic contribution: one Order Details row identified by OrderID and ProductID. Output: one
+      sum per calendar order year, optionally per snapshot product category. Use all included order lines
+      across the supplied history, without the fixed 1997 source-view filters. Monetary aggregation is
+      conditional on confirmation of one reporting currency or a separately approved conversion policy.'
+  annual_order_count:
+    concept: annual-recorded-sales-order-count
+    category: metric
+    role: business
+    label: Annual order count
+    statement: 'Proposal: count distinct Orders.OrderID in the reporting population for each calendar
+      order year. Each order contributes one regardless of its number of product lines. Paired with annual
+      discounted order sales, this separates the number of recorded orders from their commercial value;
+      it does not count customers, shipments or invoices.'
+    origin: inferred
+    contributor: model
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderDate
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/OrderID
+    version: 1
+    purpose:
+      stakeholder: Sales manager
+      decision: Decide whether a change in annual demand warrants investigation of order frequency or
+        sales acquisition activity.
+    applies_to:
+    - order_year
+    - reporting_population
+    grain:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderID
+    scope: One contribution per included order header, aggregated by calendar order year. Establish eligibility
+      by existence of at least one order line; joining lines must not multiply the count. Use the same
+      order population as annual discounted order sales.
+  average_order_value:
+    concept: annual-average-discounted-order-value
+    category: metric
+    role: business
+    label: Average order value by year
+    statement: 'Proposal: divide annual discounted order sales by annual order count for the same year
+      and reporting population. Report the result as undefined when the order count is zero, without substituting
+      zero. A change can indicate order size, product mix, recorded prices or discounts; it does not by
+      itself prove that prices improved. Together with order count, it helps sales management choose the
+      next commercial investigation.'
+    origin: inferred
+    contributor: model
+    targets: *id001
+    version: 1
+    purpose:
+      stakeholder: Sales manager
+      decision: Distinguish a change in typical order value from a change in the number of orders before
+        choosing a sales response.
+    applies_to:
+    - annual_order_sales
+    - annual_order_count
+    grain:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderID
+    scope: One order is the denominator unit; output is the ratio of annual sums to annual distinct order
+      counts, not an average of line values or category averages. Use the common annual population and
+      the confirmed monetary policy.
+  category_sales_share:
+    concept: annual-category-share-of-discounted-order-sales
+    category: metric
+    role: business
+    label: Category share of annual order sales
+    statement: 'Proposal: divide discounted order sales allocated to a snapshot product category in a
+      calendar order year by annual discounted order sales across all categories for that same year, including
+      the Unassigned category. Express the ratio as a percentage; it is undefined if the all-category
+      denominator is zero. Inspect category value as well as share: a category can gain share while its
+      own sales value falls. This measure supports assortment and campaign prioritization, without implying
+      profitability or causation.'
+    origin: inferred
+    contributor: model
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderDate
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/ProductID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Quantity
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Discount
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/ProductID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/CategoryID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Categories/field/CategoryID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Categories/field/CategoryName
+    version: 1
+    purpose:
+      stakeholder: Sales manager and category managers
+      decision: Identify product groups whose changing contribution to demand warrants a campaign or assortment
+        review.
+    applies_to:
+    - annual_order_sales
+    - product_category
+    grain:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/ProductID
+    scope: Allocate each included order line once to a category using the snapshot product classification,
+      aggregate by calendar order year and category, and divide by that year all-category sales total.
+      The denominator uses the identical order population and price policy. Category shares are shares
+      of monetary order value, not shares of mixed product-unit quantities.
+  commercial_price_policy:
+    concept: commercial-order-price-and-discount-policy
+    category: rule
+    role: business
+    label: Use recorded line prices and discounts
+    statement: 'Proposed reporting policy: use Order Details.UnitPrice rather than Products.UnitPrice,
+      and apply the recorded fractional Discount once to each line. Compute with decimal arithmetic and
+      preserve calculation precision until aggregation; round only displayed monetary totals to two decimal
+      places provisionally. Freight stays outside product-order sales. Label amounts as source monetary
+      units until the business confirms the currency and display scale. Do not sum different currencies
+      or invent exchange rates. The source SQL is supporting evidence of its computation; adopting this
+      commercial interpretation and rounding policy still requires business review.'
+    origin: inferred
+    contributor: model
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Quantity
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Discount
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/UnitPrice
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/Freight
+    version: 1
+    applies_to:
+    - discounted_line_value
+  period_comparison_policy:
+    concept: annual-demand-comparison-coverage-policy
+    category: rule
+    role: business
+    label: Compare equivalent reporting periods
+    statement: 'Proposed reporting policy: compare full calendar years only after the responsible business
+      owner confirms comparable reporting scope and completion through each year-end. Dates present in
+      a tutorial snapshot do not demonstrate operational completeness. Label a partial year and compare
+      the same elapsed calendar window in the prior year when coverage can be confirmed; otherwise show
+      the periods separately without a growth claim. Annual order sales, order count and average order
+      value must use the same window. Never describe a missing period as zero activity without evidence.'
+    origin: inferred
+    contributor: model
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderDate
+    version: 1
+    applies_to:
+    - order_year
+  category_allocation_policy:
+    concept: single-category-allocation-and-unassigned-policy
+    category: rule
+    role: business
+    label: Allocate each line to one category
+    statement: 'Proposed reporting policy: follow Order Details.ProductID to Products.ProductID and then
+      Products.CategoryID to Categories.CategoryID. Assign each included line to one category using identifiers
+      rather than names. Preserve a line in an Unassigned category if its product or category lookup is
+      absent; do not silently drop its sales value. Retain categories of discontinued products. All category
+      values, including Unassigned, must reconcile to annual order sales before using category shares.
+      A reassignment of current product categories can restate historical mix and requires a clearly labelled
+      snapshot comparison.'
+    origin: inferred
+    contributor: model
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/ProductID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/ProductID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/CategoryID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Categories/field/CategoryID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/Discontinued
+    version: 1
+    applies_to:
+    - product_category
+  commercial_confirmation:
+    concept: sales-demand-definition-business-confirmation
+    category: issue
+    role: business
+    label: Open decisions for sales and finance
+    statement: 'Open business questions, not source defects: does the sales manager want recorded demand
+      dated by OrderDate, or a separately defined shipment or revenue measure? Can the finance owner confirm
+      that recorded line prices share a reporting currency and that Discount is the intended commercial
+      reduction? Which cancellation, return, tax and rebate policies should qualify recorded order value,
+      and where is their evidence? Should reporting use calendar or fiscal years, and who confirms the
+      reporting cutoff? Until these owners review the proposal, use it to discuss the model and do not
+      use it as confirmed revenue, a compensation basis or an executed performance report.'
+    origin: inferred
+    contributor: model
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderDate
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/ShippedDate
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Discount
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/Freight
+    version: 1
+    applies_to:
+    - annual_order_sales
+  source_extended_price_evidence:
+    concept: registered-order-details-extended-expression
+    category: meaning
+    role: source_evidence
+    label: Source extended-price expression
+    statement: The registered Order Details Extended SQL calculates ExtendedPrice from order-line UnitPrice,
+      Quantity and Discount using the expression quoted below. This records the source computation only.
+      It supplies no business approval, monetary precision guarantee or revenue-recognition policy.
+    origin: provided
+    contributor: source
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Quantity
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Discount
+    version: 1
+    applies_to:
+    - discounted_line_value
+    evidence:
+    - kind: source_sql
+      ref: sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended
+      quote: ([Order Details].UnitPrice*Quantity*(1-Discount)/100)*100 AS ExtendedPrice
+  source_year_view_evidence:
+    concept: registered-summary-sales-year-shipped-order-projection
+    category: meaning
+    role: source_evidence
+    label: Source year-view date basis
+    statement: The registered Summary of Sales by Year SQL selects ShippedDate, OrderID and Subtotal for
+      orders with a non-null ShippedDate. Its SQL contains no annual grouping. This existing source projection
+      differs from the proposed calendar order-year measure and is preserved as evidence; its title does
+      not establish an approved annual business metric.
+    origin: provided
+    contributor: source
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Summary%20of%20Sales%20by%20Year
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Summary%20of%20Sales%20by%20Year/field/ShippedDate
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Summary%20of%20Sales%20by%20Year/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Summary%20of%20Sales%20by%20Year/field/Subtotal
+    version: 1
+    applies_to:
+    - order_year
+    evidence:
+    - kind: source_sql
+      ref: sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Summary%20of%20Sales%20by%20Year
+      quote: "CREATE VIEW [Summary of Sales by Year] AS\nSELECT      Orders.ShippedDate, \n          \
+        \  Orders.OrderID, \n [Order Subtotals].Subtotal\nFROM Orders \n     INNER JOIN [Order Subtotals]\
+        \ ON Orders.OrderID = [Order Subtotals].OrderID\nWHERE Orders.ShippedDate IS NOT NULL"
+  implementation_grain_note:
+    concept: sales-model-grain-and-reconciliation-guidance
+    category: meaning
+    role: implementation_note
+    label: Implementation and reconciliation guidance
+    statement: 'Implementation proposal only: join order headers to lines by OrderID and retain the OrderID/ProductID
+      line identity. Derive years from the common OrderDate policy; do not add the supplied summary-view
+      rows as additional sales. Aggregate lines for value and deduplicate headers for order count. Category
+      joins must preserve the included line population. In a future separately authorized computation,
+      check line value totals against annual totals and all-category totals, and report unresolved-date
+      or lookup cohorts without modifying source facts. No query, new totals, cancellation adjustment,
+      currency conversion or business confirmation is executed by this overlay.'
+    origin: inferred
+    contributor: model
+    targets:
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderDate
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/OrderID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/ProductID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Quantity
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Discount
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/ProductID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/CategoryID
+    - sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Categories/field/CategoryID
+    version: 1
+    applies_to:
+    - annual_order_sales
+    - annual_order_count
+    - category_sales_share
+views:
+  annual_sales_performance:
+    label: Annual sales performance proposal
+    definitions:
+    - annual_order_sales
+    - annual_order_count
+    - average_order_value
+    - commercial_price_policy
+    - period_comparison_policy
+    - commercial_confirmation
+  category_mix_over_time:
+    label: Category mix over time proposal
+    definitions:
+    - annual_order_sales
+    - category_sales_share
+    - category_allocation_policy
+    - commercial_price_policy
+    - period_comparison_policy
+    - commercial_confirmation
