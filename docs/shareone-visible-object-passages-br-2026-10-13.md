@@ -125,3 +125,44 @@ header's actual viewport position, not just its active class or the emitted ID.
 The current focus hook and scroll-preservation layout effect should be checked
 together; the exact cause has not been established. Private thread text and
 screenshots are intentionally omitted from this public report.
+
+## Scroll investigation, 2026-10-15
+
+The remaining case is reproduced against the real ShareOne viewer using an
+independent synthetic share. A reply chain about 8,000 CSS pixels tall precedes
+the activated thread. The original focus hook acknowledged the request as soon
+as it started a smooth scroll. A normal comment poll then restored the previous
+scroll position and cancelled that scroll; the target remained active while its
+header was about 8,275 CSS pixels below the viewport.
+
+[ShareOne PR #315](https://github.com/sudoprivacy/shareone/pull/315) combines focus
+and reading-position preservation in one sidebar controller. It acknowledges
+focus only after the mounted target stays visible below the sticky header for
+two frames. Short cards fit completely; tall cards show their header and the
+available content. Update snapshots yield to pending focus, preserve a visible
+thread header when preceding replies change height, and avoid unchanged scroll
+writes. The old focus hook and separate restoration effect are removed.
+
+The local build and 167 unit tests pass. Real ai-dev-browser checks cover a poll
+during activation, a preceding reply edit, 1440/390 viewports and authenticated
+submission while an older thread is active. They assert actual card bounds and
+capture screenshots. Existing resolved text and area focus checks also pass.
+The browser harness scopes its Close selector to the sidebar: the English
+branding banner has a separate Close button. The regression is included in CI.
+
+This correction changes no SDK or HTTP contract, source export, stored comment,
+or anchor binding. Existing historical passages still require the previously
+documented explicit author reattachment when their captured source is absent.
+
+All seven [ShareOne CI checks](https://github.com/sudoprivacy/shareone/actions/runs/38716495841)
+passed. [Production deployment](https://github.com/sudoprivacy/shareone/actions/runs/38718430631)
+shipped merge `9f3714e055cd27a4a9ea2718b0165f82bc8ade2f`, and the
+[public-host parity check](https://github.com/sudoprivacy/shareone/actions/runs/38718705337)
+passed. A fresh read-only ai-dev-browser check of the original Northwind URL
+passes graph rendering and sidebar opening/closing at desktop and touch-phone
+widths. Its 48 discussion threads are unchanged, with zero comment mutations.
+
+The same long-chain acceptance also passes against production on a separate
+synthetic share, including authenticated trusted submission and the actual full
+short-card bounds at both widths. The QA share and its comments were removed.
+The historical working review was not reopened, rebound or used for test posts.
