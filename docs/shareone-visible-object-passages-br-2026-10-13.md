@@ -163,6 +163,7 @@ passes graph rendering and sidebar opening/closing at desktop and touch-phone
 widths. Its 48 discussion threads are unchanged, with zero comment mutations.
 
 The same long-chain acceptance also passes against production on a separate
-synthetic share, including authenticated trusted submission and the actual full
-short-card bounds at both widths. The QA share and its comments were removed.
+synthetic share: activation and updates at 1440/390 widths, plus authenticated
+trusted submission at 390. Actual bounds confirm complete short-card visibility.
+The QA share and its comments were removed.
 The historical working review was not reopened, rebound or used for test posts.
