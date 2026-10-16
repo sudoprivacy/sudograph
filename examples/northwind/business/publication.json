@@ -1,8 +1,34 @@
 {
-  "status": "source-review-and-business-views-live-passive-sdk-verified",
+  "status": "source-evaluation-and-object-kind-filters-live",
   "target_url": "https://s.shareone.vip/s/sudograph-northwind",
   "target_share_id": "aSoJi9Ny94gwxXFc",
   "current_publication": {
+    "commit": "875b9063299c13ea46b712e161d515563c7dacd4",
+    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/875b9063299c13ea46b712e161d515563c7dacd4/examples/northwind/business/review.html",
+    "bytes": 11796167,
+    "sha256": "3775870c08672e11f0b23ddb978bfc05bc1f533d4bd80ee8c4fa7d7bc3933118",
+    "owner_download_matches_git_blob": true,
+    "actual_iframe_browser_verified": true,
+    "content_review_mode": "ordinary-publication-completed-no-review-hold-returned",
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/38856880703",
+    "ci_conclusion": "success",
+    "canonical_definition_ids_preserved": 9,
+    "business_nodes": 4,
+    "source_review_questions": 3,
+    "phase_one_source_schema_views_records_unchanged": true,
+    "comments_embedded": false,
+    "manual_html_edits": false,
+    "existing_comment_threads_preserved": 48,
+    "automatic_source_questions": 369,
+    "evaluation_status": "not_run",
+    "database_object_kind_filter_counts": {
+      "tables": 13,
+      "database_views": 17,
+      "both": 30
+    },
+    "sidebar_svg_icons_verified": true
+  },
+  "previous_publication": {
     "commit": "97e892e2b742d8e3f3112db879733e48c8e7dca4",
     "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/97e892e2b742d8e3f3112db879733e48c8e7dca4/examples/northwind/business/review.html",
     "bytes": 11702718,
@@ -20,17 +46,6 @@
     "comments_embedded": false,
     "manual_html_edits": false,
     "existing_comment_threads_preserved": 47
-  },
-  "previous_publication": {
-    "commit": "83614cffa136c5843763eab99dfcb73e81fc71e6",
-    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/83614cffa136c5843763eab99dfcb73e81fc71e6/examples/northwind/business/review.html",
-    "bytes": 11687309,
-    "sha256": "7e6667092bac5df019c14680deb99e767ef58dbe9788820ef4ee8737e7ab8d19",
-    "owner_download_matches_git_blob": true,
-    "review_id": "2841822d-b37b-4374-94f8-652456d16bd2",
-    "review_status": "approved",
-    "review_approved": true,
-    "actual_iframe_browser_verified": true
   },
   "production_sdk_follow_up": {
     "page_callbacks_implemented": true,
