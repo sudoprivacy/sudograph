@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 
 import yaml
 
-from . import business, source_schema
+from . import blind, business, source_schema
 
 FORMAT = "sudograph-agent-context/v1"
 MAX_PAGE = 100
@@ -77,6 +77,7 @@ class Reader:
             "definitions": self.definitions,
             "documents": self.documents,
             "business_views": copy.deepcopy(model.get("business", {}).get("views", {})),
+            "evaluation": {"status": "not_run", "challenge": blind.for_schema(schema)},
         }
         self.pointers = registered_pointers([] if pointers is None else pointers)
         self.source_digest = business.digest(schema)
@@ -119,6 +120,8 @@ class Reader:
             "refresh": {"operation": "context"},
             "catalog": {"operation": "context_read", "revision": self.revision,
                         "context_digest": self.digest, "id": "catalog"},
+            "evaluation": {"operation": "context_read", "revision": self.revision,
+                           "context_digest": self.digest, "id": "evaluation"},
             "read": {"operation": "context_read", "revision": self.revision,
                      "context_digest": self.digest, "id": "<canonical source/definition ID>"},
             "records": {"operation": "context_read", "revision": self.revision,
@@ -160,6 +163,8 @@ class Reader:
             raise ValueError("offset and limit apply only to records")
         if identity == "catalog":
             return copy.deepcopy(self.payload)
+        if identity == "evaluation":
+            return copy.deepcopy(self.payload["evaluation"])
         if identity in self.definitions:
             # Include dependent rules/issues/notes as well as forward references:
             # retrieving a metric alone must not silently omit its qualifications.

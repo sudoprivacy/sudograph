@@ -1,0 +1,87 @@
+{
+  "status": "prepared_not_run",
+  "question_bank": 369,
+  "sample": {
+    "protocol": "source-catalog / graph-only answerer; raw-source oracle",
+    "questions": [
+      {
+        "id": "77cb18b73c403819",
+        "source_object": "Invoices",
+        "kind": "null:Region",
+        "question": "How many Invoices records have no Region?",
+        "target": "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Invoices"
+      },
+      {
+        "id": "5e3a4e67142221e7",
+        "source_object": "Invoices",
+        "kind": "null:ShipRegion",
+        "question": "How many Invoices records have no ShipRegion?",
+        "target": "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Invoices"
+      },
+      {
+        "id": "bfb022db905f7ad3",
+        "source_object": "Orders Qry",
+        "kind": "null:ShipCountry",
+        "question": "How many Orders Qry records have no ShipCountry?",
+        "target": "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders%20Qry"
+      }
+    ]
+  },
+  "seed": 20261015,
+  "model_digest": "9090b2f18fd95b10392f1ff7858c09c7e1b430e6d213d50fc534e96011ffa6f4",
+  "source_digest": "38896e0406aba8663d6fa4d62f956300cea631687b9d99ff870a11659c4eb88d",
+  "source_sha256": "2f4f5c68dfcd33ba27373eae48c7a4869800c68095ee0f9f0da494f83382a877",
+  "oracle_published": false,
+  "llm_score": null,
+  "weak_components": [
+    30
+  ],
+  "strong_components": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "browser_check": {
+    "tool": "ai-dev-browser",
+    "source_filter": {
+      "tables": 13,
+      "database_views": 17,
+      "both": 30
+    },
+    "bank_questions_visible": 369,
+    "locales": [
+      "zh",
+      "en"
+    ],
+    "mobile_viewport_width": 390,
+    "mobile_document_width": 390,
+    "uses_existing_sidebar_toggle": true
+  }
+}

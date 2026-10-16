@@ -104,7 +104,7 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5,
     source_model = source_schema.build(s, records=records)
     exported = (source_schema.record_adapters(s, source_model) if source_model and records
                 else browse.snapshot(s) if records else {})
-    return {
+    result = {
         "projection": {"mode": s.mode, "generated_at": datetime.now(UTC).isoformat(),
                        "source_read_only": True, "delivery": "snapshot"},
         "translations": s.translations,
@@ -127,6 +127,9 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5,
         "views": views,
         "diffs": diffs,
     }
+    if source_model:
+        result['challenge'] = blind.for_schema(source_model)
+    return result
 
 
 #: Inlined rather than linked. An audit deliverable is opened from disk at a

@@ -22,23 +22,28 @@ not alternative definitions. The current pilot's definitions retain their
 
 ## Where information belongs
 
-| Information | Default destination | Authority and lifetime |
-| --- | --- | --- |
-| Source structure, names, identities, source SQL | Stable source context block | Registered source revision |
-| Current meanings, rules, unresolved questions, relevant decision rationale | Versioned knowledge blocks | Checked model; preserve confirmation state |
-| Addresses for full models, evidence, review and customer data gateways | Pointer block | Operator registers addresses; tool authenticates access |
-| Source records and query results | Tool reads during the task | Snapshot/live-data distinction and result evidence remain explicit |
-| Raw discussion and abandoned drafts | Collaboration history | Retrieved when investigating a decision, not automatically preloaded |
-| Reviewed corrections and successful modelling/use trajectories | Candidate training/evaluation corpus | Curated, permissioned, versioned; not an authority for current facts |
-| Task observations and reusable working techniques | Existing agent memory | Agent chooses what to retain; canonical references and revisions remain necessary |
-| Authentication policy, credentials and server validation implementation | Server | No policy dump or credentials in prompts; tools report contracts and refusals |
-| Temporary debug output, transient states and duplicate presentation text | Neither preload nor automatic training | Retain only when an investigation or explicit task needs it |
+| Information | Where it exists today | Default destination | Authority and lifetime |
+| --- | --- | --- | --- |
+| Source structure, names, identities, source SQL | Generation YAML plus scanner-produced `source_schema` in the locked baseline artifact | Stable source context block | Registered source revision |
+| Current meanings, rules, unresolved questions, relevant rationale | `pilot.yaml` / managed `model.yaml`, canonical registry, Git/MR history | Versioned knowledge blocks | Checked model; preserve confirmation state |
+| Addresses for full models, evidence, review and customer data gateways | Operator `knowledge_pointers` and compiler-produced request templates | Pointer block | Operator registers addresses; tool authenticates access |
+| Source records and query results | Source DB, frozen source column snapshots, tool result/session records | Tool reads during the task | Snapshot/live-data distinction and result evidence remain explicit |
+| Raw discussion and abandoned drafts | Native agent sessions and ShareOne parent/reply threads, selections, state and agent stance; Git draft history where saved | Collaboration history | Retrieved when investigating a decision, not automatically preloaded |
+| Reviewed corrections and successful modelling/use trajectories | Sessions, structured/free-text ShareOne feedback, Git/MR intents and diffs, compiler/tool diagnostics and `docs/trials` receipts; not yet a curated training corpus | Candidate training/evaluation corpus | Curated, permissioned, versioned; not an authority for current facts |
+| Task observations and reusable working techniques | Existing agent/project memory stores and the runtime memory provider | Existing agent memory | Agent chooses what to retain; canonical references and revisions remain necessary |
+| Authentication policy, credentials and validation implementation | Operator service configuration, authority adapters, compiler and trusted CI | Server | No policy dump or credentials in prompts; tools report contracts and refusals |
+| Temporary debug output, transient states and presentation text | Local logs/temp files, session/tool output, locale and renderer files | Neither preload nor automatic training | Retain only when an investigation or explicit task needs it |
 
 Not preloading information does not imply training on it. Dynamic discovery,
 tool-result context, session history and persistent memory have different
 lifetimes. Durable conclusions from a discussion belong in the model with their
 evidence; raw conversation is not needed for every business answer. Useful
 decision rationale must not be discarded merely because it originated in chat.
+
+ShareOne `status` describes thread workflow and `agent_stance` describes the
+agent's response. Neither alone confirms a business definition. A training
+extractor must retain authorship, target identity, evidence and the actual model
+revision when known; it must not infer a comment's revision from its timestamp.
 
 Training examples should capture inputs, relevant model context, desired output,
 tool evidence and reviewed corrections. Rejected claims must not be relabelled
@@ -143,6 +148,46 @@ the customer's existing Gateway contract, which discovers permitted views and
 enforces query/page access. Listing an address neither grants access nor proves
 that an external deployment is reachable. This adapter's own record pointer
 works over the pinned source snapshot even without a live-data gateway.
+
+## Persistent source questions and a private judge
+
+Source discovery and business-overlay builds attach a source question bank by
+default. The compiler derives it from the scanned source catalogue, including
+database views: record counts, NULL counts, numeric extrema and resolvable
+declared foreign-key coverage. Questions reference canonical source identities;
+they contain no oracle answers or SQL. Removing or changing the bank makes a
+business-model export invalid. The reader exposes it through the packet's
+`evaluation` pointer and `context_read` with `id: evaluation`; it is not another
+large preloaded prompt block.
+
+The renderer's blind-question panel remains available even when the model has
+no executable metrics. It reports an unrun evaluation separately from numerical
+self-checks. Neither an empty self-check nor a generated question proves agent
+comprehension.
+
+An operator prepares a reproducible sample using `compiler.evaluation`:
+
+```sh
+python -m compiler.evaluation prepare MODEL_YAML SOURCES_PRIVATE_JSON PUBLIC_QUESTIONS_JSON PRIVATE_RUN_JSON --sample 3 --seed 42
+python -m compiler.evaluation grade PRIVATE_RUN_JSON SUBMISSION_JSON
+```
+
+These are operator/judge commands, not instructions the answerer must remember.
+Source registrations contain `source`, `dsn`, `sha256` and an optional `base`.
+They must match the accepted source identity and data revision. The judge checks
+file hashes, source counts and question inventory, then executes the selected
+oracle SQL against raw source data. Public questions and the private run require
+different directories. Deployments must separately deny the answerer access to
+raw DBs, judge files and credentials; directory separation alone is not a sandbox.
+SQLite judge inputs must be checkpointed snapshots without unregistered WAL data;
+hashing the main file alone cannot pin pending WAL changes.
+
+The private run binds question IDs and random seed to a model digest. A
+submission contains exactly `model_digest` and an `answers` map keyed by those
+IDs. The judge refuses another model digest or unregistered questions and keeps
+missing answers in the denominator. Preparation reports `prepared_not_run`;
+only a submitted answer set produces a score. Business-meaning tests still
+need reviewed expected interpretations, which source questions cannot supply.
 
 ## Phase-three gaps and evaluation
 

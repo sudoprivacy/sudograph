@@ -87,6 +87,9 @@ that understanding inspectable and reusable. **Git is the history.**
    question. Keep evidence, inferred meaning and human confirmation distinct;
    memory and training are not substitutes for source facts or approval. These
    are agent inputs, not a claim that a memory or training service is deployed.
+   Give agents compiler-derived knowledge and versioned pointers to the complete
+   model, evidence and authorised customer data gateways. Agents choose useful
+   working memories; server tools continue enforcing access and validation.
 10. **Source corrections follow a separate approved write path.** A field
     comment can motivate a source correction. An agent may prepare a versioned
     SQL/schema/data migration and its diff, validation and rollback evidence
@@ -633,6 +636,9 @@ The legacy `coverage` report separately describes authored business bindings and
 their explicit exceptions. A source projection refuses
 exclusion of keyed source tables or scalar columns, so an author cannot hide
 supported source facts to manufacture a passing inventory.
+The graph's **Database object type** filter selects stored tables, source SQL
+views, or both; it does not mean partial/full coverage. This filter, a database
+view and a Sudograph presentation view have different roles. None grants access.
 Unsupported composite references refuse generation instead of guessing a link.
 Display names and complete `translations.en` may be supplied by an agent;
 they describe source facts and are not authority for business meaning.
@@ -662,6 +668,11 @@ Business views reuse definition references. The native renderer checks the same
 contract; a no-context author cannot omit origins by taking another render path.
 These structural checks do not approve an interpretation or authenticate a
 document's author. See the pilot guide for registry ownership and current limits.
+Source projections and overlays automatically carry source-catalogue evaluation
+questions, including source database views. The reader exposes them through its
+evaluation pointer and the graph's **Blind questions** panel. A private judge
+pins raw data and prepares reproducible samples; scores require actual submitted
+answers. See [evaluation setup and boundaries](docs/agent-context.md#persistent-source-questions-and-a-private-judge).
 Deliver the HTML produced by the compiler directly. If presentation is deficient,
 fix the shared template and regenerate; a private HTML patch is not a reproducible
 agent deliverable. Source object/field IDs are generated and checked by the
@@ -750,15 +761,16 @@ that is right.
 
 ## References
 
-Three implementations we read before designing this one. Each took a different
-position, and the differences are the reason several rules here are phrased the
-way they are.
+Four reference implementations, inspected at different revisions. They serve
+different purposes; [the comparison](docs/ontology-comparison-2026-10-15.md)
+records source evidence, current limits and proposed integration boundaries.
 
 | Repo | What it is | What we took, or deliberately did not |
 |---|---|---|
 | [TheApeironLab/ontology](https://github.com/TheApeironLab/ontology) | A Palantir-Foundry-shaped ontology engine on PostgreSQL: objects, links, action types, markings | The closest in spirit. We took the per-property owner split, the audit spine with a required intent, approval defaulting to two people, and the eval harness shape. We did not take PostgreSQL as the store — the spec lives in git, so history and rollback come for free |
-| [fuyuxiang/ontology](https://github.com/fuyuxiang/ontology) (元枢) | A Python/Vue platform where an LLM drafts the ontology from documents and schemas | The wizard idea is right, and its prompts deliberately avoid modelling jargon when talking to business users. But human corrections there live only in browser storage, so the loop never closes. That is why edit records here are structured and versioned |
+| [fuyuxiang/ontology](https://github.com/fuyuxiang/ontology) (元枢) | A Python/Vue enterprise ontology platform with data binding, Logic/Action, agents, published versions and documented REST/MCP/SDK access | Useful construction, review and runtime patterns. Its current documentation includes backend persistence, approval and audit; the older browser-only critique no longer describes the documented platform. Deployment and enforcement need their own acceptance |
 | [microsoft/Ontology-Playground](https://github.com/microsoft/Ontology-Playground) | A static teaching site, designer and catalogue for Microsoft Fabric IQ, supporting a documented RDF/XML subset | Useful interaction patterns and RDF interoperability examples. Its current importer/exporter preserves supported class hierarchies. A sample's subclass count does not establish whether RDF has useful semantics; our business provenance, versions, execution and permission contracts still require explicit mappings and enforcement |
+| [sudowork/packages](https://github.com/sudoprivacy/sudowork/tree/dev/packages) | The ontology-common, ontology-engine, ontology-ui and ontology-ai workbench packages, integrated with desktop persistence, sessions and tools | Retained RDF/OWL statements with an editable projection, revisioned snapshots, checks, published-version agents and scoped host bridges. Especially relevant to phase-three host integration. Align identity, model authority, review events and execution contracts before combining systems; no dual editable SSOT |
 
 ## Data discipline
 

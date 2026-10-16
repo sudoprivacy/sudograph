@@ -339,6 +339,9 @@ class Publisher:
         return {
             "model_file": MODEL_FILE,
             "knowledge_operations": ["context", "context_read"],
+            "evaluation": {"read": "context_read with id: evaluation",
+                           "questions": "automatic source-catalog questions; private raw-DB oracle",
+                           "score": "not_run until isolated answerer responses are graded"},
             "source_format": SOURCE_REQUEST,
             "business_format": business.FORMAT,
             "baseline": self.pin,

@@ -65,10 +65,13 @@ function schemaLines(n,language=uiLanguage) {
 }
 async function drawSchema(v,mine) {
   $('schemaFilter').hidden=false;
+  $('schemaFilter').title=t('按数据库对象类型筛选；不是业务视图，也不改变源库覆盖或访问权限。');
+  $('schemaKind').setAttribute('aria-label',t('数据库对象类型'));
   $('sources').checked=state.sources;
   for(const option of $('schemaKind').options) {
     const count=schemaObjects.filter(o=>option.value==='all'||o.object_kind===option.value).length;
-    option.textContent=t(option.value==='table'?'源表':option.value==='view'?'源视图':'全部')+' ('+count+')';
+    option.textContent=t(option.value==='table'?'表（存储记录）':
+      option.value==='view'?'数据库视图（源SQL查询）':'表与数据库视图')+' ('+count+')';
   }
   const objects=schemaObjects.filter(o=>state.schemaKind==='all'||o.object_kind===state.schemaKind);
   let shown=new Map(objects.map(o=>[o.id,o]));

@@ -1,5 +1,18 @@
 {
   "en": {
+    "数据库对象类型": "Database object type",
+    "表（存储记录）": "Tables (stored records)",
+    "数据库视图（源SQL查询）": "Database views (source SQL queries)",
+    "表与数据库视图": "Tables and database views",
+    "按数据库对象类型筛选；不是业务视图，也不改变源库覆盖或访问权限。": "Filter by database object type. This is not a business view and does not change source coverage or access rights.",
+    "尚无可执行指标的计算自检；源数据题库已自动生成。": "No executable-metric self-checks are available; source questions are generated automatically.",
+    "题目数量：{count}": "Questions: {count}",
+    "查看源数据盲测题": "Open source-data blind questions",
+    "{object} 有多少条记录？": "How many records of {object} are represented?",
+    "{object} 中 {field} 为空的记录有多少条？": "How many {object} records have no {field}?",
+    "{object} 中 {field} 的最小值是多少？": "What is the minimum {field} in {object}?",
+    "{object} 中 {field} 的最大值是多少？": "What is the maximum {field} in {object}?",
+    "{object} 中 {field} 已填写、但没有匹配 {target} 记录的行有多少条？": "How many {object} records have a populated {field} without a matching {target} record?",
     "视图": "View",
     "取自": "from",
     "数据源": "Data source",

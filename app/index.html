@@ -53,8 +53,12 @@
   .panel-controls{display:flex;justify-content:flex-end;padding:8px 12px;
     border-bottom:1px solid var(--line);flex-shrink:0}
   #panel{overflow:auto;padding:14px 16px;min-height:0;flex:1}
+  #panelToggle,#panelReveal{display:grid;place-items:center;line-height:1}
+  #panelToggle{width:32px;height:32px;padding:0}
+  #panelToggle svg,#panelReveal svg{display:block;width:20px;height:20px;
+    fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
   #panelReveal{position:absolute;left:12px;bottom:12px;z-index:10;
-    width:40px;height:40px;border-radius:50%;padding:0;font-size:20px;
+    width:40px;height:40px;border-radius:50%;padding:0;
     border-color:#687d9b;background:#26364d;box-shadow:0 2px 8px #0004}
   #panelReveal:hover{background:#354967;border-color:#a8c4ed}
   #panelToggle:focus-visible,#panelReveal:focus-visible{outline:2px solid #a8c4ed;outline-offset:3px}
@@ -168,10 +172,10 @@
     <option value="auto" data-ui="自动">自动</option>
     <option value="elk">ELK layered</option><option value="fcose">fCoSE</option>
   </select></label>
-  <label id="schemaFilter" hidden><span data-ui="源对象">源对象</span> <select id="schemaKind">
-    <option value="table" data-ui="源表">源表</option>
-    <option value="view" data-ui="源视图">源视图</option>
-    <option value="all" data-ui="全部">全部</option>
+  <label id="schemaFilter" hidden><span data-ui="数据库对象类型">数据库对象类型</span> <select id="schemaKind">
+    <option value="table" data-ui="表（存储记录）">表（存储记录）</option>
+    <option value="view" data-ui="数据库视图（源SQL查询）">数据库视图（源SQL查询）</option>
+    <option value="all" data-ui="表与数据库视图">表与数据库视图</option>
   </select></label>
   <label><span data-ui="关系流向">关系流向</span><select id="direction">
     <option value="auto" data-ui="适应画布">适应画布</option>
@@ -188,10 +192,10 @@
 <main>
   <div id="cy"></div>
   <aside id="detailsSidebar">
-    <div class="panel-controls"><button id="panelToggle" aria-controls="detailsSidebar" aria-expanded="true" data-ui="收起详情">收起详情</button></div>
+    <div class="panel-controls"><button id="panelToggle" aria-controls="detailsSidebar" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16m6-11-3 3 3 3"/></svg></button></div>
     <div id="panel"><p class="muted" data-ui="点一个节点看它的来历。">点一个节点看它的来历。</p></div>
   </aside>
-  <button id="panelReveal" aria-controls="detailsSidebar" aria-expanded="false" hidden><span aria-hidden="true">☷</span></button>
+  <button id="panelReveal" aria-controls="detailsSidebar" aria-expanded="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16m3-11 3 3-3 3"/></svg></button>
 </main>
 <footer><span id="status" style="display:flex;gap:16px;flex-wrap:wrap"></span><span id="edgeLabelNotice"></span><span id="accessNotice"></span></footer>
 
@@ -237,7 +241,8 @@ let panelSizeChanged=false;
 function syncPanelToggle() {
   $('detailsSidebar').hidden=state.panelCollapsed;
   $('panelReveal').hidden=!state.panelCollapsed;
-  $('panelToggle').textContent=t('收起详情');
+  $('panelToggle').setAttribute('aria-label',t('收起详情'));
+  $('panelToggle').title=t('收起详情');
   $('panelToggle').setAttribute('aria-expanded',String(!state.panelCollapsed));
   $('panelReveal').setAttribute('aria-label',t('展开详情'));
   $('panelReveal').title=t('展开详情');
@@ -1223,6 +1228,13 @@ function showChecks(v) {
 
 function showMeasurements(v) {
   const run = v.measurement;
+  if(!run?.results?.length && BUNDLE.challenge?.questions?.length) {
+    $('panel').innerHTML=`<h2>${t('评测题')}</h2><p>${t('尚无可执行指标的计算自检；源数据题库已自动生成。')}</p>`+
+      `<p>${t('题目数量：{count}',{count:BUNDLE.challenge.questions.length})}</p>`+
+      `<p class="muted">${t('题目来自原库；标准答案仅在裁判端。尚未完成隔离 LLM 答题，暂无得分。')}</p>`+
+      `<button id="openSourceQuestions">${t('查看源数据盲测题')}</button>`;
+    $('openSourceQuestions').onclick=showChallenge;return;
+  }
   if (!run) { $('panel').textContent = t('暂无可自动生成的题。'); return; }
   const out = [`<h2>${t('评测题')}</h2><p>${t('{passed}/{total} 题通过；分数不阻止修改。', run)}</p>` +
     `<p class="muted">${t('这些题检查计算性质，不证明业务定义正确。')}</p>`];

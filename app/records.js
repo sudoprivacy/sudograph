@@ -191,6 +191,18 @@ function showCoverage() {
       `<div class="op">${esc(JSON.stringify(o.foreign_keys,null,2))}</div></details>`).join('')+
       r.missing.map(m=>`<p class="fail">${esc(m)}</p>`).join('')).join('');
 }
+function challengeQuestion(q) {
+  const vars={object:q.source_object};
+  if(q.kind==='count')return t('{object} 有多少条记录？',vars);
+  if(q.kind.startsWith('null:'))return t('{object} 中 {field} 为空的记录有多少条？',
+    {...vars,field:q.kind.slice(5)});
+  if(q.kind.startsWith('min:')||q.kind.startsWith('max:'))return t(
+    q.kind.startsWith('min:')?'{object} 中 {field} 的最小值是多少？':'{object} 中 {field} 的最大值是多少？',
+    {...vars,field:q.kind.slice(4)});
+  const peers=q.target&&schemaObject(q.target)?.foreign_keys.filter(f=>'missing-target:'+f.id===q.kind);
+  return peers?.length?t('{object} 中 {field} 已填写、但没有匹配 {target} 记录的行有多少条？',
+    {...vars,field:peers.slice().sort((a,b)=>a.seq-b.seq).map(f=>f.from).join(', '),target:peers[0].table}):q.question;
+}
 function showChallenge() {
   state.panel='challenge';
   const trial=BUNDLE.trial;
@@ -198,9 +210,9 @@ function showChallenge() {
     (trial?`<p>${esc(trial.date)} · ${t('随机抽测')} · ${trial.passed}/${trial.total}</p>`+
       `<p class="muted">${t('本次仅隔离会话上下文，未做操作系统沙箱隔离；三题不代表整体准确率。')}</p>`+
       trial.results.map(r=>{const q=trial.questions.find(q=>q.id===r.id);return `<details><summary>${r.ok?'✓':'✗'} ${esc(q.source_object)} · ${esc(q.kind)}</summary>`+
-        `<p>${esc(q.question)}</p><p>${t('实际')} ${esc(fmt(r.got))} · ${t('预期')} ${esc(fmt(r.expected))}</p></details>`;}).join('')+
+        `<p>${esc(challengeQuestion(q))}</p><p>${t('实际')} ${esc(fmt(r.got))} · ${t('预期')} ${esc(fmt(r.expected))}</p></details>`;}).join('')+
       `<h2>${t('全部题目')}</h2>`:
       `<p>${t('题目来自原库；标准答案仅在裁判端。尚未完成隔离 LLM 答题，暂无得分。')}</p>`)+
     BUNDLE.challenge.questions.map(q=>`<details><summary>${esc(q.source_object)} · ${esc(q.kind)}</summary>`+
-      `<p>${esc(q.question)}</p><small>${esc(q.id)}</small></details>`).join('');
+      `<p>${esc(challengeQuestion(q))}</p><small>${esc(q.id)}</small></details>`).join('');
 }

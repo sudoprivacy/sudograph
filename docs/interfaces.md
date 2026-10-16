@@ -422,6 +422,16 @@ Invalid requests return reason/recovery fields; unauthorised requests return 403
 
 ## Independent question generation
 
+Current source-projection and business-overlay exports carry automatic questions
+from the scanner's complete source catalogue, including database views. They
+remain visible in the graph and readable through `context_read` with
+`id: evaluation`, even when there are no executable business metrics. The
+operator-side `compiler.evaluation` prepares a reproducible sample and binds the
+private judge run to the model and pinned raw database. See
+[the evaluation contract](agent-context.md#persistent-source-questions-and-a-private-judge).
+
+The earlier standalone entry point remains available for operator diagnostics:
+
 `python -m compiler.blind <dsn> <answerer-dir/questions.json> <judge-dir/oracle.json>`
 generates questions from raw schema and data, independently of the ontology.
 Templates cover row counts, missing values, extrema and missing FK targets.

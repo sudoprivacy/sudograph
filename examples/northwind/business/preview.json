@@ -2,8 +2,8 @@
   "status": "unreviewed-business-pilot",
   "language": "en",
   "artifact": "index.html",
-  "artifact_bytes": 11703746,
-  "artifact_sha256": "ea6fad7cb26e9c6ad469df6de1c0b3bf1dbef54772e2d84b2f78906cc47dab6b",
+  "artifact_bytes": 11797241,
+  "artifact_sha256": "bdbc78bfedce162539d4b689fb332798836e5674b6ef2782819f972562225fbb",
   "overlay": "pilot.yaml",
   "overlay_sha256": "c24e6452873d4e05fd786b5fd20f97876fc4942c6e1573216b60e009a5701329",
   "registry": "pilot.registry.json",
@@ -19,8 +19,8 @@
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
     "artifact": "review.html",
-    "bytes": 11702718,
-    "sha256": "969544130ea6dcb2b2e82bd099269e46a473b7ef1047b21d1e99a6da87444111",
+    "bytes": 11796167,
+    "sha256": "3775870c08672e11f0b23ddb978bfc05bc1f533d4bd80ee8c4fa7d7bc3933118",
     "language": "zh"
   },
   "contributors": {
@@ -37,7 +37,7 @@
     "unconfirmed_source_question": "--hook"
   },
   "validation": {
-    "tests_passed": 330,
+    "tests_passed": 345,
     "browser_tool": "ai-dev-browser",
     "source_field_to_real_records": true,
     "source_node_references_shared_in_renderer": true,
@@ -74,7 +74,12 @@
     "local_passive_pan_text_scans": 0,
     "production_passive_sdk_available": true,
     "production_exact_thread_activation_available": true,
-    "production_independent_mark_controls_verified": true
+    "production_independent_mark_controls_verified": true,
+    "object_kind_filter_is_not_a_coverage_filter": true,
+    "source_question_bank_present_without_executable_metrics": true,
+    "source_question_panel_english_and_chinese_verified": true,
+    "mobile_viewport_width_px": 390,
+    "mobile_document_width_px": 390
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
   "publication": "publication.json",
@@ -84,5 +89,12 @@
   "phase_one_presentations": [
     "Data projection",
     "Projection and data review"
-  ]
+  ],
+  "evaluation": {
+    "question_bank": 369,
+    "generation": "compiler-owned source catalogue",
+    "status": "not_run",
+    "private_oracle_in_export": false,
+    "receipt": "../../../docs/trials/source-evaluation-2026-10-15.json"
+  }
 }

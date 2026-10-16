@@ -16,7 +16,7 @@ import unicodedata
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
-from . import source_schema
+from . import blind, source_schema
 from .spec import read_document
 
 FORMAT = "sudograph-business-overlay/v4"
@@ -419,6 +419,7 @@ def build(doc, baseline):
         "projection": {**baseline["projection"], "mode": "business"},
         "translations": translations,
         "business": business,
+        "challenge": blind.for_schema(baseline["source_schema"]),
     }
 
 
@@ -431,6 +432,10 @@ def validate(model):
         raise ValueError(
             "business identities, evidence or view references changed; "
             "rebuild through compiler.business"
+        )
+    if model.get("challenge") != blind.for_schema(model["source_schema"]):
+        raise ValueError(
+            "source evaluation questions changed or disappeared; rebuild with compiler"
         )
 
 
