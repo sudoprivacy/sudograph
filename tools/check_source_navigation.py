@@ -58,7 +58,8 @@ async def check(port, url, output):
     # Metadata observation is read-only; interactions below use browser input.
     target = await js("(()=>{const o=schemaObjects.find(o=>"
                       "o.object_kind==='table'&&o.fields.length);"
-                      "return {id:o.id,name:o.name,field:o.fields[0].id};})()")
+                      "return {id:o.id,name:o.name,field:o.fields[0].id,"
+                      "sourceLabel:bt(schemaNodes.get(o.source).label)};})()")
     facts = "JSON.stringify([BUNDLE.source_schema.sources,BUNDLE.business?.definitions])"
     baseline = await js(facts)
     await click_by_html_id(tab, 'catalogueBtn')
@@ -87,6 +88,10 @@ async def check(port, url, output):
     await until("state.sourceSelection.root===" + json.dumps(target['id']))
     await rendered()
     assert await js("state.sourceSelection.root===" + json.dumps(target['id']))
+    await type_by_text(tab, name=await js("t('搜索对象或字段')"),
+                       text=target['sourceLabel'], clear=True)
+    await until("!!document.querySelector('[data-catalogue-id='+'" +
+                json.dumps(target['field']) + "'+']')")
     before = await js('drawSeq')
     await type_by_text(tab, name=await js("t('搜索对象或字段')"), text=target['name'], clear=True)
     assert await js('drawSeq') == before

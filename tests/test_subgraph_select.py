@@ -1,9 +1,11 @@
 """Bounded structural selection cannot invent relationships or change authority."""
 
+import ast
 import copy
 import json
 import sqlite3
 import subprocess
+from inspect import cleandoc
 from pathlib import Path
 
 import pytest
@@ -108,3 +110,18 @@ console.log(JSON.stringify(result));
                                               'contract': contract()}),
                             capture_output=True, text=True, check=True, timeout=30)
     assert json.loads(result.stdout) == expected
+
+
+def test_contract_and_export_ignore_python_docstring_indentation(catalogue, monkeypatch):
+    path = Path(__file__).resolve().parents[1] / 'compiler/subgraph_select.py'
+    node = next(n for n in ast.parse(path.read_text(encoding='utf8')).body
+                if isinstance(n, ast.FunctionDef) and n.name == 'subgraph_select')
+    raw = ast.get_docstring(node, clean=False)
+    model = {'source_schema': catalogue}
+    before = contract()
+    export = app.render(model)
+    for doc in [raw, cleandoc(raw)]:
+        monkeypatch.setattr(subgraph_select, '__doc__', doc)
+        assert contract() == before
+        assert app.render(model) == export
+        assert SelectionError('SUBGRAPH_INPUT', 'bad request').hint == before['recovery']

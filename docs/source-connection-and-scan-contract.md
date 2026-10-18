@@ -64,6 +64,8 @@ empty database when enumeration failed.
 
 The host registers `source_id`, source kind and execution location. Tools receive
 that ID, a requested scope and a revision; they resolve credentials internally.
+Sudowork uses the existing Sudocode/service Vault boundary for this access; this
+integration does not introduce a second Nexus lifecycle or secret manager in the UI.
 Providers report observed capability/version information for:
 
 - `probe`, `enumerate_objects(cursor)`, `describe_object` and original SQL;
@@ -85,8 +87,15 @@ registered remote identity requires an explicit identity migration mapping:
 retain old object/field IDs and comment references, or produce a checked migration
 receipt. Silently changing the identity algorithm would break references.
 Connection display names, rotated passwords and UI ordering never create a new
-source. Host registration deduplicates equivalent endpoint/database/principal
-scope using an opaque registry key; secrets themselves are not identifiers.
+source. Keep canonical `source_id` separate from a principal-scoped
+`connection_id`/access handle. Two users reading the same registered database
+reference the same object/field identities; permission filters do not clone those
+facts. Registration deduplicates source identity using trusted execution location,
+provider/database identity and explicitly verified endpoint aliases. Separately
+deduplicate connection handles for the same source/principal/scope. Equal IP text
+alone cannot prove identity across isolated networks/tenants, and secrets are
+never identity inputs. Alias reconciliation or a real source move needs an
+audited mapping rather than merging two sources on an agent's guess.
 
 PostgreSQL and MySQL need separate provider acceptance. Record snapshot isolation,
 pagination ordering, keyless results, views, generated columns, composite keys,

@@ -18388,7 +18388,7 @@ function showSourceCatalogue() {
         const title=button(bt(obj.label)+' · '+t(obj.object_kind==='view'?'源视图':'源表'),obj.id);
         const entry=expanded(obj.id,title,d=>{
           const fields=document.createElement('div');fields.className='catalogue-fields';
-          for(const f of obj.fields.filter(f=>!query||matches(obj)||matches(f)))fields.appendChild(button(bt(f.label)+(f.primary_key?' · PK':''),f.id));
+          for(const f of obj.fields.filter(f=>!query||matches(source)||matches(obj)||matches(f)))fields.appendChild(button(bt(f.label)+(f.primary_key?' · PK':''),f.id));
           d.appendChild(fields);
         });list.appendChild(entry);
       }
@@ -18424,6 +18424,8 @@ if(BUNDLE.source_schema) {
   }
 }
 $('catalogueBtn').onclick=()=>{if(state.panelCollapsed)togglePanel();showSourceCatalogue();};
+const originalFocusAction=$('focusBtn').onclick;
+$('focusBtn').onclick=()=>state.projection==='schema:subgraph'?openSourceSubgraph(state.selected):originalFocusAction();
 $('fullSourceView').onclick=()=>{state.projection='schema';$('projection').value='schema';state.focus=null;
   state.sourceSelection=null;state.schemaKind='all';$('schemaKind').value='all';clearCanvasLayout();void draw();};
 

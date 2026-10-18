@@ -35,10 +35,16 @@
     "comment_mutations": 0
   },
   "verification": {
-    "pytest": 350,
+    "pytest": 351,
     "tools_verify_gates": 6,
     "generated_artifacts": 5,
-    "frozen_manifests": 3
+    "frozen_manifests": 3,
+    "final_full_gate_run": "in_progress",
+    "cross_version_exports": [
+      "3.12.13: all five checked",
+      "3.14.6: all five checked"
+    ],
+    "docstring_indentation_regression": true
   },
   "evaluation": "not_run"
 }

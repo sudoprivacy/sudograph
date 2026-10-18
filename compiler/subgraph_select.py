@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field, fields
+from inspect import getdoc
 
 
 @dataclass(frozen=True)
@@ -26,7 +27,7 @@ class SelectionError(ValueError):
     def __init__(self, code, message):
         super().__init__(message)
         self.code = code
-        self.hint = subgraph_select.__doc__.partition("Failure:")[2].strip()
+        self.hint = contract()['recovery']
         self.retryable = False
 
     def as_dict(self):
@@ -35,8 +36,11 @@ class SelectionError(ValueError):
 
 
 def contract():
-    return {"description": subgraph_select.__doc__.partition("Failure:")[0].strip(),
-            "recovery": subgraph_select.__doc__.partition("Failure:")[2].strip(),
+    # Python 3.13+ strips docstring indentation at compilation; older versions
+    # retain it. Canonicalise before embedding the contract in checked exports.
+    documentation = getdoc(subgraph_select)
+    return {"description": documentation.partition("Failure:")[0].strip(),
+            "recovery": documentation.partition("Failure:")[2].strip(),
             "parameters": {f.name: {**f.metadata, "default": f.default} for f in fields(Selection)},
             "relationships": ["source_fk", "source_view"],
             "llm_role": "Name or explain selected groups; propose new business relationships "

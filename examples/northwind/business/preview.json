@@ -2,8 +2,8 @@
   "status": "unreviewed-business-pilot",
   "language": "en",
   "artifact": "index.html",
-  "artifact_bytes": 11821497,
-  "artifact_sha256": "fb9e2ce3f4f68ad06be21619a0e0c45732abaea459e046cd4f46cfae3826dc9a",
+  "artifact_bytes": 11821684,
+  "artifact_sha256": "2cdc9e358b7efd8b9036781c61fd17ab39d9c7ba130d563b4cc0570089e052ee",
   "overlay": "pilot.yaml",
   "overlay_sha256": "c24e6452873d4e05fd786b5fd20f97876fc4942c6e1573216b60e009a5701329",
   "registry": "pilot.registry.json",
@@ -19,8 +19,8 @@
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
     "artifact": "review.html",
-    "bytes": 11820230,
-    "sha256": "57b09a111a0edc34324594cdfb5b4483c7d6b86a5329398486f109d74aaeff37",
+    "bytes": 11820417,
+    "sha256": "79f193a1f1f446561203786852c251de6cd542774e845e015238bce7b5cb7f33",
     "language": "zh"
   },
   "contributors": {
@@ -37,7 +37,7 @@
     "unconfirmed_source_question": "--hook"
   },
   "validation": {
-    "tests_passed": 350,
+    "tests_passed": 351,
     "browser_tool": "ai-dev-browser",
     "source_field_to_real_records": true,
     "source_node_references_shared_in_renderer": true,
@@ -52,7 +52,7 @@
     "selected_phrase_quote_with_stable_id": true,
     "neighbor_highlight_on_annotated_nodes": true,
     "pan_and_zoom_did_not_run_layout": true,
-    "verification_status": "passed",
+    "verification_status": "local_suite_and_cross_version_exports_passed_ci_pending",
     "phase_one_source_views_and_complete_records_equal_to_frozen_baseline": true,
     "whole_html_regeneration_check": true,
     "new_definition_ids": 0,
@@ -88,7 +88,11 @@
     "subgraph_boundary_controls": true,
     "offline_selector_matches_context_reader": true,
     "catalogue_search_canvas_redraws": 0,
-    "source_navigation_mobile_width_px": 390
+    "source_navigation_mobile_width_px": 390,
+    "cross_version_export_python": [
+      "3.12.13",
+      "3.14.6"
+    ]
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
   "publication": "publication.json",
