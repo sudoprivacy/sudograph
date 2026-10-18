@@ -14,12 +14,15 @@ import gzip
 import hashlib
 import json
 import struct
+import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
 import yaml
 
 from . import blind, business, source_schema
+from .subgraph_select import SelectionError, subgraph_select
+from .subgraph_select import contract as subgraph_contract
 
 FORMAT = "sudograph-agent-context/v1"
 MAX_PAGE = 100
@@ -78,6 +81,7 @@ class Reader:
             "documents": self.documents,
             "business_views": copy.deepcopy(model.get("business", {}).get("views", {})),
             "evaluation": {"status": "not_run", "challenge": blind.for_schema(schema)},
+            "subgraph_contract": subgraph_contract(),
         }
         self.pointers = registered_pointers([] if pointers is None else pointers)
         self.source_digest = business.digest(schema)
@@ -122,6 +126,9 @@ class Reader:
                         "context_digest": self.digest, "id": "catalog"},
             "evaluation": {"operation": "context_read", "revision": self.revision,
                            "context_digest": self.digest, "id": "evaluation"},
+            "subgraph": {"operation": "context_read", "revision": self.revision,
+                         "context_digest": self.digest, "id": "subgraph", "selection": {}},
+            "subgraph_contract": subgraph_contract(),
             "read": {"operation": "context_read", "revision": self.revision,
                      "context_digest": self.digest, "id": "<canonical source/definition ID>"},
             "records": {"operation": "context_read", "revision": self.revision,
@@ -156,7 +163,12 @@ class Reader:
                           "record_rows_preloaded": 0},
         }
 
-    def read(self, identity, *, records=False, offset=0, limit=20):
+    def read(self, identity, *, records=False, offset=0, limit=20, selection=None):
+        if identity == "subgraph" or selection is not None:
+            if identity != "subgraph" or records or offset != 0 or limit != 20:
+                raise SelectionError("SUBGRAPH_INPUT", "selection applies only to a subgraph read")
+            return subgraph_select(self.model["source_schema"],
+                                   {} if selection is None else selection)
         if records:
             return self.page(identity, offset=offset, limit=limit)
         if offset != 0 or limit != 20:
@@ -244,6 +256,8 @@ def main(argv=None):
     parser.add_argument("--records", action="store_true")
     parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--selection", type=json.loads,
+                        help=subgraph_select.__doc__.partition("Failure:")[0].strip())
     parser.add_argument("--text", action="store_true", help="render the ordered prompt append")
     args = parser.parse_args(argv)
     if Path(args.model).suffix == ".json":
@@ -260,8 +274,15 @@ def main(argv=None):
     reader = Reader(model)
     if args.records and not args.read:
         parser.error("--records requires --read with a source object ID")
-    result = (reader.read(args.read, records=args.records, offset=args.offset, limit=args.limit)
-              if args.read else reader.pack())
+    if args.selection is not None and args.read != "subgraph":
+        parser.error("--selection requires --read subgraph")
+    try:
+        result = (reader.read(args.read, records=args.records, offset=args.offset, limit=args.limit,
+                              selection=args.selection)
+                  if args.read else reader.pack())
+    except SelectionError as exc:
+        print(json.dumps(exc.as_dict()), file=sys.stderr)
+        raise SystemExit(4 if exc.code == "SUBGRAPH_NOT_FOUND" else 2) from exc
     print(result["text"] if args.text and not args.read else json.dumps(result, ensure_ascii=False))
 
 

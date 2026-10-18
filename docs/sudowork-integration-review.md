@@ -1,0 +1,140 @@
+# Sudowork integration: feature and experience review
+
+This is a proposed first-version boundary, inspected on 2026-10-18. It does not
+claim that the cross-repository integration has been implemented or deployed.
+The source-graph selector and renderer fixes described below are Sudograph
+capabilities; they do not establish a working Sudowork adapter.
+
+## Existing implementation evidence
+
+Sudowork `origin/dev` was inspected at
+`acf2ee2486fa218a509ce6432036d2137f345376`, without changing its checkout.
+
+- `StudioDatabaseConnection.tsx` has PostgreSQL, MySQL and SQLite connection
+  forms, a SQLite file picker and a probe operation. `StudioDataPage` lists
+  connections/assets, rescans them and opens previews. Reuse that entry UX.
+- `OntologyService.ts` has database/file/API adapters. Some discovery paths have
+  `maxAssets` limits and record previews are bounded. A successful probe or a
+  sample is not proof of Sudograph's complete authorised-source coverage.
+- `StudioModelEditor.tsx` uses React Flow, with graph and structure modes; it is
+  not simply Microsoft's application embedded in a tab. RDF document retention
+  and the graph editor are separate concerns. Replacing a renderer must not drop
+  retained statements or silently transfer model authority.
+- `BrowserPanel.tsx` uses the shared `BrowserSessionPanel`. The latter already
+  opens an authenticated viewer window/tab for the same execution browser.
+  Relevant commits include `5783843e` (shared Desktop sessions and handoff) and
+  `36de4f0f` (external-viewer acceptance), followed by PR #1260 documentation.
+- `docs/sudowork-browser-sessions.md` distinguishes local standalone CDP,
+  managed extension and cloud sessions. Existing personal Chrome attachment
+  and optional WebUI-to-local-extension relay are still listed as planned.
+  Do not claim that a managed extension proves arbitrary personal-profile access.
+
+Nexus VFS local source at `e8713a3ef` contains local/remote/S3/GCS driver wiring
+and additional API transport modules. Modules, compiled features, registered
+drivers and deployed capabilities are different states. Discover the actual
+deployment before offering a connector. A file/object driver does not by itself
+provide relational keys, original view SQL, query semantics or schema coverage.
+
+## Feature and UX ownership proposal
+
+| Feature | Human experience | Agent experience | Proposed owner / disposition |
+| --- | --- | --- | --- |
+| Connect a database | Existing source-type form, credential flow, probe and connection status | Discover registered source IDs and capabilities; never reconstruct credentials in prompts | Reuse Sudowork UI and its database adapters; expose capability gaps explicitly |
+| Connect files, object storage or APIs | Same source entry with provider-specific setup and visible status | Operate on authorised handles and capability contracts | Reuse Nexus drivers where deployed; retain a source-specific adapter when relational semantics are needed |
+| Browser-only sources | Login/consent and human takeover through existing browser UX | ai-dev-browser through the host's authenticated session and control lease | Browser fallback for supported tasks; extraction retains URL/time/evidence and does not become a fictitious SQL source |
+| Discover source structure | Clear scan scope, progress, exclusions and failure/partial state | Deterministic source objects/fields/SQL/relations and machine-readable coverage | Sudograph projection contract; adapt existing scan results only when they satisfy it |
+| Browse objects and fields | Searchable, lazy catalogue; select any level to navigate a bounded graph | Current canonical IDs plus a bounded structural selector | Sudograph navigation contract; shared UI embeddable in Sudowork and the standalone review reader |
+| Read real records | Same-row fields and keys, small samples, complete pagination when authorised | Snapshot/live distinction, versioned record reads and evidence | Preserve Sudograph behaviour; host adapters provide access without a second editable data store |
+| Review graph | Large canvas, field drilldown, selected-object details and presentation views | Canonical model reads; browser used when visual inspection is necessary | Replace the corresponding review experience, not just add another independent model editor |
+| Comment | Stable object/field anchors, readable text selection, preserved threads | Read/reply with stance and workflow state; changes return to the checked model | Preserve Sudograph + ShareOne review behaviour |
+| Edit and repair | See proposed changes, provenance, unresolved questions and validation errors | Submit model changes; compiler refuses invalid structure and gives recovery | Sudograph compiler/publisher contract; host routes tools through it |
+| Version and approve | Authenticated reviewer, exact revision, source evidence and separate business confirmation | Cannot self-approve by setting a YAML/UI field | Choose one review authority per event; map existing host records explicitly |
+| Launch business agent | Existing host conversation and agent lifecycle | Version-pinned compiled context plus authorised pointers/tools | Reuse Sudowork runtime and registration; add the Sudograph model adapter |
+| Evaluate | One evaluation entry separates calculation self-checks from source questions; coverage is an inventory | Source questions and private, pinned judge; business-meaning tests added separately | Preserve Sudograph question generation and independent grading |
+
+Choosing to reuse a form does not choose the underlying model authority. For a
+Sudograph-managed project, source systems own source facts and checked model/Git
+owns business definitions. Sudowork stores host/session/UI state and references
+the checked revision. Retained RDF must be mapped, kept as immutable evidence or
+refused explicitly; do not silently discard it or dual-write editable definitions.
+
+## Connector contract to align before implementation
+
+Use one connection entry and credential flow. Each registered source should
+report the capabilities actually available: schema enumeration and pagination,
+declared keys/relations, original database-view SQL, record paging, read-only
+access, revision/snapshot strategy and authorised scope. These are proposed
+adapter fields, not a declaration that every provider currently implements them.
+
+Connection credentials remain with the host/provider. An agent receives a
+registered source identity, available operations, observable status and typed
+recovery. Do not turn an arbitrary browser extraction into database coverage or
+use a capped asset list to claim a full scan. Sudograph's current source scanner
+is SQLite-only; reusing the PostgreSQL/MySQL form does not complete those ports.
+
+## Display surfaces: first-version recommendation
+
+| Surface | Benefit | Limit | Proposed first-version role |
+| --- | --- | --- | --- |
+| Native standalone review page | Largest canvas; direct text selection, comments and normal browser interaction | Host selection/context synchronisation needs an adapter | Default human review surface on Desktop and WebUI |
+| Shared Sudowork BrowserPanel | Conversation and browser together; existing authenticated session/handoff | Smaller canvas, viewer transport latency, remote selection/clipboard must be accepted | Companion for agent browser activity; offer the existing external viewer when more space is needed |
+| Existing ontology graph tab | No new navigation surface | Current editor/model semantics and canvas size differ | Keep a review entry/summary; replace corresponding review functionality after the adapter is agreed |
+
+A native local tab opening the review URL renders the page locally. A new tab
+opening the authenticated browser viewer displays the execution browser remotely.
+They are different experiences even when both use a browser tab. The existing
+viewer is not a substitute for testing native text/comment interactions.
+
+For Desktop, direct review can use the normal browser without automation. When
+agent control is needed, reuse the supported app-managed Chrome/CDP or managed
+extension session. Do not make personal-profile attachment a first-version
+dependency. For WebUI, open the native review URL locally for human review;
+agents can use their authorised remote browser and model tools. Two independently
+opened pages share model/anchor identities, not automatically one DOM/camera or
+control lease. Same-browser takeover uses the existing viewer/lease path.
+
+Do not automatically publish customer data to a public service merely to open
+a large view. Use an authorised review deployment or an explicitly permitted
+snapshot. ShareOne is the review carrier, not the canonical model or ACL engine.
+
+## Catalogue and subgraphs
+
+Design the navigation for both hosts. Source, schema where available, object and
+field entries are selectable. Selection and expansion are separate actions.
+Source selection gives component summaries and bounded previews; object selection
+gives its neighbourhood; field selection focuses its parent and field references.
+At a large root, render an overview, not every record/field in one canvas.
+
+The core selector now uses weak components followed by bounded undirected BFS
+over declared foreign keys and source SQL dependencies. It excludes the common
+source-connector star and returns canonical IDs, scope/boundary counts and
+continuation parameters. Its contract is derived from the same parameter model
+used for validation. The existing context reader and authenticated transport
+expose it; the proposed catalogue widget/host integration is not yet shipped.
+
+LLMs can name/explain a selected group and propose additional business links
+through phase two. They cannot supply invented edges, approval flags or arbitrary
+SQL to the selector. A structural group is not a confirmed business domain.
+Permissions apply before selection; counts must never reveal unauthorised objects.
+
+## Acceptance before replacing the old experience
+
+1. Connect and rescan through the existing source UX; preserve identity and
+   show partial/failed discovery honestly. Port and accept each database separately.
+2. Open a selected object/field in a large review surface; the same identity and
+   model revision work in the host and standalone page.
+3. Read samples and page records with keys/NULLs intact. Enforce access and stale
+   revision checks server-side; no credentials or hidden objects in exported packets.
+4. Comment, change view/language, expand fields and revisit the thread. The target
+   remains the same; resolve workflow never substitutes for business approval.
+5. Submit an invalid edit and repair it using the returned compiler error.
+   Publication requires the selected trusted approval process and exact revision.
+6. Inspect real graph geometry after layout. Overlapping fCoSE results fall back
+   to ELK with a visible notice; dragging and zooming do not rerun layout.
+7. Compare native-page and BrowserPanel selection, comments, clipboard, pan/zoom,
+   canvas area and takeover. A narrower viewport alone is not a phone benchmark.
+8. Fetch versioned context, browse a bounded subgraph and find evaluation questions
+   with a fresh agent. Keep actual LLM scores separate from preparation/unit tests.
+
+Decisions still to align: the exact default display surface, host catalogue
+placement, supported connector set and the per-fact model/review authority map.

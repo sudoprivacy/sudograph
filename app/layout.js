@@ -2,6 +2,24 @@
 // Compare real ELK geometry against the available canvas, rather than assuming
 // a left-to-right flow produces a wide graph. Only graph changes run layout.
 const canvasGeometryCache=new Map();
+function canvasHasOverlaps(canvas) {
+  const boxes=canvas.nodes().map(node=>({node,box:node.boundingBox({includeLabels:false,includeOverlays:false})}))
+    .sort((a,b)=>a.box.x1-b.box.x1);
+  for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++) {
+    const a=boxes[i],b=boxes[j];if(b.box.x1>=a.box.x2-1)break;
+    if(a.box.y1>=b.box.y2-1||a.box.y2<=b.box.y1+1)continue;
+    if(a.node.ancestors().contains(b.node)||b.node.ancestors().contains(a.node))continue;
+    return true;
+  }
+  return false;
+}
+function restoreCanvasSeparation(canvas,positions) {
+  if(!canvasHasOverlaps(canvas))return false;
+  canvas.batch(()=>{for(const node of canvas.nodes().filter(n=>!n.isParent())) {
+    const p=positions.get(node.id());node.position({x:p.x+p.width/2,y:p.y+p.height/2});
+  }});
+  return true;
+}
 function layoutBounds(graph) {
   let width=graph.width||0,height=graph.height||0;
   const walk=(g,x=0,y=0)=>{

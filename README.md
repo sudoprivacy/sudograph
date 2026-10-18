@@ -259,6 +259,9 @@ The [agent-context adapter](docs/agent-context.md) derives ordered knowledge
 blocks and exact source/definition/record reads from this same checked model.
 It reuses sudocode's existing prompt append contract; automatic session wiring,
 business confirmation and the format-comparison evaluation remain separate work.
+The [Sudowork integration review](docs/sudowork-integration-review.md) records
+proposed feature ownership and human/agent experiences. Existing connection and
+browser-session UI can be reused, but the host adapter is not yet deployed.
 Phase one provides **Data projection** and, when checked questions exist,
 **Projection and data review**. The second uses the same source graph plus
 unconfirmed questions with verification plans. Real records are a shared
@@ -670,7 +673,7 @@ These structural checks do not approve an interpretation or authenticate a
 document's author. See the pilot guide for registry ownership and current limits.
 Source projections and overlays automatically carry source-catalogue evaluation
 questions, including source database views. The reader exposes them through its
-evaluation pointer and the graph's **Blind questions** panel. A private judge
+evaluation pointer and the graph's **Evaluation → Source-data blind questions** panel. A private judge
 pins raw data and prepares reproducible samples; scores require actual submitted
 answers. See [evaluation setup and boundaries](docs/agent-context.md#persistent-source-questions-and-a-private-judge).
 Deliver the HTML produced by the compiler directly. If presentation is deficient,
@@ -764,6 +767,8 @@ that is right.
 Four reference implementations, inspected at different revisions. They serve
 different purposes; [the comparison](docs/ontology-comparison-2026-10-15.md)
 records source evidence, current limits and proposed integration boundaries.
+For the proposed product integration, see the
+[feature and experience checklist](docs/sudowork-integration-review.md).
 
 | Repo | What it is | What we took, or deliberately did not |
 |---|---|---|

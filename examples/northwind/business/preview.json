@@ -2,8 +2,8 @@
   "status": "unreviewed-business-pilot",
   "language": "en",
   "artifact": "index.html",
-  "artifact_bytes": 11797241,
-  "artifact_sha256": "bdbc78bfedce162539d4b689fb332798836e5674b6ef2782819f972562225fbb",
+  "artifact_bytes": 11802371,
+  "artifact_sha256": "928077badb8116317bda543afa6bdfd0e62aa75237363a76b921b7d9bd15d025",
   "overlay": "pilot.yaml",
   "overlay_sha256": "c24e6452873d4e05fd786b5fd20f97876fc4942c6e1573216b60e009a5701329",
   "registry": "pilot.registry.json",
@@ -19,8 +19,8 @@
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
     "artifact": "review.html",
-    "bytes": 11796167,
-    "sha256": "3775870c08672e11f0b23ddb978bfc05bc1f533d4bd80ee8c4fa7d7bc3933118",
+    "bytes": 11801179,
+    "sha256": "d8ef96dc605001730ffd885ad018d27c6fd44457b0b2e3d04771556b6d944e69",
     "language": "zh"
   },
   "contributors": {
@@ -37,7 +37,7 @@
     "unconfirmed_source_question": "--hook"
   },
   "validation": {
-    "tests_passed": 345,
+    "tests_passed": 349,
     "browser_tool": "ai-dev-browser",
     "source_field_to_real_records": true,
     "source_node_references_shared_in_renderer": true,
@@ -79,7 +79,11 @@
     "source_question_bank_present_without_executable_metrics": true,
     "source_question_panel_english_and_chinese_verified": true,
     "mobile_viewport_width_px": 390,
-    "mobile_document_width_px": 390
+    "mobile_document_width_px": 390,
+    "fcose_compound_overlap_detected": true,
+    "overlapping_force_layout_falls_back_to_elk": true,
+    "local_overlap_cases_after_repair": 0,
+    "evaluation_entry_separates_selfchecks_and_source_questions": true
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
   "publication": "publication.json",

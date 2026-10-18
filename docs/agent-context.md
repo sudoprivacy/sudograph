@@ -149,6 +149,35 @@ enforces query/page access. Listing an address neither grants access nor proves
 that an external deployment is reachable. This adapter's own record pointer
 works over the pinned source snapshot even without a live-data gateway.
 
+## Bounded source-graph navigation
+
+Use `context_read` with `id: subgraph` and an optional `selection` object when a
+whole source graph is too large. The packet includes a request template and a
+contract derived from the same parameter model used by the selector. Its
+decision-time description and failure recovery come from the core docstring.
+The existing operator CLI accepts the same JSON selection through `--selection`
+with `--read subgraph`; the JSON result is the same as `Reader.read`.
+
+```json
+{"operation":"context_read","revision":"<revision>","context_digest":"<digest>","id":"subgraph","selection":{"root":"<source/object/field ID>","hops":1,"max_nodes":40}}
+```
+
+Selection uses weak components and bounded BFS over declared foreign keys and
+source SQL dependencies. Source-connector supply edges do not join otherwise
+independent objects. Results retain canonical IDs and include scope, omitted
+object/crossing-edge counts, component summaries and continuation parameters.
+Pagination and bounds are explicit; this does not promise that an entire large
+component fits one canvas. Field roots retain field focus while selecting their
+parent object's neighbourhood.
+
+LLMs may name or explain a structural group. They cannot inject new links, SQL
+or approval into a selection request. New business relationships go through the
+checked phase-two model. HTTP and CLI preserve the selector's error code,
+recovery hint and `retryable: false`; stale revisions still require a refresh.
+The service authenticates before selection and the selector grants no access.
+The managed project scope remains unchanged. A shared host/standalone catalogue
+widget and the Sudowork adapter are proposals, not implemented deployments.
+
 ## Persistent source questions and a private judge
 
 Source discovery and business-overlay builds attach a source question bank by
@@ -160,8 +189,9 @@ business-model export invalid. The reader exposes it through the packet's
 `evaluation` pointer and `context_read` with `id: evaluation`; it is not another
 large preloaded prompt block.
 
-The renderer's blind-question panel remains available even when the model has
-no executable metrics. It reports an unrun evaluation separately from numerical
+The renderer's evaluation entry separates calculation self-checks from source
+blind questions. Questions remain available even without executable metrics;
+the separate coverage inventory checks source omissions. It reports an unrun evaluation separately from numerical
 self-checks. Neither an empty self-check nor a generated question proves agent
 comprehension.
 

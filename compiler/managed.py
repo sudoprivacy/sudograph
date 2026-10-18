@@ -25,6 +25,8 @@ from . import app, business, source_schema
 from .context import Reader, registered_pointers
 from .gitlab import Client, GitLabError
 from .spec import read_document
+from .subgraph_select import SelectionError
+from .subgraph_select import contract as subgraph_contract
 
 SOURCE_REQUEST = "sudograph-source-request/v1"
 MODEL_FILE = "model.yaml"
@@ -339,6 +341,7 @@ class Publisher:
         return {
             "model_file": MODEL_FILE,
             "knowledge_operations": ["context", "context_read"],
+            "subgraph": subgraph_contract(),
             "evaluation": {"read": "context_read with id: evaluation",
                            "questions": "automatic source-catalog questions; private raw-DB oracle",
                            "score": "not_run until isolated answerer responses are graded"},
@@ -415,7 +418,8 @@ class Publisher:
         reader = Reader(model, revision=target, pointers=self.knowledge_pointers)
         if request == {"operation": "context"}:
             return reader.pack()
-        allowed = {"operation", "revision", "context_digest", "id", "records", "offset", "limit"}
+        allowed = {"operation", "revision", "context_digest", "id", "records", "offset",
+                   "limit", "selection"}
         if (set(request) - allowed or request.get("operation") != "context_read"
                 or not {"revision", "context_digest", "id"} <= request.keys()):
             raise ValueError("context_read requires revision, context_digest and canonical id")
@@ -426,9 +430,10 @@ class Publisher:
             )
         if type(request.get("records", False)) is not bool:
             raise ValueError("records must be a boolean")
+        parameters = {k: request[k] for k in ("records", "offset", "limit", "selection")
+                      if k in request}
         return {"revision": target, "context_digest": reader.digest,
-                "result": reader.read(request["id"], **{k: request[k]
-                                      for k in ("records", "offset", "limit") if k in request})}
+                "result": reader.read(request["id"], **parameters)}
 
     def submit(self, token, body):
         self.actor(token, ("authors",))
@@ -780,6 +785,8 @@ def handler(publisher):
                     self.send_error(404)
                     return
                 self.reply(200, {"result": result})
+            except SelectionError as exc:
+                self.reply(404 if exc.code == "SUBGRAPH_NOT_FOUND" else 400, exc.as_dict())
             except Refused as exc:
                 self.reply(
                     exc.status, {"error": exc.code, "reason": exc.reason, "recovery": exc.recovery}

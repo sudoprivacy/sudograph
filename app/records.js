@@ -206,7 +206,7 @@ function challengeQuestion(q) {
 function showChallenge() {
   state.panel='challenge';
   const trial=BUNDLE.trial;
-  $('panel').innerHTML=`<h2>${t('盲测题')}</h2>`+
+  $('panel').innerHTML=`<h2>${t('源数据盲测题')}</h2>`+
     (trial?`<p>${esc(trial.date)} · ${t('随机抽测')} · ${trial.passed}/${trial.total}</p>`+
       `<p class="muted">${t('本次仅隔离会话上下文，未做操作系统沙箱隔离；三题不代表整体准确率。')}</p>`+
       trial.results.map(r=>{const q=trial.questions.find(q=>q.id===r.id);return `<details><summary>${r.ok?'✓':'✗'} ${esc(q.source_object)} · ${esc(q.kind)}</summary>`+

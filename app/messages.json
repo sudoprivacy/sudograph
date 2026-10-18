@@ -1,5 +1,15 @@
 {
   "en": {
+    "评测": "Evaluation",
+    "覆盖清单": "Coverage inventory",
+    "计算自检": "Calculation self-checks",
+    "源数据盲测题": "Source-data blind questions",
+    "检查已有指标的计算是否自洽；不证明业务口径正确。": "Check the consistency of existing metric calculations; this does not confirm business meaning.",
+    "可执行自检：{count}": "Executable self-checks: {count}",
+    "查看计算自检": "View calculation self-checks",
+    "按源目录生成题目；检验 agent 能否通过投影读对数据。": "Questions generated from the source catalogue test whether an agent can read data correctly through the projection.",
+    "覆盖清单用于检查表、视图、字段和记录是否遗漏，不是答题分数。": "Coverage lists tables, views, fields and records to check for omissions; it is not an answer score.",
+    "fCoSE 结果有节点重叠，当前使用 ELK 布局。": "fCoSE produced overlapping nodes; using the ELK layout.",
     "数据库对象类型": "Database object type",
     "表（存储记录）": "Tables (stored records)",
     "数据库视图（源SQL查询）": "Database views (source SQL queries)",

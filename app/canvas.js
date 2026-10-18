@@ -2,6 +2,7 @@
 let cy = null;
 const canvasLayouts = new Map();
 let canvasLayoutKey = null, resetCanvasLayout = false, labelFrame = null;
+let canvasEffectiveEngine=null,canvasLayoutFallback=false;
 let refreshCanvasEdgeLabels=()=>{};
 function refreshCanvasCommentMarks() {
   for(const label of $('cy').querySelectorAll('.canvas-label,.canvas-edge-label')) {
@@ -90,13 +91,14 @@ async function drawCanvas(v, shown, edges, mine) {
     routes:Object.fromEntries(cy.edges().map(e=>[e.id(),Object.fromEntries(
       ['curve-style','edge-distances','segment-weights','segment-distances',
         'source-endpoint','target-endpoint'].map(name=>[name,e.style(name)]))])),
-    zoom:cy.zoom(),pan:{...cy.pan()}});
+    zoom:cy.zoom(),pan:{...cy.pan()},engine:canvasEffectiveEngine,fallback:canvasLayoutFallback});
   const engine=state.layoutEngine==='auto'?'elk':state.layoutEngine;
   const projection=state.projection,directionPreference=state.direction;
   const key=JSON.stringify([state.basis,coordKey(),state.projection,state.direction,engine,
     state.sources,state.focus,[...shown.keys()].sort()]);
   if(resetCanvasLayout){canvasLayouts.delete(key);resetCanvasLayout=false;}
   const saved=canvasLayouts.get(key);
+  canvasEffectiveEngine=saved?.engine||engine;canvasLayoutFallback=!!saved?.fallback;
   const nodes = [...shown.values()];
   const dimensions=new Map(nodes.map(n=>{
     const sizes=Object.keys(BUNDLE.ui.catalogs).flatMap(lang=>[false,true].map(open=>measure(linesOf(n,open,lang))));
@@ -216,8 +218,13 @@ async function drawCanvas(v, shown, edges, mine) {
     cy.layout({name:'fcose',quality:'proof',animate:false,randomize:false,fit:false,
       nodeRepulsion:9000,idealEdgeLength:130,gravity:.15,packComponents:false,
       relativePlacementConstraint:constraints}).run();
+    if(restoreCanvasSeparation(cy,positions)) {
+      canvasEffectiveEngine='elk';canvasLayoutFallback=true;
+    }
   }
-  if(engine==='elk')for(const [i,meta] of edges.entries()) {
+  $('layoutNotice').textContent=canvasLayoutFallback?
+    t('fCoSE 结果有节点重叠，当前使用 ELK 布局。'):'';
+  if(canvasEffectiveEngine==='elk')for(const [i,meta] of edges.entries()) {
     const edge=cy.getElementById('edge-'+i),points=routes.get('e'+i);
     if(meta.from===meta.to || !points?.length)continue;
     if(saved?.routes?.[edge.id()]) {edge.style(saved.routes[edge.id()]);continue;}
@@ -365,9 +372,10 @@ async function drawCanvas(v, shown, edges, mine) {
   refreshCanvasCommentMarks();
   labels();
   const bad=v.checks.filter(c=>!c.ok);
-  $('status').textContent=`${engine==='elk'?'ELK layered':'fCoSE'} · Cytoscape ${cytoscape.version} · ${shown.size} ${t('节点')} · `+
+  $('status').textContent=`${canvasEffectiveEngine==='elk'?'ELK layered':'fCoSE'} · Cytoscape ${cytoscape.version} · ${shown.size} ${t('节点')} · `+
     `${edges.length} ${t('边')} · ${v.checks.length-bad.length}/${v.checks.length} ${t('检查通过')}`;
   if(state.bridgeMode) showBridge(bridge());
+  else if(state.panel==='evaluation')showEvaluationOverview(v);
   else if(state.panel==='measure') showMeasurements(v);
   else if(state.panel==='coverage') showCoverage();
   else if(state.panel==='challenge') showChallenge();

@@ -1,0 +1,44 @@
+{
+  "status": "core_and_local_browser_verified",
+  "llm_evaluation_status": "not_run",
+  "host_integration_status": "proposed_not_deployed",
+  "selector": {
+    "algorithm": "weak_components_then_bounded_bfs",
+    "links": [
+      "source_fk",
+      "source_view"
+    ],
+    "source_connector_star_excluded": true,
+    "default_max_nodes": 40,
+    "max_nodes_limit": 200,
+    "server_auth_and_revision_checks_retained": true,
+    "unknown_request_fields_refused": true,
+    "source_or_business_facts_modified": false
+  },
+  "layout": {
+    "reproduced_engine": "fcose",
+    "expanded_source_nodes": 43,
+    "desktop_before_overlap_pairs": 8,
+    "narrow_before_overlap_pairs": 5,
+    "desktop_after_overlap": false,
+    "narrow_after_overlap": false,
+    "fallback": "existing_elk_geometry",
+    "notice_visible": true,
+    "pan_zoom_redraws": 0,
+    "physical_phone_benchmark": false
+  },
+  "evaluation_ui": {
+    "top_level": [
+      "Evaluation",
+      "Coverage inventory"
+    ],
+    "evaluation_sections": [
+      "Calculation self-checks",
+      "Source-data blind questions"
+    ],
+    "source_questions": 369,
+    "executable_checks_in_pilot": 0,
+    "score": null
+  },
+  "tests_passed": 349
+}

@@ -227,6 +227,22 @@ def test_knowledge_http_routes_use_existing_auth_and_stale_response(installed, m
                    "records": True, "limit": 1}
         with post(request) as response:
             assert len(json.load(response)["result"]["result"]["rows"]) == 1
+        graph_request = {"operation": "context_read", "revision": packet["revision"],
+                         "context_digest": packet["context_digest"], "id": "subgraph",
+                         "selection": {"max_nodes": 1}}
+        with post(graph_request) as response:
+            assert len(json.load(response)["result"]["result"]["nodes"]) <= 1
+        with pytest.raises(urllib.error.HTTPError) as invalid:
+            post({**graph_request, "selection": {"links": []}})
+        error = json.load(invalid.value)
+        assert invalid.value.code == 400 and error["error"] == "SUBGRAPH_INPUT"
+        assert error["retryable"] is False and "catalogue" in error["hint"]
+        with pytest.raises(urllib.error.HTTPError) as unknown:
+            post({**graph_request, "selection": {"root": "not-authorised"}})
+        assert unknown.value.code == 404
+        with pytest.raises(urllib.error.HTTPError) as denied_graph:
+            post(graph_request, token="")
+        assert denied_graph.value.code == 403
         fake.head = FIRST
         with pytest.raises(urllib.error.HTTPError) as stale:
             post(request)
