@@ -52,7 +52,7 @@
     "selected_phrase_quote_with_stable_id": true,
     "neighbor_highlight_on_annotated_nodes": true,
     "pan_and_zoom_did_not_run_layout": true,
-    "verification_status": "local_suite_and_cross_version_exports_passed_ci_pending",
+    "verification_status": "passed",
     "phase_one_source_views_and_complete_records_equal_to_frozen_baseline": true,
     "whole_html_regeneration_check": true,
     "new_definition_ids": 0,
@@ -92,7 +92,8 @@
     "cross_version_export_python": [
       "3.12.13",
       "3.14.6"
-    ]
+    ],
+    "production_native_subgraphs_verified": true
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
   "publication": "publication.json",

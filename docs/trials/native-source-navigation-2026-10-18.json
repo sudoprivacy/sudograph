@@ -1,5 +1,5 @@
 {
-  "status": "core_and_native_browser_verified",
+  "status": "core_native_and_production_browser_verified",
   "coverage": "source structure navigation only; no host connector integration deployed",
   "algorithm": "weak_components_then_bounded_bfs",
   "parameter_contract": "compiler.subgraph_select.contract",
@@ -39,12 +39,22 @@
     "tools_verify_gates": 6,
     "generated_artifacts": 5,
     "frozen_manifests": 3,
-    "final_full_gate_run": "in_progress",
+    "final_full_gate_run": "github_ci_passed",
     "cross_version_exports": [
       "3.12.13: all five checked",
       "3.14.6: all five checked"
     ],
-    "docstring_indentation_regression": true
+    "docstring_indentation_regression": true,
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/39127652281"
   },
-  "evaluation": "not_run"
+  "evaluation": "not_run",
+  "publication": {
+    "bytes": 11820417,
+    "sha256": "79f193a1f1f446561203786852c251de6cd542774e845e015238bce7b5cb7f33",
+    "existing_threads_preserved": 48,
+    "comment_mutations": 0,
+    "all_source_objects_restored": 30,
+    "automatic_source_questions": 369,
+    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/d868c67492e6899bea877a3bfaf6ac6aae2d7297/examples/northwind/business/review.html"
+  }
 }
