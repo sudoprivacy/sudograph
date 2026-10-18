@@ -1,5 +1,18 @@
 {
   "en": {
+    "源对象目录": "Source catalogue",
+    "关联距离": "Relationship distance",
+    "对象上限": "Object limit",
+    "返回完整数据投影": "Return to full data projection",
+    "子视图：{name}": "Subgraph: {name}",
+    "源结构概览": "Source structure overview",
+    "子视图 · {shown}/{total} 个源对象 · 范围内未显示 {outside} 个 · 跨边界关系 {edges} 条": "Subgraph · {shown}/{total} source objects · {outside} outside this display · {edges} boundary relationships",
+    "点击名称查看关联子图；展开箭头查看下一级。表与数据库视图都属于阶段一。": "Click a name for its related subgraph; expand the arrow for the next level. Tables and database views are both phase-one sources.",
+    "搜索对象或字段": "Search objects or fields",
+    "目录对象：{shown}/{total}": "Catalogue objects: {shown}/{total}",
+    "按声明的外键与源 SQL 依赖分为 {count} 个关联分组；这不是已确认的业务域。": "Declared foreign keys and source SQL dependencies form {count} structural groups. These are not confirmed business domains.",
+    "关联分组：{name}（{count} 个对象）": "Related group: {name} ({count} objects)",
+    "更多关联分组": "More related groups",
     "评测": "Evaluation",
     "覆盖清单": "Coverage inventory",
     "计算自检": "Calculation self-checks",

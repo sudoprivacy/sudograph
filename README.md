@@ -262,6 +262,10 @@ business confirmation and the format-comparison evaluation remain separate work.
 The [Sudowork integration review](docs/sudowork-integration-review.md) records
 proposed feature ownership and human/agent experiences. Existing connection and
 browser-session UI can be reused, but the host adapter is not yet deployed.
+The [source connection and scan design](docs/source-connection-and-scan-contract.md)
+details that boundary. The native **Source catalogue** searches objects/fields
+and opens bounded **Subgraph** views with scope and boundary counts; it reuses
+the context selector contract and the original source identities.
 Phase one provides **Data projection** and, when checked questions exist,
 **Projection and data review**. The second uses the same source graph plus
 unconfirmed questions with verification plans. Real records are a shared

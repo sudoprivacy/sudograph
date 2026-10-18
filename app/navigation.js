@@ -3,10 +3,11 @@ const navigationHistory=[];
 let navigationPending=null,navigationRestoring=false;
 function navigationSnapshot() {
   const keys=['basis','at','bridge','bridgeMode','schemaKind','selected','selectedRelation','focus',
-    'panel','recordArgs','sourceRecordArgs','relation','sources','edgeLabels','direction','layoutEngine','projection'];
+    'panel','recordArgs','sourceRecordArgs','relation','sources','edgeLabels','direction','layoutEngine','projection',
+    'sourceSelection','catalogueSearch','catalogueOffset'];
   const values=JSON.parse(JSON.stringify(Object.fromEntries(keys.map(k=>[k,state[k]]))));
   return {values,schemaExpanded:[...state.schemaExpanded],expanded:[...state.expanded],
-    graphPages:[...graphPages],graphFields:[...graphFields],
+    graphPages:[...graphPages],graphFields:[...graphFields],catalogueExpanded:[...state.catalogueExpanded],
     camera:cy?{zoom:cy.zoom(),pan:{...cy.pan()}}:null,scroll:$('panel').scrollTop};
 }
 function navigationSignature(snapshot) {
@@ -31,6 +32,7 @@ async function navigationBack() {
     for(const key of ['recordArgs','sourceRecordArgs','relation'])if(!(key in previous.values))delete state[key];
     Object.assign(state,previous.values);
     state.schemaExpanded=new Set(previous.schemaExpanded);state.expanded=new Set(previous.expanded);
+    state.catalogueExpanded=new Set(previous.catalogueExpanded);
     graphPages.clear();for(const [key,value] of previous.graphPages)graphPages.set(key,value);
     graphFields.clear();for(const id of previous.graphFields)graphFields.add(id);
     for(const [id,key] of [['projection','projection'],['schemaKind','schemaKind'],['basis','basis'],

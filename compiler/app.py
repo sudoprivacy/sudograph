@@ -24,7 +24,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from . import blind, browse, catalog, html_export, source_schema
+from . import blind, browse, catalog, html_export, source_schema, subgraph_select
 from . import compile as compile_mod
 from . import diff as diff_mod
 from . import measure as measure_mod
@@ -171,12 +171,15 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
         raise ValueError(f"unknown UI language {language!r}; available: {languages()}")
     catalogs['zh'] = {k: k for k in sorted(keys)}
     messages = catalogs.get(language, catalogs['zh'])
-    b = {**b, 'ui': {'language': language, 'messages': messages, 'catalogs': catalogs}}
+    b = {**b, 'ui': {'language': language, 'messages': messages, 'catalogs': catalogs,
+                    'subgraph_contract': subgraph_select.contract()}}
     with open(template_path, encoding="utf-8") as fh:
         html = fh.read()
     for marker, filename in [('/*__LAYOUT__*/', 'layout.js'), ('/*__CANVAS__*/', 'canvas.js'),
                              ('/*__RECORDS__*/', 'records.js'),
                              ('/*__SCHEMA__*/', 'schema.js'),
+                             ('/*__SUBGRAPH__*/', 'subgraph.js'),
+                             ('/*__CATALOGUE__*/', 'catalogue.js'),
                              ('/*__BUSINESS__*/', 'business.js'),
                              ('/*__COMMENTS__*/', 'comments.js'),
                              ('/*__NAVIGATION__*/', 'navigation.js')]:

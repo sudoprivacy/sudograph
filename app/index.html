@@ -15,6 +15,13 @@
 .schema-field-list {display:flex;flex-direction:column;gap:5px;margin:12px 0;}
 .schema-field-list button {text-align:left;}
 .schema-field-list small {float:right;opacity:.65;}
+.source-catalogue {display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+.source-catalogue details {border-left:1px solid var(--line);padding-left:9px;}
+.source-catalogue summary {cursor:pointer;overflow-wrap:anywhere;}
+.source-catalogue button {text-align:left;white-space:normal;overflow-wrap:anywhere;}
+.source-catalogue .catalogue-fields {display:flex;flex-direction:column;gap:4px;padding:7px 0 7px 12px;}
+#catalogueSearch {width:100%;padding:7px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:5px;}
+#subgraphBar {padding:7px 16px;border-bottom:1px solid var(--line);display:flex;gap:9px;align-items:center;flex-wrap:wrap;}
 .schema-actions {display:flex;gap:6px;flex-wrap:wrap;margin:12px 0;align-items:center;}
 .schema-cell-label {border:0;background:transparent;padding:0;text-align:left;}
 .schema-relation-list {display:flex;flex-direction:column;gap:6px;}
@@ -160,6 +167,7 @@
   <button id="checksBtn" data-ui="检查">检查</button>
   <button id="measureBtn" data-ui="评测">评测</button>
   <button id="coverageBtn" data-ui="覆盖清单">覆盖清单</button>
+  <button id="catalogueBtn" data-ui="源对象目录">源对象目录</button>
   <select id="language" aria-label="Language"><option value="zh">中文</option><option value="en">English</option></select>
   <span id="legend"></span>
 </header>
@@ -187,6 +195,12 @@
   <label><input id="sources" type="checkbox"><span data-ui="显示取数来源">显示取数来源</span></label>
   <label><input id="edgeLabels" type="checkbox"><span data-ui="全部关系名称">全部关系名称</span></label>
   <span class="hint" data-ui="拖动节点边缘调整位置；选中文字可评论。">拖动节点边缘调整位置；选中文字可评论。</span>
+</div>
+<div id="subgraphBar" hidden>
+  <span id="subgraphStatus"></span>
+  <label><span data-ui="关联距离">关联距离</span><select id="subgraphHops"></select></label>
+  <label><span data-ui="对象上限">对象上限</span><select id="subgraphLimit"></select></label>
+  <button id="fullSourceView" data-ui="返回完整数据投影">返回完整数据投影</button>
 </div>
 <main>
   <div id="cy"></div>
@@ -228,7 +242,8 @@ const fmt = v => (typeof v === 'number') ? v.toLocaleString('en-US') : (v ?? '�
    so it belongs here; the figures still come only from the compiler. */
 const state = { basis: BUNDLE.bases[0], at: {}, bridge: null, bridgeMode: false,
                 panelCollapsed:false,
-                schemaExpanded:new Set(),schemaKind:'table',
+                schemaExpanded:new Set(),schemaKind:'table',sourceSelection:null,
+                catalogueSearch:'',catalogueOffset:0,catalogueExpanded:new Set(),
                 expanded: new Set(), panel: 'checks', selected:null, selectedRelation:null, focus:null,
                 sources:!!BUNDLE.source_schema || BUNDLE.projection?.mode==='source_projection', edgeLabels:false, direction:'auto', layoutEngine:'auto',
                 projection: BUNDLE.source_schema ? 'schema' : Object.values(BUNDLE.views)[0].groups.some(g => g.backing) ? 'data' : 'all' };
@@ -514,6 +529,8 @@ function measure(lines,maxWidth=260) {
 /*__CANVAS__*/
 /*__RECORDS__*/
 /*__SCHEMA__*/
+/*__SUBGRAPH__*/
+/*__CATALOGUE__*/
 /*__BUSINESS__*/
 /*__COMMENTS__*/
 /*__NAVIGATION__*/
@@ -524,6 +541,7 @@ async function draw() {
   const v = view();
   if (!v) { $('status').textContent = 'no view for this combination'; return; }
   renderLegend();
+  syncSourceNavigation();
   $('sources').checked=state.sources;
   if(isBusiness())return drawBusiness(v,mine);
   if(isSchema())return drawSchema(v,mine);
@@ -1304,7 +1322,7 @@ $('instBtn').onclick = () => {
     state.schemaExpanded=new Set(closed?objects.map(n=>n.id):[]);return draw();
   }
   if(isSchema()) {
-    const objects=schemaObjects.filter(o=>state.schemaKind==='all'||o.object_kind===state.schemaKind);
+    const objects=schemaVisibleObjects();
     const closed=objects.some(o=>!state.schemaExpanded.has(o.id));
     state.schemaExpanded=new Set(closed?objects.map(o=>o.id):[]);return draw();
   }

@@ -2,7 +2,7 @@
 const schemaObjects=(BUNDLE.source_schema?.sources||[]).flatMap(s=>s.objects);
 const schemaSources=(BUNDLE.source_schema?.sources||[]).map(s=>({...s,kind:'schema_source'}));
 const schemaNodes=new Map([...schemaSources,...schemaObjects.flatMap(o=>[o,...o.fields])].map(n=>[n.id,n]));
-const isSchema=()=>state.projection==='schema'||isSourceReview();
+const isSchema=()=>state.projection==='schema'||state.projection==='schema:subgraph'||isSourceReview();
 const isSourceReview=()=>state.projection==='schema:review';
 const schemaObject=id=>schemaObjects.find(o=>o.id===id);
 function schemaGraph() {
@@ -64,7 +64,7 @@ function schemaLines(n,language=uiLanguage) {
       (n.primary_key?' · PK '+n.primary_key:'')+(fk?' · FK':'')]}];
 }
 async function drawSchema(v,mine) {
-  $('schemaFilter').hidden=false;
+  $('schemaFilter').hidden=state.projection==='schema:subgraph';
   $('schemaFilter').title=t('按数据库对象类型筛选；不是业务视图，也不改变源库覆盖或访问权限。');
   $('schemaKind').setAttribute('aria-label',t('数据库对象类型'));
   $('sources').checked=state.sources;
@@ -73,9 +73,10 @@ async function drawSchema(v,mine) {
     option.textContent=t(option.value==='table'?'表（存储记录）':
       option.value==='view'?'数据库视图（源SQL查询）':'表与数据库视图')+' ('+count+')';
   }
-  const objects=schemaObjects.filter(o=>state.schemaKind==='all'||o.object_kind===state.schemaKind);
+  const objects=schemaVisibleObjects();
   let shown=new Map(objects.map(o=>[o.id,o]));
-  if(state.sources)for(const source of schemaSources)shown.set(source.id,source);
+  if(state.sources)for(const source of schemaSources)
+    if(objects.some(o=>o.source===source.id))shown.set(source.id,source);
   for(const o of objects)if(state.schemaExpanded.has(o.id))
     for(const field of o.fields)shown.set(field.id,field);
   if(isSourceReview())for(const id of BUNDLE.business.source_review.definitions) {
@@ -126,6 +127,7 @@ async function schemaActivate(n) {
 }
 async function revealSchema(id) {
   const node=schemaNodes.get(id);if(!node)return false;
+  if(state.projection==='schema:subgraph')state.sourceSelection={...(state.sourceSelection||{}),root:id,component_offset:0};
   if(node.kind==='schema_source') {
     state.sources=true;$('sources').checked=true;state.selected=id;state.selectedRelation=null;state.focus=null;state.panel='node';
     await draw();schemaCamera(id);return true;

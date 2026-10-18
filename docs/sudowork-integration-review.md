@@ -60,6 +60,11 @@ refused explicitly; do not silently discard it or dual-write editable definition
 
 ## Connector contract to align before implementation
 
+The detailed [registered-source and scan contract](source-connection-and-scan-contract.md)
+now specifies repository ownership, the host-agent workflow, independent
+connection/scan/coverage states, provider operations, snapshot evidence, identity
+migration and the proposed FDE intake. These connector integrations remain planned.
+
 Use one connection entry and credential flow. Each registered source should
 report the capabilities actually available: schema enumeration and pagination,
 declared keys/relations, original database-view SQL, record paging, read-only
@@ -110,7 +115,11 @@ over declared foreign keys and source SQL dependencies. It excludes the common
 source-connector star and returns canonical IDs, scope/boundary counts and
 continuation parameters. Its contract is derived from the same parameter model
 used for validation. The existing context reader and authenticated transport
-expose it; the proposed catalogue widget/host integration is not yet shipped.
+expose it. The shared native reader now implements a searchable, lazily expanded
+catalogue, bounded source subgraphs, scope/boundary counts, distance/cap controls,
+back navigation and a distinctly labelled subgraph menu entry. Its offline
+transport is checked against the server selector. Sudowork host integration is
+not yet deployed.
 
 LLMs can name/explain a selected group and propose additional business links
 through phase two. They cannot supply invented edges, approval flags or arbitrary
@@ -136,12 +145,14 @@ Permissions apply before selection; counts must never reveal unauthorised object
 8. Fetch versioned context, browse a bounded subgraph and find evaluation questions
    with a fresh agent. Keep actual LLM scores separate from preparation/unit tests.
 
-Decisions still to align: the exact default display surface, host catalogue
-placement, supported connector set and the per-fact model/review authority map.
+The owner accepted native standalone review as the default surface. Host catalogue
+placement, connector rollout and the per-fact model/review authority map still
+need their integration acceptance.
 
 The owner subsequently identified the reported visual regression as the default
 first business view. The reproduced fCoSE overlap is a separate finding, not
 closure of that feedback. Fresh-browser checks at widths 1366, 1024 and 850,
 including the comment sidebar, did not reproduce intersecting node/label boxes.
-Whole-graph fit did make text very small. The default-view report remains open
-pending matching visual evidence; do not call it fixed by the force-layout guard.
+Whole-graph fit did make text very small. The owner subsequently rechecked and
+reported no current problem, offering a screenshot if it recurs. Record this as
+not currently reproduced; no identified cause/fix for that exact report is claimed.

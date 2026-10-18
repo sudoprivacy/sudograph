@@ -1,7 +1,10 @@
 """Bounded structural selection cannot invent relationships or change authority."""
 
 import copy
+import json
 import sqlite3
+import subprocess
+from pathlib import Path
 
 import pytest
 import yaml
@@ -72,3 +75,36 @@ def test_component_continuation_and_selection_errors_have_actionable_contract(ca
     reader = Reader({"source_schema": catalogue})
     with pytest.raises(SelectionError):
         reader.read("catalog", selection={})
+
+
+def test_offline_selector_matches_authorised_reader_for_every_catalogue_level(catalogue):
+    roots = [None, catalogue['sources'][0]['id']]
+    for obj in catalogue['sources'][0]['objects']:
+        roots.extend([obj['id'], obj['fields'][0]['id']])
+    requests = [{'root': root, 'hops': hops, 'max_nodes': limit}
+                for root in roots for hops in [0, 1, 2, 5] for limit in [1, 2, 40]]
+    requests += [{'component_offset': offset, 'max_nodes': 1} for offset in [0, 1, 2, 8]]
+    requests += [{'root': 'unknown'}, {'hops': True}, {'hops': 1.5}, {'links': []},
+                 {'max_nodes': 0}, {'component_offset': -1}, None]
+    expected = []
+    for request in requests:
+        try:
+            expected.append(subgraph_select(catalogue, request))
+        except SelectionError as error:
+            expected.append(error.as_dict())
+    script = """
+const fs=require('fs'),vm=require('vm');
+vm.runInThisContext(fs.readFileSync('app/subgraph.js','utf8'));
+const input=JSON.parse(fs.readFileSync(0,'utf8'));
+Object.defineProperty(input.schema,'snapshots',{get(){throw new Error('Record access');}});
+const result=input.requests.map(selection=>{
+ try{return selectSourceSubgraph(input.schema,selection,input.contract);}
+ catch(e){return {error:e.code,reason:e.message,recovery:e.hint,hint:e.hint,retryable:e.retryable};}
+});
+console.log(JSON.stringify(result));
+"""
+    result = subprocess.run(['node', '-e', script], cwd=Path(__file__).resolve().parents[1],
+                            input=json.dumps({'schema': catalogue, 'requests': requests,
+                                              'contract': contract()}),
+                            capture_output=True, text=True, check=True, timeout=30)
+    assert json.loads(result.stdout) == expected

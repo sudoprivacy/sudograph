@@ -375,6 +375,7 @@ async function drawCanvas(v, shown, edges, mine) {
   $('status').textContent=`${canvasEffectiveEngine==='elk'?'ELK layered':'fCoSE'} · Cytoscape ${cytoscape.version} · ${shown.size} ${t('节点')} · `+
     `${edges.length} ${t('边')} · ${v.checks.length-bad.length}/${v.checks.length} ${t('检查通过')}`;
   if(state.bridgeMode) showBridge(bridge());
+  else if(state.panel==='catalogue')showSourceCatalogue();
   else if(state.panel==='evaluation')showEvaluationOverview(v);
   else if(state.panel==='measure') showMeasurements(v);
   else if(state.panel==='coverage') showCoverage();

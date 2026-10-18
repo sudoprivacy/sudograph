@@ -36,6 +36,7 @@ class SelectionError(ValueError):
 
 def contract():
     return {"description": subgraph_select.__doc__.partition("Failure:")[0].strip(),
+            "recovery": subgraph_select.__doc__.partition("Failure:")[2].strip(),
             "parameters": {f.name: {**f.metadata, "default": f.default} for f in fields(Selection)},
             "relationships": ["source_fk", "source_view"],
             "llm_role": "Name or explain selected groups; propose new business relationships "

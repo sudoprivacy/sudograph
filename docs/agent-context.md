@@ -151,6 +151,17 @@ works over the pinned source snapshot even without a live-data gateway.
 
 ## Bounded source-graph navigation
 
+The standalone reader exposes the same workflow through **Source catalogue**.
+Names select related subgraphs; disclosure arrows lazily expand objects/fields.
+The view selector labels the active subgraph and its banner reports scope,
+omitted objects and boundary relationships. Distance/cap controls and Back/return
+to full source presentation do not alter facts or permissions. The offline
+selector's results and typed refusals are checked against the server core.
+Run `python -m tools.check_source_navigation --help` for the optional real-browser
+journey; this is distinct from fresh-agent evaluation. The Sudowork host adapter
+and registered-source scan bridge remain separate integration work, described in
+the [source connection and scan contract](source-connection-and-scan-contract.md).
+
 Use `context_read` with `id: subgraph` and an optional `selection` object when a
 whole source graph is too large. The packet includes a request template and a
 contract derived from the same parameter model used by the selector. Its

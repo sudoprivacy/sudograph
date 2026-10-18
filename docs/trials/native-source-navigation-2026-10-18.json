@@ -1,0 +1,44 @@
+{
+  "status": "core_and_native_browser_verified",
+  "coverage": "source structure navigation only; no host connector integration deployed",
+  "algorithm": "weak_components_then_bounded_bfs",
+  "parameter_contract": "compiler.subgraph_select.contract",
+  "equivalent_offline_requests": 179,
+  "catalogue": {
+    "levels": [
+      "source",
+      "object",
+      "field"
+    ],
+    "object_page_limit": 100,
+    "fields": "lazy expansion",
+    "subgraph_menu_distinct": true,
+    "distance_range": [
+      0,
+      5
+    ],
+    "default_object_limit": 40,
+    "maximum_object_limit": 200
+  },
+  "browser": {
+    "journey": "tools.check_source_navigation",
+    "source_and_business_facts_unchanged": true,
+    "field_identity_preserved": true,
+    "back_restores_root": true,
+    "search_canvas_redraws": 0,
+    "pan_zoom_canvas_redraws": 0,
+    "viewports": [
+      1440,
+      390
+    ],
+    "english_and_chinese_checked": true,
+    "comment_mutations": 0
+  },
+  "verification": {
+    "pytest": 350,
+    "tools_verify_gates": 6,
+    "generated_artifacts": 5,
+    "frozen_manifests": 3
+  },
+  "evaluation": "not_run"
+}
