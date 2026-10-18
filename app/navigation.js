@@ -4,7 +4,7 @@ let navigationPending=null,navigationRestoring=false;
 function navigationSnapshot() {
   const keys=['basis','at','bridge','bridgeMode','schemaKind','selected','selectedRelation','focus',
     'panel','recordArgs','sourceRecordArgs','relation','sources','edgeLabels','direction','layoutEngine','projection',
-    'sourceSelection','catalogueSearch','catalogueOffset'];
+    'sourceSelection','sourceRoot','catalogueSearch','catalogueOffset'];
   const values=JSON.parse(JSON.stringify(Object.fromEntries(keys.map(k=>[k,state[k]]))));
   return {values,schemaExpanded:[...state.schemaExpanded],expanded:[...state.expanded],
     graphPages:[...graphPages],graphFields:[...graphFields],catalogueExpanded:[...state.catalogueExpanded],

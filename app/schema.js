@@ -22,7 +22,7 @@ function schemaGraph() {
       const target=others.find(n=>n.name===name);
       if(target)edges.push({id:'sg-relation/'+encodeURIComponent(JSON.stringify(['source_view',o.id,target.id])),
         from:o.id,to:target.id,from_object:o.id,to_object:target.id,
-        rel:'source_view',via:t('源视图依赖'),definition:o.definition,owner:'source'});
+        rel:'source_view',via:t('数据库视图依赖'),definition:o.definition,owner:'source'});
     }
   }
   const original=BUNDLE.views[`${state.basis??''}|${coordKey()}`];
@@ -55,7 +55,7 @@ function schemaLines(n,language=uiLanguage) {
   if(n.kind==='schema_source')return [{cls:'',parts:[bt(n.label,language)]},{cls:'sub',parts:[tr('数据源')+' · '+tr('只读')]}];
   if(n.kind==='schema_object')return [
     {cls:'',parts:[bt(n.label,language)]},
-    {cls:'sub',parts:[n.name+' · '+tr(n.object_kind==='view'?'源视图':'源表')]},
+    {cls:'sub',parts:[n.name+' · '+tr(n.object_kind==='view'?'数据库视图':'源表')]},
     {cls:'sub',parts:[n.fields.length+' '+tr('字段')+' · '+fmt(n.count)+' '+tr('行')]}
   ];
   const obj=schemaObject(n.parent),fk=obj.foreign_keys.some(f=>f.from===n.column);
@@ -127,6 +127,7 @@ async function schemaActivate(n) {
 }
 async function revealSchema(id) {
   const node=schemaNodes.get(id);if(!node)return false;
+  if(state.sourceRoot&&node.source!==state.sourceRoot&&node.id!==state.sourceRoot)state.sourceRoot=null;
   if(state.projection==='schema:subgraph')state.sourceSelection={...(state.sourceSelection||{}),root:id,component_offset:0};
   if(node.kind==='schema_source') {
     state.sources=true;$('sources').checked=true;state.selected=id;state.selectedRelation=null;state.focus=null;state.panel='node';
@@ -161,7 +162,7 @@ function showSchemaSource(n) {
   state.panel='node';
   $('panel').innerHTML=`<h2>${t('取数来源')}</h2><p>${esc(bt(n.label))}</p>`+
     `<p>${t('源对象通过只读连接从这个数据源取得；连接配置留在受控环境中。')}</p>`+
-    `<p>${n.objects.filter(o=>o.object_kind==='table').length} ${t('源表')} · ${n.objects.filter(o=>o.object_kind==='view').length} ${t('源视图')} · ${n.objects.reduce((count,o)=>count+o.fields.length,0)} ${t('字段')}</p>`+
+    `<p>${n.objects.filter(o=>o.object_kind==='table').length} ${t('源表')} · ${n.objects.filter(o=>o.object_kind==='view').length} ${t('数据库视图')} · ${n.objects.reduce((count,o)=>count+o.fields.length,0)} ${t('字段')}</p>`+
     `<p class="muted">${t('这里是导出时的来源快照，不是实时连接状态。')}</p>`+
     `<details><summary>${t('这个数据源的标识')}</summary><div class="op">${esc(n.id)}</div></details>`;
 }
@@ -170,7 +171,7 @@ function showSchemaNode(n) {
   const obj=n.parent?schemaObject(n.parent):n;
   const field=n.kind==='schema_field';
   const kv=(key,value)=>`<div class="kv"><span>${esc(t(key))}</span><span>${esc(value)}</span></div>`;
-  let html=`<h2>${t(field?'源字段':obj.object_kind==='view'?'源视图':'源表')}</h2>`+
+  let html=`<h2>${t(field?'源字段':obj.object_kind==='view'?'数据库视图':'源表')}</h2>`+
     `<div style="font-size:16px;font-weight:600">${esc(bt(n.label))}</div>`+
     `<p class="muted" data-source-name>${esc(obj.name+(field?'.'+n.column:''))}</p>`;
   if(field) {
@@ -189,7 +190,7 @@ function showSchemaNode(n) {
     if(obj.dependency_error)html+=`<p>${t('依赖解析未完成；保留源 SQL 定义。')}</p><div class="op">${esc(obj.dependency_error)}</div>`;
   }
   html+=`<details><summary>${t('源库中的定义')}</summary><div class="op">${esc(obj.definition)}</div></details>`+
-    `<details><summary>${t(field?'这个字段的标识':obj.object_kind==='view'?'这个源视图的标识':'这张源表的标识')}</summary>`+
+    `<details><summary>${t(field?'这个字段的标识':obj.object_kind==='view'?'这个数据库视图的标识':'这张源表的标识')}</summary>`+
     `<p>${t(field?'标识的是源字段，用于绑定字段评论、来源定位和业务规则引用。':'标识的是整个源对象，不是其中某条记录。')}</p>`+
     `<p>${t('展示名、语言、布局和折叠变化不会改变标识；源库搬迁或源字段真正改名需要迁移引用。')}</p>`+
     `<div class="op">${esc(n.id)}</div></details>`;
@@ -218,7 +219,7 @@ function showSchemaNode(n) {
     const heading=document.createElement('h2');heading.textContent=t(rel==='source_fk'?'外键关联':'源 SQL 引用')+' ('+matching.length+')';
     const note=document.createElement('p');note.className='muted';note.textContent=t(rel==='source_fk'?
       '源库声明了字段之间的关联；点击一项查看两端和原始声明。':
-      '以下关联来自源视图的 SQL；这是查询来源，不代表业务规则或完整字段血缘。');
+      '以下关联来自数据库视图的 SQL；这是查询来源，不代表业务规则或完整字段血缘。');
     const list=document.createElement('div');list.className='schema-relation-list';
     for(const edge of matching){const b=document.createElement('button');b.textContent=schemaRelationLabel(edge);
       b.onclick=()=>showSchemaRelation(edge);list.appendChild(b);}
@@ -240,7 +241,7 @@ function showSchemaRelation(e) {
   $('panel').innerHTML=`<h2>${t(e.rel==='source_fk'?'源外键':'源 SQL 引用')}</h2>`+
     `<p>${esc(schemaRelationLabel(e))}</p>`+
     `<p class="muted">${t(e.rel==='source_fk'?'源库声明了字段之间的关联；点击一项查看两端和原始声明。':
-      '以下关联来自源视图的 SQL；这是查询来源，不代表业务规则或完整字段血缘。')}</p>`;
+      '以下关联来自数据库视图的 SQL；这是查询来源，不代表业务规则或完整字段血缘。')}</p>`;
   for(const [obj,column] of [[from,e.source_column],[to,e.target_key?.[0]]]) {
     const node=column?obj.fields.find(f=>f.column===column):obj;
     const card=document.createElement('div');card.className='relation-endpoint';
@@ -301,9 +302,9 @@ function showSchemaSummary() {
   state.panel='checks';
   const fields=schemaObjects.reduce((total,o)=>total+o.fields.length,0);
   $('panel').innerHTML=`<h2>${t('源结构核对')}</h2>`+
-    `<p>${schemaObjects.filter(o=>o.object_kind==='table').length} ${t('源表')} · ${schemaObjects.filter(o=>o.object_kind==='view').length} ${t('源视图')} · ${fields} ${t('字段')}</p>`+
+    `<p>${schemaObjects.filter(o=>o.object_kind==='table').length} ${t('源表')} · ${schemaObjects.filter(o=>o.object_kind==='view').length} ${t('数据库视图')} · ${fields} ${t('字段')}</p>`+
     `<p>${t('展开表查看字段，点击字段核对来源或添加评论。')}</p>`+
-    `<p class="muted">${t('记录从详情下钻；源视图和二进制字段也保留在投影中。')}</p>`;
+    `<p class="muted">${t('记录从详情下钻；数据库视图和二进制字段也保留在投影中。')}</p>`;
   if(isSourceReview()) {
     $('panel').insertAdjacentHTML('beforeend',`<h2>${t('源数据待核对')}</h2><p>${t('橙色是待核对的问题，不表示源数据已经出错；不会改写源值。')}</p>`);
     for(const id of BUNDLE.business.source_review.definitions) {
@@ -315,8 +316,8 @@ function showSchemaSummary() {
 function showSourceCoverage() {
   state.panel='coverage';
   $('panel').innerHTML=`<h2>${t('源结构核对')}</h2><p>${t(BUNDLE.source_schema.record_complete?
-    '全部源对象与字段已呈现；记录来自只读快照。':'记录从详情下钻；源视图和二进制字段也保留在投影中。')}</p>`+
-    schemaObjects.map(o=>`<details><summary>${esc(o.name)} · ${t(o.object_kind==='view'?'源视图':'源表')} · ${fmt(o.count)}</summary>`+
+    '全部源对象与字段已呈现；记录来自只读快照。':'记录从详情下钻；数据库视图和二进制字段也保留在投影中。')}</p>`+
+    schemaObjects.map(o=>`<details><summary>${esc(o.name)} · ${t(o.object_kind==='view'?'数据库视图':'源表')} · ${fmt(o.count)}</summary>`+
       `<button data-source-object="${esc(o.id)}">${t('在图上查看')}</button>`+
       o.fields.map(f=>`<div class="kv"><button data-source-field="${esc(f.id)}">${esc(f.column)}</button>`+
         `<span>${esc(f.declared_type)}${f.primary_key?' · PK '+f.primary_key:''}</span></div>`).join('')+

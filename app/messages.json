@@ -1,5 +1,14 @@
 {
   "en": {
+    "以下关联来自数据库视图的 SQL；这是查询来源，不代表业务规则或完整字段血缘。": "These relationships come from database view SQL. They are query sources, not business rules or complete field lineage.",
+    "记录从详情下钻；数据库视图和二进制字段也保留在投影中。": "Inspect records from details. Database views and binary fields are included.",
+    "视图与目录": "Views and catalogue",
+    "全部源对象": "All source objects",
+    "当前：{name}": "Current: {name}",
+    "选择视图，或在数据投影下展开数据源、对象和字段。顶层显示完整源图，对象和字段显示关联子图。": "Choose a view, or expand sources, objects and fields under Data projection. The top level shows the full source graph; objects and fields open related subgraphs.",
+    "数据库视图": "Database views",
+    "数据库视图依赖": "Database view dependency",
+    "这个数据库视图的标识": "Identity of this database view",
     "源对象目录": "Source catalogue",
     "关联距离": "Relationship distance",
     "对象上限": "Object limit",

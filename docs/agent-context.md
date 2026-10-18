@@ -151,9 +151,11 @@ works over the pinned source snapshot even without a live-data gateway.
 
 ## Bounded source-graph navigation
 
-The standalone reader exposes the same workflow through **Source catalogue**.
-Names select related subgraphs; disclosure arrows lazily expand objects/fields.
-The view selector labels the active subgraph and its banner reports scope,
+The standalone reader exposes this workflow through **Views and catalogue**,
+combining named presentations and source navigation in one entry. The top level
+opens the complete authorised source graph; a source root restricts it to that
+source. Object/field names select related subgraphs; disclosure arrows lazily
+expand directory entries. The active subgraph and its banner report scope,
 omitted objects and boundary relationships. Distance/cap controls and Back/return
 to full source presentation do not alter facts or permissions. The offline
 selector's results and typed refusals are checked against the server core.
@@ -186,8 +188,9 @@ or approval into a selection request. New business relationships go through the
 checked phase-two model. HTTP and CLI preserve the selector's error code,
 recovery hint and `retryable: false`; stale revisions still require a refresh.
 The service authenticates before selection and the selector grants no access.
-The managed project scope remains unchanged. A shared host/standalone catalogue
-widget and the Sudowork adapter are proposals, not implemented deployments.
+The managed project scope remains unchanged. The shared standalone catalogue
+is implemented; its Sudowork embedding and registered-source adapter are not
+deployed.
 
 ## Persistent source questions and a private judge
 

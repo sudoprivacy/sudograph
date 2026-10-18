@@ -59,10 +59,19 @@ async def check(port, url, output):
     target = await js("(()=>{const o=schemaObjects.find(o=>"
                       "o.object_kind==='table'&&o.fields.length);"
                       "return {id:o.id,name:o.name,field:o.fields[0].id,"
-                      "sourceLabel:bt(schemaNodes.get(o.source).label)};})()")
+                      "source:o.source,sourceLabel:bt(schemaNodes.get(o.source).label)};})()")
     facts = "JSON.stringify([BUNDLE.source_schema.sources,BUNDLE.business?.definitions])"
     baseline = await js(facts)
     await click_by_html_id(tab, 'catalogueBtn')
+    assert await js("document.querySelector('#projectionControl').hidden")
+    await click_by_xpath(tab, "//button[@data-catalogue-id='overview']")
+    await rendered()
+    assert await js("state.projection==='schema'&&"
+                    "schemaVisibleObjects().length===schemaObjects.length")
+    await click_by_xpath(tab, f"//button[@data-catalogue-id='{target['source']}']")
+    await rendered()
+    assert await js("state.sourceRoot===" + json.dumps(target['source']))
+    assert await js("schemaVisibleObjects().every(o=>o.source===state.sourceRoot)")
     await type_by_text(tab, name=await js("t('搜索对象或字段')"), text=target['name'], clear=True)
     await click_by_xpath(tab, f"//button[@data-catalogue-id='{target['id']}']")
     await rendered()
@@ -105,11 +114,21 @@ async def check(port, url, output):
     await rendered()
     assert await js("state.projection==='schema'&&state.sourceSelection===null")
     assert await js("schemaVisibleObjects().length===schemaObjects.length")
+    business_view = await js("Object.keys(BUNDLE.business?.views||{})[0]||null")
+    if business_view:
+        value = 'business:' + business_view
+        await click_by_xpath(tab, f"//button[@data-view='{value}']")
+        await until("state.projection===" + json.dumps(value) +
+                    "&&cy.nodes().some(n=>businessNodes.has(n.id()))")
+        await click_by_xpath(tab, "//button[@data-view='schema']")
+        await rendered()
     assert await js(facts) == baseline
     await page_screenshot(tab, path=str(output / 'full-source-mobile.png'))
     result = {'status': 'passed', 'catalogue_object': target['id'],
               'field_identity_preserved': target['field'], 'subgraph_objects': len(expected),
               'back_restores_root': True, 'search_canvas_redraws': 0,
+              'catalogue_top_level_shows_full_source': True,
+              'source_root_scope_preserved': True, 'single_views_and_catalogue_entry': True,
               'mobile_width': 390, 'source_and_business_facts_unchanged': True,
               'comment_mutations': 0, 'agent_evaluation': 'not_run'}
     (output / 'navigation.json').write_text(json.dumps(result, indent=2), encoding='utf8')

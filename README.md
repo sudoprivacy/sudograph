@@ -262,10 +262,15 @@ business confirmation and the format-comparison evaluation remain separate work.
 The [Sudowork integration review](docs/sudowork-integration-review.md) records
 proposed feature ownership and human/agent experiences. Existing connection and
 browser-session UI can be reused, but the host adapter is not yet deployed.
+The first integration must preserve all existing Sudograph capabilities and
+human/agent workflows; host reuse is not a reason to reduce them.
 The [source connection and scan design](docs/source-connection-and-scan-contract.md)
-details that boundary. The native **Source catalogue** searches objects/fields
-and opens bounded **Subgraph** views with scope and boundary counts; it reuses
-the context selector contract and the original source identities.
+details that boundary. The native **Views and catalogue** combines named views
+and searchable source/object/field navigation. Its top level opens the full
+authorised source graph; object/field entries open bounded **Subgraph** views
+with scope and boundary counts. It reuses the context selector contract and
+the original source identities. **Database view** means a saved source SQL
+query; it is distinct from a presentation view.
 Phase one provides **Data projection** and, when checked questions exist,
 **Projection and data review**. The second uses the same source graph plus
 unconfirmed questions with verification plans. Real records are a shared

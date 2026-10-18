@@ -4,6 +4,9 @@ This is the integration design agreed for detailed review on 2026-10-18.
 The Sudograph reader implements bounded source navigation. The Sudowork
 connector bridge, PostgreSQL/MySQL projection ports and automatic FDE onboarding
 below are proposed work, not deployed capabilities.
+The first integration preserves all existing Sudograph features and human/agent
+workflows. In particular, its full SQLite projection is the reference baseline,
+not functionality to replace with a host's bounded discovery sample.
 
 ## Repository boundary
 
@@ -11,7 +14,7 @@ below are proposed work, not deployed capabilities.
 | --- | --- | --- |
 | Sudowork | Source connection UX, workspace/source registration, scan progress and review launch | Its agent discovers registered sources and requests scans by opaque source ID. Reuse current probe, rescan and preview UX. The UI cannot declare coverage complete. |
 | Sudocode | Agent lifecycle, tool discovery/execution, context loading and execution environment | Runs the Sudowork agent with versioned tools and capabilities. No parallel Sudograph agent framework. |
-| Sudowork connector adapters | Database transport, credential resolution, introspection, source-side read-only query/record operations | Extend the existing provider implementation; do not implement a second database connector in Sudograph. The bridge exposes the required projection operations and returns unsupported capabilities explicitly. |
+| Sudowork connector adapters | Database transport, credential resolution, introspection, source-side read-only query/record operations | Extend existing providers for PostgreSQL/MySQL; retain the working Sudograph SQLite scanner through the bridge. Expose required projection operations and unsupported capabilities explicitly. |
 | Nexus | Deployed identity, permissions, Vault/VFS and suitable registered provider capabilities | Resolve secret references and authorised access server-side. Reuse actual registered drivers. Filesystem/object access does not imply relational semantics. |
 | Sudograph | Projection/identity contract, deterministic checks, coverage proof, business compiler, model context, catalogue and renderer | Accept adapter evidence, reject incomplete claims, retain source facts and compile the checked revision. The existing SQLite implementation remains the reference; remote database ports must meet the same contract. |
 | ai-dev-browser | Browser lifecycle, automation and display adapters | Used for browser-only sources or same-browser human takeover; not an obligatory transport for model editing or native review. |
@@ -26,12 +29,27 @@ contract; a cloud worker must not accidentally scan a desktop-only SQLite path.
 Remote SQLite needs an authorised file/snapshot transfer or a local execution
 worker, not a reinterpretation of a remote path as a local file.
 
+The cloud plan places the frontend on a separate VM, uses central
+`nexusd-cluster` for control, and runs `nexusd-cohost` with scode in each user's
+execution pod. The worker runs in the authorised execution location or reaches
+it through an existing service route. It receives scoped source/access handles;
+the WebUI VM is not implicitly the database or Nexus endpoint. Actual network
+reachability, tenant isolation and execution routing are integration acceptance
+items, not established by this topology description.
+
+The host adapter routes source registration/access into the existing projection
+and managed compiler, returns coverage/revision/recovery, launches the native
+review and supplies compiled context to the existing prompt loader. It does not
+create a second model authority, renderer or editable RDF copy.
+
 ## Connection and scan state are different axes
 
 Connection status is `unconfigured`, `probing`, `connected`, `unreachable`,
 `unauthorised` or `unsupported`. It proves reachability and observed operations at
 a time, not complete discovery. Credential references and connection status are
-host-owned; passwords never enter model YAML, HTML or prompts.
+host-owned. If a user explicitly pastes credentials into chat, the agent can see
+that input. Store them through the existing secret mechanism and then use
+references; do not repeat them in generated prompts, summaries or artifacts.
 
 Each scan is separately `queued`, `running`, `partial`, `complete`, `failed` or
 `cancelled`, tied to the exact source registration, scope, capability version and
@@ -82,6 +100,16 @@ tool instructions. Sudograph receives normalised source-object/field evidence
 and a coverage manifest, validates it and publishes a revision. Source relations
 must carry declarations or SQL evidence; a guessed join goes through phase two.
 
+Today, the connection form's probe calls `scanConnectorAssets` in the ontology
+service, commits the resulting workbench snapshot and emits `workbenchChanged`.
+This refreshes the UI; it is not an automatic chat turn. Snapshot/sample reads
+exist in the builder MCP, but connector registration/probe is not currently an
+exposed builder tool. First-version work must add the missing scoped operation
+and bind scan events to the relevant agent session. Include only source ID,
+revision, status, receipt pointer and recovery in that event. Persist it for an
+idle session; avoid injecting full records or changing the stable prompt prefix.
+The user should not have to copy a readiness message from the connection form.
+
 The existing SQLite source identity includes its resolved path. Introducing a
 registered remote identity requires an explicit identity migration mapping:
 retain old object/field IDs and comment references, or produce a checked migration
@@ -105,9 +133,14 @@ databases. For large production databases, prefer complete structure plus
 authorised live record paging; a sample must not masquerade as an offline full
 record projection. The current Northwind offline record baseline stays intact.
 
-## FDE onboarding from an unstructured list
+## Chat onboarding and FDE intake
 
-The proposed fast path accepts endpoints and supplied credentials in one intake.
+Basic chat connection of an explicitly supplied endpoint and credentials belongs
+in the proposed first version, using the same registry/probe as the form. It is
+not implemented by telling the user to fill in a second form. Preserve the full
+SQLite scan and all existing coverage checks after registration succeeds.
+
+The extended fast path accepts an unstructured endpoint list in one intake.
 The agent normalises host/port/database candidates, sends credentials directly to
 the host's existing secret storage, and receives secret references. Raw secrets
 are excluded from chat summaries, logs, Git and model artifacts.
@@ -141,10 +174,13 @@ not needed as a second renderer. Its asset descriptions are potential proposed
 business annotations, not source facts. Retained RDF needs a separately checked
 mapping; replacing its UI must not discard it or establish a second editable SSOT.
 
-The shared reader now has a searchable, lazily expanded source/object/field
-catalogue. Names select a bounded structural subgraph; disclosure arrows expand
-the directory. SQLite has no invented schema grouping. The view menu identifies
-the active `Subgraph: <target>`, and a visible bar reports object scope, omitted
+The shared reader combines named presentations and the searchable, lazily
+expanded source/object/field tree in **Views and catalogue**. Its top level shows
+the full authorised source-object graph; a source root shows that source's
+objects. Object/field names select a bounded structural subgraph; disclosure
+arrows expand the directory. SQL queries saved in the source are labelled
+**Database views**, distinct from presentation views. SQLite has no invented
+schema grouping. The active `Subgraph: <target>` and a visible bar report scope, omitted
 objects, boundary relationships, hop distance and cap. A complete source view and
 back navigation remain available. Source grouping uses declared FK/SQL edges,
 not connector supply edges. Field drilldown and record paging reuse existing IDs.
@@ -154,13 +190,20 @@ require the same results/refusals as the server selector for every catalogue
 level, limits, distances and continuation. The host can reuse the same reader
 module; its authenticated integration is a further deployment step. Navigation
 is not authorisation: the client only receives the already-authorised model.
+Reuse existing named-view identities and the server permission system. Different
+principals may receive different fields/rows for one view. Scope is enforced
+before counts, queries, joins and record reads; exports retain their separate
+grant. The navigation menu presents permitted views and subgraphs only narrow
+that authorised model. Do not clone facts per user or treat a menu choice as an
+authorisation grant.
 
 ## Delivery and acceptance sequence
 
 1. Review this boundary and the native catalogue/subgraph experience on the
    existing Northwind URL; all presentation changes come from shared app sources.
 2. Add Sudowork's registered-source bridge and a real SQLite end-to-end journey:
-   connect, scan, compiler refusal/recovery, coverage receipt, open review, exact
+   connect through either the form or basic chat intake, notify the agent, run
+   the existing full scanner, compiler refusal/recovery, coverage receipt, open review, exact
    field comment, model edit, regenerate and revisit the same anchor.
 3. Port PostgreSQL, then MySQL using real databases. Include capped discovery,
    permission-scoped counts, interruption/resume, source mutation, stale revisions
@@ -169,6 +212,8 @@ is not authorisation: the client only receives the already-authorised model.
 5. Accept a fresh-context agent's discovery and repair workflow. Keep this separate
    from unit/browser checks and from business-meaning evaluation.
 
-The browser session design is an upstream dependency. Existing production viewer
-acceptance is recorded in Sudowork #1260 and its browser-sessions document. It
-does not establish a production Sudograph host adapter or physical phone support.
+The browser session design is an upstream dependency. Implementation and AI
+production checks are recorded in Sudowork #1260 and its browser-sessions
+document. User/device acceptance is still in progress. Those checks do not
+establish a fully accepted browser experience, a production Sudograph host
+adapter or physical phone support.
