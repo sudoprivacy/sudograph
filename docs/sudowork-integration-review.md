@@ -138,3 +138,10 @@ Permissions apply before selection; counts must never reveal unauthorised object
 
 Decisions still to align: the exact default display surface, host catalogue
 placement, supported connector set and the per-fact model/review authority map.
+
+The owner subsequently identified the reported visual regression as the default
+first business view. The reproduced fCoSE overlap is a separate finding, not
+closure of that feedback. Fresh-browser checks at widths 1366, 1024 and 850,
+including the comment sidebar, did not reproduce intersecting node/label boxes.
+Whole-graph fit did make text very small. The default-view report remains open
+pending matching visual evidence; do not call it fixed by the force-layout guard.

@@ -40,5 +40,18 @@
     "executable_checks_in_pilot": 0,
     "score": null
   },
-  "tests_passed": 349
+  "tests_passed": 349,
+  "default_business_view_follow_up": {
+    "status": "reported_overlap_not_reproduced_not_closed",
+    "projection": "business:sales-meaning",
+    "tested_window_widths": [
+      1366,
+      1024,
+      850
+    ],
+    "comment_sidebar_checked": true,
+    "node_and_label_box_intersections_observed": 0,
+    "whole_graph_text_too_small": true,
+    "separate_from_fcose_fix": true
+  }
 }
