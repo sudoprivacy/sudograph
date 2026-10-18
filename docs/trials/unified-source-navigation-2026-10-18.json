@@ -1,5 +1,5 @@
 {
-  "status": "local_browser_passed_publication_pending",
+  "status": "local_and_production_browser_passed",
   "scope": "generic reader navigation; host integration remains proposed",
   "regression": "top-level catalogue entry incorrectly selected a bounded neighbourhood",
   "fix": "full authorised source root; source-scoped roots; unified named views and source catalogue",
@@ -22,10 +22,33 @@
   },
   "verification": {
     "pytest": 351,
-    "required_gates": "running"
+    "required_gates": 6,
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/39139366570",
+    "ci_conclusion": "success"
   },
   "publication": {
-    "status": "pending",
+    "owner_download_matches_generated_html": true,
+    "bytes": 11825336,
+    "sha256": "19a3f7fde5efccb08be67be9548bab9a63b9d8a3d9aa3f0fc0ef16c18e1aac91",
+    "existing_threads_preserved": 48,
+    "comment_mutations": 0,
+    "subgraph": {
+      "label": "\u5b50\u89c6\u56fe\uff1a\u9500\u552e\u8ba2\u5355",
+      "objects": 13,
+      "scope": 30,
+      "camera_redraws": 0,
+      "root": "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders"
+    },
+    "all_source_objects_restored": 30,
+    "top_level_and_source_roots_verified": true,
+    "single_navigation_entry": true,
+    "named_business_view_switch_verified": true,
+    "database_view_terminology_verified": true,
+    "english_and_chinese_checked": true,
+    "mobile_width": 390,
+    "host_connector_integration": "not_deployed",
+    "commit": "fb8fed0b89442889881e7c09423581bd594be5ac",
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/39139366570",
     "url": "https://s.shareone.vip/s/sudograph-northwind"
   }
 }

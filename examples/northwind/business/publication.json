@@ -1,8 +1,51 @@
 {
-  "status": "checked-native-source-navigation-live",
+  "status": "checked-unified-source-navigation-live",
   "target_url": "https://s.shareone.vip/s/sudograph-northwind",
   "target_share_id": "aSoJi9Ny94gwxXFc",
   "current_publication": {
+    "commit": "fb8fed0b89442889881e7c09423581bd594be5ac",
+    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/fb8fed0b89442889881e7c09423581bd594be5ac/examples/northwind/business/review.html",
+    "bytes": 11825336,
+    "sha256": "19a3f7fde5efccb08be67be9548bab9a63b9d8a3d9aa3f0fc0ef16c18e1aac91",
+    "owner_download_matches_git_blob": true,
+    "actual_iframe_browser_verified": true,
+    "content_review_mode": "ordinary-publication-completed-no-review-hold-returned",
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/39139366570",
+    "ci_conclusion": "success",
+    "canonical_definition_ids_preserved": 9,
+    "business_nodes": 4,
+    "source_review_questions": 3,
+    "phase_one_source_schema_views_records_unchanged": true,
+    "comments_embedded": false,
+    "manual_html_edits": false,
+    "existing_comment_threads_preserved": 48,
+    "automatic_source_questions": 369,
+    "evaluation_status": "not_run",
+    "database_object_kind_filter_counts": {
+      "tables": 13,
+      "database_views": 17,
+      "both": 30
+    },
+    "sidebar_svg_icons_verified": true,
+    "expanded_source_graph_nodes_checked": 43,
+    "fcose_overlap_detection_and_elk_fallback_verified": true,
+    "evaluation_sections": [
+      "Calculation self-checks",
+      "Source-data blind questions"
+    ],
+    "coverage_inventory_separate_from_evaluation": true,
+    "context_subgraph_selector": "implemented and used by native reader; Sudowork host adapter not deployed",
+    "native_source_catalogue_and_subgraphs_live": true,
+    "subgraph_boundary_and_return_controls_verified": true,
+    "subgraph_pan_zoom_canvas_redraws": 0,
+    "export_contract_normalised_across_python_versions": true,
+    "single_views_and_catalogue_entry": true,
+    "top_level_catalogue_restores_full_source": true,
+    "source_root_scope_preserved": true,
+    "database_view_label_distinct_from_presentation": true,
+    "english_and_chinese_navigation_verified": true
+  },
+  "previous_publication": {
     "commit": "d868c67492e6899bea877a3bfaf6ac6aae2d7297",
     "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/d868c67492e6899bea877a3bfaf6ac6aae2d7297/examples/northwind/business/review.html",
     "bytes": 11820417,
@@ -39,40 +82,6 @@
     "subgraph_boundary_and_return_controls_verified": true,
     "subgraph_pan_zoom_canvas_redraws": 0,
     "export_contract_normalised_across_python_versions": true
-  },
-  "previous_publication": {
-    "commit": "643e96ed19701b8acb7fefcdd0765ef3d74f4b35",
-    "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/643e96ed19701b8acb7fefcdd0765ef3d74f4b35/examples/northwind/business/review.html",
-    "bytes": 11801179,
-    "sha256": "d8ef96dc605001730ffd885ad018d27c6fd44457b0b2e3d04771556b6d944e69",
-    "owner_download_matches_git_blob": true,
-    "actual_iframe_browser_verified": true,
-    "content_review_mode": "ordinary-publication-completed-no-review-hold-returned",
-    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/39104890347",
-    "ci_conclusion": "success",
-    "canonical_definition_ids_preserved": 9,
-    "business_nodes": 4,
-    "source_review_questions": 3,
-    "phase_one_source_schema_views_records_unchanged": true,
-    "comments_embedded": false,
-    "manual_html_edits": false,
-    "existing_comment_threads_preserved": 48,
-    "automatic_source_questions": 369,
-    "evaluation_status": "not_run",
-    "database_object_kind_filter_counts": {
-      "tables": 13,
-      "database_views": 17,
-      "both": 30
-    },
-    "sidebar_svg_icons_verified": true,
-    "expanded_source_graph_nodes_checked": 43,
-    "fcose_overlap_detection_and_elk_fallback_verified": true,
-    "evaluation_sections": [
-      "Calculation self-checks",
-      "Source-data blind questions"
-    ],
-    "coverage_inventory_separate_from_evaluation": true,
-    "context_subgraph_selector": "implemented; Sudowork host adapter not deployed"
   },
   "production_sdk_follow_up": {
     "page_callbacks_implemented": true,
