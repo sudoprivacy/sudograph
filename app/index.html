@@ -512,6 +512,19 @@ measurementBox.style.cssText='font-size:11px;line-height:16px;white-space:pre-wr
 measurementBox.style.fontFamily=readerFont;
 measurementHost.attachShadow({mode:'closed'}).appendChild(measurementBox);document.body.appendChild(measurementHost);
 const textSizes=new Map();
+async function waitForCanvasMeasurement() {
+  await document.fonts?.ready;
+  const ready=()=>measurementHost.getBoundingClientRect().width>0&&
+    $('cy').getBoundingClientRect().width>0&&$('cy').getBoundingClientRect().height>0;
+  if(ready())return;
+  // An embed may execute while display:none. Wait once for real geometry;
+  // fitting later cannot repair text sizes cached from an invisible document.
+  await new Promise(resolve=>{
+    const observer=new ResizeObserver(()=>{if(ready()){observer.disconnect();resolve();}});
+    observer.observe(measurementHost);observer.observe($('cy'));
+    if(ready()){observer.disconnect();resolve();}
+  });
+}
 function measure(lines,maxWidth=260) {
   const text=lines.map(l=>l.parts.join('')).join('\n'),key=maxWidth+'\0'+text;
   if(textSizes.has(key))return textSizes.get(key);
@@ -539,6 +552,8 @@ let drawSeq = 0;
 async function draw() {
   invalidateCommentPassages();
   const mine = ++drawSeq;
+  await waitForCanvasMeasurement();
+  if(mine!==drawSeq)return;
   const v = view();
   if (!v) { $('status').textContent = 'no view for this combination'; return; }
   renderLegend();

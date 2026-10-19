@@ -68,6 +68,9 @@ function showSourceCatalogue() {
   };
   function renderResults() {
     const query=state.catalogueSearch.trim().toLowerCase();results.replaceChildren();
+    const viewsHeading=document.createElement('h2');viewsHeading.textContent=t('审阅视图');results.appendChild(viewsHeading);
+    const viewsNote=document.createElement('p');viewsNote.className='muted';
+    viewsNote.textContent=t('按核对任务组织；下方目录按源库结构组织，两者引用同一模型。');results.appendChild(viewsNote);
     const root=button(t('数据投影')+' · '+t('全部源对象'),null);root.dataset.view='schema';
     root.setAttribute('aria-current',String(isSchema()&&!isSourceReview()));results.appendChild(root);
     for(const option of $('projection').options) {

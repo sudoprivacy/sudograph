@@ -44,6 +44,33 @@ create a second model authority, renderer or editable RDF copy.
 
 ## Connection and scan state are different axes
 
+Sudograph already has a deterministic SQLite scanner; the agent does not write
+a new scanner for each project. `compiler.catalog.inventory` enumerates source
+tables, database views, fields, keys, SQL and counts. `compiler.project` directly
+writes and validates the phase-one YAML. The YAML contains bindings and source
+pointers, not a copy of every record. `compiler.source_schema` compiles canonical
+source identities and, with record export enabled, lossless paged snapshots,
+including keyless view results and binary values. No LLM transformation is needed
+between introspection and that YAML. Optional business interpretation is a
+separate checked overlay.
+
+The existing Northwind baseline covers all 13 user tables, 17 database views and
+204 fields, with complete result snapshots. That proves the accepted source
+projection contract for that database; it does not promise every SQLite system
+object, arbitrary database engine or unsupported feature is represented. For
+example, the current source authoring path refuses unsupported composite FK
+bindings rather than inventing a relationship. Coverage is checked against an
+explicit contract, scope and source observation; unsupported facts must remain
+visible as limitations, not silently become a complete claim.
+
+Sudowork's scanner is also deterministic. Its SQLite path is not governed by the
+same `maxAssets` cap as PostgreSQL/MySQL. However, its asset fields and bounded
+previews do not yet provide the same complete SQL/key/snapshot coverage receipt.
+Compare providers against that receipt, not just the number of source types or
+an asset-list length. Reuse provider transport and registration while preserving
+the stronger existing SQLite projection path. A later consolidation is welcome
+only after equivalent evidence and no capability regression.
+
 Connection status is `unconfigured`, `probing`, `connected`, `unreachable`,
 `unauthorised` or `unsupported`. It proves reachability and observed operations at
 a time, not complete discovery. Credential references and connection status are

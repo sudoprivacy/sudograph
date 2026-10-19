@@ -1,0 +1,36 @@
+{
+  "status": "local_browser_passed_publication_pending",
+  "bug": "hidden iframe cached zero-height text measurements before reveal",
+  "before": {
+    "overlapping_parent_headers": 5,
+    "cached_header_height": 16,
+    "parent_padding": 40,
+    "header_child_intersections_detected_by_new_check": 5
+  },
+  "fix": "wait for measurable canvas and fonts before layout; no layout polling during camera interaction",
+  "browser": {
+    "status": "passed",
+    "cases": 8,
+    "hidden_iframe_startup": true,
+    "actual_text_and_node_rectangles_checked": true,
+    "text_intersections": 0,
+    "text_outside_nodes": 0,
+    "header_child_intersections": 0,
+    "source_and_business_facts_unchanged": true,
+    "pan_zoom_redraws": 0,
+    "comment_mutations": 0,
+    "agent_evaluation": "not_run",
+    "navigation_regression": "passed: full roots, fields, subgraphs, back and mobile"
+  },
+  "verification": {
+    "required_gates": "running"
+  },
+  "publication": {
+    "url": "https://s.shareone.vip/s/sudograph-northwind",
+    "status": "pending"
+  },
+  "source_and_business_facts_modified": false,
+  "manual_html_edits": false,
+  "host_integration": "not_deployed",
+  "regression_detects_previous_artifact": true
+}

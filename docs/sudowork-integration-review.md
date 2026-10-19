@@ -128,6 +128,12 @@ opening the authenticated browser viewer displays the execution browser remotely
 They are different experiences even when both use a browser tab. The existing
 viewer is not a substitute for testing native text/comment interactions.
 
+The 2026-10-19 upstream session reports that the owner's phone screenshot passed
+the model-selection/message path. Recent source commits address mobile tasks,
+selected-model binding and model-catalogue readiness. That is a narrower result
+than acceptance of browser takeover, native comments, clipboard or latency. Keep
+those acceptance items open; unrelated gateway repair is not proof they passed.
+
 For Desktop, direct review can use the normal browser without automation. When
 agent control is needed, reuse the supported app-managed Chrome/CDP or managed
 extension session. Do not make personal-profile attachment a first-version
@@ -153,6 +159,12 @@ eagerly expand every field or load every record into the canvas. Large-source
 scaling may require another explicit overview mode, not a silently truncated
 result under a full-source label. Label source SQL views **Database views** to
 distinguish them from presentation views.
+
+The upper **Review views** list is task-based navigation, not a popularity ranking
+or a sample of database objects. The standard source projection and conditional
+source-review entry come from shared infrastructure; phase-two views come from
+explicit checked overlay definitions. The lower source catalogue enumerates
+objects/fields from the authorised model. Both reference the same identities.
 
 The core selector now uses weak components followed by bounded undirected BFS
 over declared foreign keys and source SQL dependencies. It excludes the common

@@ -164,6 +164,14 @@ journey; this is distinct from fresh-agent evaluation. The Sudowork host adapter
 and registered-source scan bridge remain separate integration work, described in
 the [source connection and scan contract](source-connection-and-scan-contract.md).
 
+The upper **Review views** entries come from standard source presentations and
+checked overlay view declarations. They are not a ranked subset of source
+objects. The lower catalogue is the structural inventory of the same authorised
+model. The optional `tools.check_canvas_labels` browser journey starts a generated
+reader in a hidden iframe, then checks actual text/node rectangles after reveal,
+field expansion and language switches. Node-body separation alone is not proof
+that selectable DOM captions do not overlap.
+
 Use `context_read` with `id: subgraph` and an optional `selection` object when a
 whole source graph is too large. The packet includes a request template and a
 contract derived from the same parameter model used by the selector. Its
