@@ -133,6 +133,9 @@ the model-selection/message path. Recent source commits address mobile tasks,
 selected-model binding and model-catalogue readiness. That is a narrower result
 than acceptance of browser takeover, native comments, clipboard or latency. Keep
 those acceptance items open; unrelated gateway repair is not proof they passed.
+At the 17:18 CST session checkpoint, the upstream agent also reported two real WebUI
+conversations, restored history and reconciled model usage/billing. That closes
+that request path in its report, not the separate browser-interaction checklist.
 
 For Desktop, direct review can use the normal browser without automation. When
 agent control is needed, reuse the supported app-managed Chrome/CDP or managed

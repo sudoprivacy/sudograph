@@ -1,5 +1,5 @@
 {
-  "status": "local_browser_passed_publication_pending",
+  "status": "local_and_production_browser_passed",
   "bug": "hidden iframe cached zero-height text measurements before reveal",
   "before": {
     "overlapping_parent_headers": 5,
@@ -23,11 +23,63 @@
     "navigation_regression": "passed: full roots, fields, subgraphs, back and mobile"
   },
   "verification": {
-    "required_gates": "running"
+    "required_gates": 6,
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/39229385032",
+    "ci_conclusion": "success",
+    "pytest": 351,
+    "local_full_gate": "6/6 passed"
   },
   "publication": {
-    "url": "https://s.shareone.vip/s/sudograph-northwind",
-    "status": "pending"
+    "status": "passed",
+    "bytes": 11827066,
+    "sha256": "f8bc39efba3aff7fa902a1c68cfd9558669c5d8bfe08f67466d57ff832fc6fdf",
+    "owner_download_matches_generated_html": true,
+    "existing_threads_preserved": 48,
+    "comment_mutations": 0,
+    "reloads_checked": 3,
+    "actual_label_geometry": [
+      {
+        "projection": "business:sales-meaning",
+        "language": "zh",
+        "nodes": 19,
+        "parents": 5,
+        "violations": []
+      },
+      {
+        "projection": "business:sales-meaning",
+        "language": "zh",
+        "nodes": 19,
+        "parents": 5,
+        "violations": []
+      },
+      {
+        "projection": "business:sales-meaning",
+        "language": "zh",
+        "nodes": 19,
+        "parents": 5,
+        "violations": []
+      },
+      {
+        "projection": "schema",
+        "language": "zh",
+        "nodes": 31,
+        "parents": 0,
+        "violations": []
+      },
+      {
+        "projection": "schema",
+        "language": "zh",
+        "nodes": 31,
+        "parents": 0,
+        "violations": []
+      }
+    ],
+    "top_level_source_objects": 30,
+    "review_views_heading_present": true,
+    "pan_zoom_redraws": 0,
+    "mobile_width": 390,
+    "commit": "5a4aa0a6994062c9de499fb2fcb6ceb6c023b7a6",
+    "url": "https://s.shareone.vip/s/sudograph-northwind"
   },
   "source_and_business_facts_modified": false,
   "manual_html_edits": false,
