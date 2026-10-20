@@ -1,5 +1,5 @@
 {
-  "status": "local_acceptance_passed",
+  "status": "local_and_shareone_acceptance_passed",
   "algorithm": {
     "algorithm": "sudograph-review-selection/v1",
     "mode": "derived",
@@ -45,6 +45,16 @@
       "pan_zoom_redraws": 0,
       "comment_mutations": 0,
       "agent_evaluation": "not_run"
+    },
+    "operator_policy": {
+      "first_visit_auto_start": true,
+      "skip_remembered": true,
+      "explicit_replay": true,
+      "query_suppression": true,
+      "operator_off_cannot_be_overridden": true,
+      "fixture": "unrelated SQLite source, generated with copied shared sources and operator configuration",
+      "manual_html_edits": false,
+      "production_policy_changed": false
     }
   },
   "limits": {
@@ -53,5 +63,28 @@
     "oversized_closure": "explicit refusal; no silent truncation",
     "physical_phone": "not_run",
     "agent_business_understanding_evaluation": "not_run"
+  },
+  "production": {
+    "status": "passed",
+    "bytes": 11839283,
+    "sha256": "8c47d624845f9948da81663883ca6c29383a9d413a799063f5998f2d09804ef8",
+    "owner_download_matches_generated_html": true,
+    "actual_iframe_checked": true,
+    "derived_views_without_authored_lists": true,
+    "canonical_definitions": 9,
+    "guide_manual_default_and_replay_verified": true,
+    "guide_and_pan_zoom_redraws": 0,
+    "top_level_source_objects": 30,
+    "mobile_viewport_width": 390,
+    "physical_phone_hardware": false,
+    "existing_comment_threads_preserved": 48,
+    "comment_mutations": 0,
+    "fresh_loads": 2
+  },
+  "verification": {
+    "local_gates_passed": 6,
+    "pytest_passed": 356,
+    "ci_status": "queued",
+    "ci_url": "https://github.com/sudoprivacy/sudograph/actions/runs/39364907098"
   }
 }

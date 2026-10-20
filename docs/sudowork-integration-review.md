@@ -126,14 +126,18 @@ tenant isolation and the deployed adapter still require end-to-end acceptance.
 
 | Surface | Benefit | Limit | Proposed first-version role |
 | --- | --- | --- | --- |
-| Native standalone review page | Largest canvas; direct text selection, comments and normal browser interaction | Host selection/context synchronisation needs an adapter | Default human review surface on Desktop and WebUI |
+| Standalone browser window/tab | Large canvas outside the small ontology tab | Local native rendering and remote viewer transport have different interaction limits | Primary surface: actual Chrome on Desktop, authenticated execution-browser viewer on WebUI |
+| Direct review URL in a local browser | Direct text selection, comments and normal browser interaction | Shares model/anchor identities, not automatically an execution DOM or control lease | Independent review/share route; not a substitute for same-browser acceptance |
 | Shared Sudowork BrowserPanel | Conversation and browser together; existing authenticated session/handoff | Smaller canvas, viewer transport latency, remote selection/clipboard must be accepted | Companion for agent browser activity; offer the existing external viewer when more space is needed |
 | Existing ontology graph tab | No new navigation surface | Current editor/model semantics and canvas size differ | Keep a review entry/summary; replace corresponding review functionality after the adapter is agreed |
 
 A native local tab opening the review URL renders the page locally. A new tab
 opening the authenticated browser viewer displays the execution browser remotely.
-They are different experiences even when both use a browser tab. The existing
-viewer is not a substitute for testing native text/comment interactions.
+They are different experiences even when both use a browser tab. The 2026-10-20
+clarification makes the independent viewer the WebUI execution-browser route;
+the earlier native-URL recommendation did not establish alignment on this
+transport choice. Selection, comments, clipboard and latency must be accepted
+on the actual viewer, not inferred from a local URL test.
 
 The 2026-10-19 upstream session reports that the owner's phone screenshot passed
 the model-selection/message path. Recent source commits address mobile tasks,
@@ -144,13 +148,14 @@ At the 17:18 CST session checkpoint, the upstream agent also reported two real W
 conversations, restored history and reconciled model usage/billing. That closes
 that request path in its report, not the separate browser-interaction checklist.
 
-For Desktop, direct review can use the normal browser without automation. When
-agent control is needed, reuse the supported app-managed Chrome/CDP or managed
-extension session. Do not make personal-profile attachment a first-version
-dependency. For WebUI, open the native review URL locally for human review;
-agents can use their authorised remote browser and model tools. Two independently
-opened pages share model/anchor identities, not automatically one DOM/camera or
-control lease. Same-browser takeover uses the existing viewer/lease path.
+Desktop retains a separate Chrome/CDP window and attachment to personal Chrome
+through extension. Direct review without agent control still needs no extension.
+WebUI uses the authenticated independent viewer for the same cloud execution
+browser, reusing its session/lease. It can retain both cloud extension and CDP;
+those are control transports, not a choice between current and old browser
+binaries. The 2026-10-20 11:36 CST upstream clarification scopes the failed
+additional Desktop managed-extension probe to that extra entry, not an inability
+to start WebUI browsers. Release and physical-device acceptance remain separate.
 
 Do not automatically publish customer data to a public service merely to open
 a large view. Use an authorised review deployment or an explicitly permitted
@@ -173,7 +178,8 @@ distinguish them from presentation views.
 The upper **Review views** list is task-based navigation, not a popularity ranking
 or a sample of database objects. The standard source projection and conditional
 source-review entry come from shared infrastructure; phase-two views come from
-explicit checked overlay definitions. The lower source catalogue enumerates
+checked subjects and declared dependencies, with optional custom view lists.
+Default subject/question selections are algorithmic. The lower source catalogue enumerates
 objects/fields from the authorised model. Both reference the same identities.
 
 The core selector now uses weak components followed by bounded undirected BFS
@@ -211,7 +217,8 @@ Permissions apply before selection; counts must never reveal unauthorised object
 8. Fetch versioned context, browse a bounded subgraph and find evaluation questions
    with a fresh agent. Keep actual LLM scores separate from preparation/unit tests.
 
-The owner accepted native standalone review as the default surface. Host catalogue
+The owner chose standalone review as the primary surface, with the transport
+clarification above. Host catalogue
 placement, connector rollout and the per-fact model/review authority map still
 need their integration acceptance.
 The browser integration owner is still completing device/user acceptance; do not

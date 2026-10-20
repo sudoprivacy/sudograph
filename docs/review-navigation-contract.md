@@ -98,7 +98,7 @@ However, it does not by itself satisfy acceptance of a shared execution browser.
 The Sudograph integration adapter is still undeployed; its source registry,
 scan bridge and native renderer can progress independently of release delivery.
 
-At the 2026-10-20 11:20 CST checkpoint, browser feature
+At the 2026-10-20 11:36 CST checkpoint, browser feature
 [SudoWork #1275](https://github.com/sudoprivacy/sudowork/pull/1275) and cloud worker
 [Moss #413](https://github.com/sudoprivacy/moss/pull/413) were merged. Release
 [SudoWork #1276](https://github.com/sudoprivacy/sudowork/pull/1276) remained open.
@@ -108,6 +108,13 @@ Those candidate SPA tests used the then-production cloud worker; they do not
 prove the accepted app/worker release is installed or deployed. Physical-phone
 handoff remains open. Sudograph still needs text-selection, comments, clipboard
 and canvas latency acceptance on the actual viewer.
+
+The upstream owner subsequently clarified that cloud extension and CDP paths
+both have real-browser evidence. The failed extra Desktop managed-extension
+probe does not invalidate the Desktop separate Chrome/CDP window or personal
+Chrome extension path. Moss app version 0.1.76 was reported deployed; switching
+the browser worker to the accepted SDK still awaited an idle window because
+other users had active sessions. Preserve that distinction from app deployment.
 
 See the [harness audit](harness-determinism-audit.md) for the code/input boundary
 and [source integration contract](source-connection-and-scan-contract.md) for
