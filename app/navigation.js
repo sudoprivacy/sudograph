@@ -8,19 +8,20 @@ function navigationSnapshot() {
   const values=JSON.parse(JSON.stringify(Object.fromEntries(keys.map(k=>[k,state[k]]))));
   return {values,schemaExpanded:[...state.schemaExpanded],expanded:[...state.expanded],
     graphPages:[...graphPages],graphFields:[...graphFields],catalogueExpanded:[...state.catalogueExpanded],
-    camera:cy?{zoom:cy.zoom(),pan:{...cy.pan()}}:null,scroll:$('panel').scrollTop};
+    camera:cy?{zoom:cy.zoom(),pan:{...cy.pan()}}:null,scroll:$('panel').scrollTop,
+    sidebarScroll:$('detailsSidebar').scrollTop};
 }
 function navigationSignature(snapshot) {
-  const {camera,scroll,...identity}=snapshot;return JSON.stringify(identity);
+  const {camera,scroll,sidebarScroll,...identity}=snapshot;return JSON.stringify(identity);
 }
 function navigationBegin() {
-  if(navigationRestoring||navigationPending)return;
+  if(navigationRestoring||navigationPending||state.touring)return;
   const before=navigationSnapshot();navigationPending=before;
   // A native event may checkpoint microtasks between capture and target handlers.
   // Commit in the next task, after the target has changed the reader state.
   setTimeout(()=>{
     navigationPending=null;
-    if(navigationRestoring||navigationSignature(before)===navigationSignature(navigationSnapshot()))return;
+    if(navigationRestoring||state.touring||navigationSignature(before)===navigationSignature(navigationSnapshot()))return;
     navigationHistory.push(before);if(navigationHistory.length>50)navigationHistory.shift();
     $('navBack').disabled=false;
   },0);
@@ -29,6 +30,10 @@ async function navigationBack() {
   if(!navigationHistory.length||navigationRestoring)return;
   navigationRestoring=true;const previous=navigationHistory.pop();
   try {
+    await restoreNavigation(previous);
+  } finally {navigationRestoring=false;$('navBack').disabled=!navigationHistory.length;}
+}
+async function restoreNavigation(previous) {
     for(const key of ['recordArgs','sourceRecordArgs','relation'])if(!(key in previous.values))delete state[key];
     Object.assign(state,previous.values);
     state.schemaExpanded=new Set(previous.schemaExpanded);state.expanded=new Set(previous.expanded);
@@ -42,8 +47,8 @@ async function navigationBack() {
     for(const select of document.querySelectorAll('select[data-axis]'))select.value=state.at[select.dataset.axis]||'';
     await draw();
     if(previous.camera&&cy){cy.zoom(previous.camera.zoom);cy.pan(previous.camera.pan);}
-    requestAnimationFrame(()=>{$('panel').scrollTop=previous.scroll;anchors.report();});
-  } finally {navigationRestoring=false;$('navBack').disabled=!navigationHistory.length;}
+    requestAnimationFrame(()=>{$('panel').scrollTop=previous.scroll;
+      $('detailsSidebar').scrollTop=previous.sidebarScroll||0;anchors.report();});
 }
 $('navBack').onclick=navigationBack;
 document.addEventListener('click',event=>{

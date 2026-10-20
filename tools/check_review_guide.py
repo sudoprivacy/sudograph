@@ -1,4 +1,4 @@
-"""Read-only browser acceptance for derived review navigation and the quick tour."""
+"""Exercise the real anchored three-phase walkthrough without posting comments."""
 
 from __future__ import annotations
 
@@ -7,10 +7,28 @@ import asyncio
 import json
 from pathlib import Path
 
+GEOMETRY = """(()=>{
+  const target=readerTour.instance.getActiveElement(),popup=document.getElementById('readerGuide');
+  const a=target.getBoundingClientRect(),b=popup.getBoundingClientRect();
+  let visible=a.bottom>0&&a.top<innerHeight;
+  for(let parent=target.parentElement;parent;parent=parent.parentElement){
+    if(/auto|scroll|hidden|clip/.test(getComputedStyle(parent).overflowY)){
+      const r=parent.getBoundingClientRect(),middle=(a.top+a.bottom)/2;
+      visible&&=middle>=r.top&&middle<=r.bottom;
+    }
+  }
+  return {step:popup.dataset.step,phase:readerTour.steps[readerTour.index].phase,
+    target_visible:a.width>0&&a.height>0&&visible,
+    popup_inside:b.left>=-1&&b.top>=-1&&b.right<=innerWidth+1&&b.bottom<=innerHeight+1,
+    separate:b.right<=a.left+1||b.left>=a.right-1||b.bottom<=a.top+1||b.top>=a.bottom-1,
+    x:b.x,y:b.y,width:b.width,height:b.height};
+})()"""
+
 
 async def check(port, url, output):
-    from ai_dev_browser.core import (  # noqa: PLC0415 — optional live dependency
+    from ai_dev_browser.core import (  # noqa: PLC0415 — optional browser dependency
         click_by_html_id,
+        click_by_xpath,
         connect_browser,
         get_active_tab,
         js_evaluate,
@@ -25,67 +43,84 @@ async def check(port, url, output):
     async def js(expression):
         return (await js_evaluate(tab, expression))['result']
 
-    async def ready():
+    async def until(expression):
         for _ in range(200):
-            if await js("typeof cy!=='undefined'&&!!cy&&"
-                        "document.querySelector('.canvas-label')!==null"):
+            if await js(expression):
                 return
             await asyncio.sleep(.1)
-        raise AssertionError('reader did not become ready')
+        raise AssertionError('reader state not ready: ' + expression)
+
+    async def tour_ready():
+        await until("readerTour.active&&!readerTour.busy&&!!document.getElementById('readerGuide')")
 
     await window_set(tab, width=1440, height=1000)
     await page_goto(tab, url)
-    await ready()
-    assert not await js("$('readerGuide').open"), 'manual policy must not interrupt initial review'
-    facts = ("JSON.stringify([BUNDLE.source_schema,BUNDLE.business.definitions,"
-             "state.projection,drawSeq])")
+    await until("typeof cy!=='undefined'&&!!cy&&!!document.querySelector('.canvas-label')")
+    assert await js("!readerTour.active&&!document.getElementById('guideRemember')")
+    facts = "JSON.stringify([BUNDLE.source_schema,BUNDLE.business?.definitions])"
     baseline = await js(facts)
-    derived = await js("BUNDLE.business.navigation.mode==='derived'&&"
-                       "!('views' in BUNDLE.business.document)")
-    assert derived, 'this acceptance requires definitions without authored view lists'
-    assert await js("state.projection===BUNDLE.business.navigation.default")
-    await click_by_html_id(tab, 'catalogueBtn')
-    assert await js("$('panel').textContent.includes(t("
-                    "'正在核对什么问题？从视图进入，沿引用查看依据，再评论矫正。'))")
+    before = await js("JSON.stringify(navigationSnapshot().values)")
+    history = await js('navigationHistory.length')
     await click_by_html_id(tab, 'guideBtn')
-    assert await js("$('readerGuide').open&&$('guideTitle').textContent===t('从核对问题开始')")
-    await page_screenshot(tab, path=str(output / 'guide-desktop.png'))
-    await click_by_html_id(tab, 'guideNext')
-    await click_by_html_id(tab, 'guideBack')
-    assert await js("guideIndex===0")
-    await click_by_html_id(tab, 'guideRemember')
-    await click_by_html_id(tab, 'guideSkip')
-    assert await js("!$('readerGuide').open&&guidePreference()==='dismissed'")
-    await click_by_html_id(tab, 'guideBtn')
-    assert await js("$('readerGuide').open"), 'dismissal must not prevent deliberate replay'
-    for _ in range(4):
+    await tour_ready()
+    cases = []
+    count = await js('readerTour.steps.length')
+    for index in range(count):
+        await tour_ready()
+        geometry = await js(GEOMETRY)
+        assert all(geometry[k] for k in ('target_visible', 'popup_inside', 'separate')), geometry
+        cases.append(geometry)
+        if geometry['step'] in {'field', 'definition', 'agent-context'}:
+            await page_screenshot(tab, path=str(output / (geometry['step'] + '-desktop.png')))
+        if geometry['step'] == 'records':
+            assert await js("state.panel==='source_records'&&"
+                            "document.querySelectorAll('[data-source-record]').length>0")
+        if index == 1:
+            await click_by_html_id(tab, 'guideBack')
+            await tour_ready()
+            assert await js('readerTour.index===0')
+            await click_by_html_id(tab, 'guideNext')
+            await tour_ready()
         await click_by_html_id(tab, 'guideNext')
-    assert not await js("$('readerGuide').open")
+    await until('!readerTour.active&&!state.touring')
     assert baseline == await js(facts)
-    await js("$('language').value='en';$('language').dispatchEvent(new Event('change'))")
-    await ready()
+    assert before == await js("JSON.stringify(navigationSnapshot().values)")
+    assert history == await js('navigationHistory.length')
+    seq = await js('drawSeq')
+    await js("(()=>{for(let i=0;i<10;i++){cy.panBy({x:1,y:1});cy.zoom(cy.zoom()*1.001)}})()")
+    assert seq == await js('drawSeq')
+    await js("document.getElementById('language').value='en';"
+             "document.getElementById('language').dispatchEvent(new Event('change'))")
+    await until("!!cy&&!!document.querySelector('.canvas-label')")
     await click_by_html_id(tab, 'guideBtn')
-    assert await js("$('guideTitle').textContent==='Start with the review question'")
-    await click_by_html_id(tab, 'guideSkip')
+    await tour_ready()
+    assert await js("document.querySelector('#readerGuide .driver-popover-title')"
+                    ".textContent.includes('Phase 1')")
+    await click_by_xpath(tab, "//*[@data-tour-phase='3']")
+    await tour_ready()
+    assert await js('readerTour.steps[readerTour.index].phase===3')
+    await click_by_html_id(tab, 'guideClose')
+    await until('!readerTour.active&&!state.touring')
     await window_set(tab, width=390, height=844)
     await click_by_html_id(tab, 'guideBtn')
-    assert await js("(()=>{const r=$('readerGuide').getBoundingClientRect();"
-                    "return r.left>=0&&r.right<=innerWidth&&"
-                    "r.top>=0&&r.bottom<=innerHeight})()")
-    await page_screenshot(tab, path=str(output / 'guide-mobile.png'))
-    await click_by_html_id(tab, 'guideSkip')
-    assert await js("document.documentElement.scrollWidth<=innerWidth")
-    receipt = {
-        'derived_views_without_authored_lists': derived,
-        'manual_default_does_not_interrupt': True,
-        'business_and_catalogue_question_hints': True,
-        'dismissal_and_replay': True,
-        'tour_source_facts_navigation_and_canvas_draws_unchanged': True,
-        'english_and_chinese': True,
-        'mobile_width': 390,
-        'real_phone_hardware': False,
-        'comments_mutated': False,
-    }
+    await tour_ready()
+    mobile = []
+    for _ in range(await js('readerTour.steps.length')):
+        await tour_ready()
+        geometry = await js(GEOMETRY)
+        assert all(geometry[k] for k in ('target_visible', 'popup_inside', 'separate')), geometry
+        mobile.append(geometry)
+        if geometry['step'] in {'coverage', 'records', 'definition', 'agent-context'}:
+            await page_screenshot(tab, path=str(output / (geometry['step'] + '-mobile.png')))
+        await click_by_html_id(tab, 'guideNext')
+    await until('!readerTour.active&&!state.touring')
+    assert baseline == await js(facts)
+    receipt = {'status': 'passed', 'phases': sorted({c['phase'] for c in cases}),
+               'steps': cases, 'manual_only_no_dismissal_preference': True,
+               'real_field_and_record_navigation': True, 'phase_jump_back_and_exit': True,
+               'facts_and_history_unchanged': True, 'selection_restored': True,
+               'inactive_pan_zoom_redraws': 0, 'mobile': mobile,
+               'physical_phone_hardware': False, 'comments_sent': 0}
     (output / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf8')
     return receipt
 

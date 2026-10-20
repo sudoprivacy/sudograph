@@ -98,23 +98,13 @@ However, it does not by itself satisfy acceptance of a shared execution browser.
 The Sudograph integration adapter is still undeployed; its source registry,
 scan bridge and native renderer can progress independently of release delivery.
 
-At the 2026-10-20 11:36 CST checkpoint, browser feature
-[SudoWork #1275](https://github.com/sudoprivacy/sudowork/pull/1275) and cloud worker
-[Moss #413](https://github.com/sudoprivacy/moss/pull/413) were merged. Release
-[SudoWork #1276](https://github.com/sudoprivacy/sudowork/pull/1276) remained open.
-Its candidate receipt reports independent viewer, real model readback, Unicode
-input, browser restart/login persistence, Stop/Return and touch-viewport checks.
-Those candidate SPA tests used the then-production cloud worker; they do not
-prove the accepted app/worker release is installed or deployed. Physical-phone
-handoff remains open. Sudograph still needs text-selection, comments, clipboard
-and canvas latency acceptance on the actual viewer.
-
-The upstream owner subsequently clarified that cloud extension and CDP paths
-both have real-browser evidence. The failed extra Desktop managed-extension
-probe does not invalidate the Desktop separate Chrome/CDP window or personal
-Chrome extension path. Moss app version 0.1.76 was reported deployed; switching
-the browser worker to the accepted SDK still awaited an idle window because
-other users had active sessions. Preserve that distinction from app deployment.
+The [bound-session and event contract](review-session-events.md) specifies
+task/browser association, notification delivery and a business workflow without
+extra handoff buttons. The browser still enforces input exclusion and operation
+epochs. Actual viewer selection, exact comments, clipboard and latency must be
+accepted using the review graph; source-reading tests do not establish them.
+Deployment receipts belong in acceptance records, not a running local-session
+log inside this design.
 
 See the [harness audit](harness-determinism-audit.md) for the code/input boundary
 and [source integration contract](source-connection-and-scan-contract.md) for

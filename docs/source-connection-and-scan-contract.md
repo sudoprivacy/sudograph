@@ -29,13 +29,15 @@ contract; a cloud worker must not accidentally scan a desktop-only SQLite path.
 Remote SQLite needs an authorised file/snapshot transfer or a local execution
 worker, not a reinterpretation of a remote path as a local file.
 
-The cloud plan places the frontend on a separate VM, uses central
-`nexusd-cluster` for control, and runs `nexusd-cohost` with scode in each user's
-execution pod. The worker runs in the authorised execution location or reaches
-it through an existing service route. It receives scoped source/access handles;
-the WebUI VM is not implicitly the database or Nexus endpoint. Actual network
-reachability, tenant isolation and execution routing are integration acceptance
-items, not established by this topology description.
+The frontend, Nexus control plane and execution worker may be on different
+hosts. Do not assume that each user pod runs its own `nexusd-cluster` or cohost.
+The inspected Moss Kubernetes backend requires an external Nexus daemon and
+has it supervise `kubectl exec` into the scode runtime. Its runtime image alone
+does not establish a pod-local Nexus service. Resolve the actual registered
+endpoint and capabilities; cohost is a supported hosting mode, not a topology
+to infer from a pod name. The worker receives scoped source/access handles and
+runs where the source is reachable. Network routing, tenant isolation and the
+deployed configuration still need environment-specific acceptance.
 
 The host adapter routes source registration/access into the existing projection
 and managed compiler, returns coverage/revision/recovery, launches the native
@@ -70,6 +72,34 @@ Compare providers against that receipt, not just the number of source types or
 an asset-list length. Reuse provider transport and registration while preserving
 the stronger existing SQLite projection path. A later consolidation is welcome
 only after equivalent evidence and no capability regression.
+
+## One scanner authority, reusable providers
+
+The consolidation target is one high-level scanner/coordinator owned by
+Sudograph, combining the stronger complete-projection contract with the host's
+existing provider diversity. Sudowork retains connection UX, registration,
+credential resolution and low-level database/provider transport. These are not
+two competing catalogues or independent claims of complete coverage.
+
+Extract useful introspection primitives from `scanConnectorAssets` behind a
+typed provider interface: capabilities, exhausted object enumeration, metadata,
+keys/SQL, a consistent observation token and record paging. The coordinator
+builds one canonical catalogue, coverage receipt and checked projection YAML.
+Assets/previews in the host are projections of that same result. Once a provider
+passes equivalence acceptance, replace its old high-level scanner with a thin
+adapter to the coordinator rather than maintaining two scanning algorithms.
+
+Keep the complete SQLite implementation as the reference during migration.
+Port PostgreSQL and MySQL through the existing transports and prove their
+coverage before removing old paths. Oracle, SQL Server and nonrelational
+providers retain their own declared capability/scope boundaries; supporting a
+connection type does not prove complete relational projection. Language and
+process boundaries do not justify duplicating the coverage algorithm. Batch
+provider calls and keep credentials inside the authorised execution location.
+
+The target is complete coverage of the declared, authorised source contract.
+Exhaustion, unsupported facts, failures and out-of-scope object kinds must be
+explicit. A capped asset list cannot become complete by changing its label.
 
 Connection status is `unconfigured`, `probing`, `connected`, `unreachable`,
 `unauthorised` or `unsupported`. It proves reachability and observed operations at

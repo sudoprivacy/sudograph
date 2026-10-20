@@ -9,6 +9,12 @@ clients target GitLab, the source gateway or Nexus; browser acceptance tools
 control a real browser. This is a source audit, not a claim about every external
 host, every plugin or every future deployment.
 
+This is not an inventory of all text supplied to a model. The separate
+[prompt guidance inventory](prompt-guidance-inventory.md) lists six compiled
+guidance units, failure-time recovery, development AGENTS instructions and the
+old Sudowork builder's initial workflow task. The latter contains a real step
+sequence and must not become the integration's enforcement mechanism.
+
 | Responsibility | Enforcement or input | Decision |
 | --- | --- | --- |
 | Source discovery, SQL definitions, keys, fields and record projection | `catalog`, `project`, `source_schema`, `bind` and `browse` | Deterministic. The complete scanner currently targets SQLite; PostgreSQL/MySQL completeness is separate work. |
@@ -59,20 +65,16 @@ context. See the [navigation contract](review-navigation-contract.md).
 
 The local SudoAPI implementation uses Driver.js with role-specific steps,
 versioned per-user preferences, replay and a restricted admin-only auto-start.
-Sudograph reuses the interaction principles with a small native dialog; it does
-not import Vue, Pinia or a tour dependency into the standalone reader.
+Sudograph now uses the same pinned Driver.js library for an anchored,
+action-based walkthrough. It navigates actual coverage, fields, records,
+business definitions and agent-context/evaluation surfaces. The
+[walkthrough design](reader-walkthrough.md) distinguishes those implemented
+actions from the still-unbound workbench conversation.
 
-`app/reader-policy.json` is operator-controlled build configuration:
-`tutorial: manual` is the default, `first-visit` offers the guide once per source
-project/browser/version, and `off` disables it. This input participates in full
-export regeneration checks. Skipping or finishing marks it seen; a checkbox
-disables future automatic display. **Quick tour** always allows deliberate
-replay unless the operator disables it. Storage failure never prevents reading.
-Standalone `?guide=start` deliberately replays it, while `?guide=off` suppresses
-auto-start; neither overrides operator `off` or changes permissions. A hosting
-iframe must explicitly forward a query option; the outer ShareOne URL does not
-automatically forward it.
-
-The guide has no canvas listeners, recurring polling or automatic navigation.
-It does not modify definitions, records, comments, camera state or authorization.
-It explains business questions, source fields, real records and the review loop.
+The checked operator policy accepts `tutorial: manual` or `off`. First-visit
+auto-start, browser preferences and the dismissal checkbox have been removed.
+An explicit standalone `?guide=start` replays the tour; the outer ShareOne URL
+does not automatically forward it into its iframe. Actual steps can change the
+view and camera, then exit restores the prior state. They never change facts,
+post comments or grant access. No inactive movement listeners, recurring polling
+or model calls are added.

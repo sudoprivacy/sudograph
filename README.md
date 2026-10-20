@@ -697,9 +697,14 @@ contract; a no-context author cannot omit origins by taking another render path.
 With `views` omitted, the compiler derives one selection per business subject
 and optional unresolved-question selections from typed dependencies. View IDs
 and the initial selection do not depend on YAML ordering. Custom view lists are
-optional. The reader's **Quick tour** explains the review path; its checked
-operator policy defaults to manual opening and supports first-visit or disabled
-mode in [app/reader-policy.json](app/reader-policy.json).
+optional. The reader's manual **Quick tour**
+[walkthrough](docs/reader-walkthrough.md) opens real controls across the
+three phases and restores the reviewer state on exit. Operators can disable it
+in [app/reader-policy.json](app/reader-policy.json); it has no first-visit or
+dismissal preference. **Agent context** previews the existing context compiler's
+output and explicitly reports an unbound workbench session. See the separate
+[prompt guidance inventory](docs/prompt-guidance-inventory.md) and
+[bound review/notification contract](docs/review-session-events.md).
 These structural checks do not approve an interpretation or authenticate a
 document's author. See the pilot guide for registry ownership and current limits.
 Source projections and overlays automatically carry source-catalogue evaluation

@@ -8,9 +8,9 @@ capabilities; they do not establish a working Sudowork adapter.
 The [navigation and responsibility contract](review-navigation-contract.md)
 defines what fresh source projects generate, what business authors still decide,
 and which integration work is independent of browser release completion.
-The latest 2026-10-20 browser dependency checkpoint is recorded there; older
-release evidence below is historical, not a claim that all candidate changes
-have reached production.
+The [bound-session and event contract](review-session-events.md) specifies
+conversation binding, notification delivery and browser acceptance. Local
+session identities and per-turn progress do not belong in this design.
 
 The first integration must preserve **100% of existing Sudograph capabilities
 and human/agent workflows**. Sudograph deliberately developed part of the
@@ -116,8 +116,9 @@ model revision into the native reader and existing prompt builder; canonical
 target IDs back into host navigation. It does not create a second ontology,
 renderer, credential store or editable RDF representation.
 
-The cloud design separates the frontend VM, central `nexusd-cluster` control
-plane and per-user execution pod with `nexusd-cohost`/scode. Place the worker
+The deployment separates the frontend, Nexus control plane and execution worker.
+Do not assume a cluster/cohost inside each user pod. The inspected Moss K8s
+backend requires external Nexus and supervises pod scode through it. Place the worker
 where the authorised source is reachable and route through existing services.
 Never interpret a pod or desktop SQLite path on the WebUI VM. Network routing,
 tenant isolation and the deployed adapter still require end-to-end acceptance.
@@ -133,29 +134,23 @@ tenant isolation and the deployed adapter still require end-to-end acceptance.
 
 A native local tab opening the review URL renders the page locally. A new tab
 opening the authenticated browser viewer displays the execution browser remotely.
-They are different experiences even when both use a browser tab. The 2026-10-20
-clarification makes the independent viewer the WebUI execution-browser route;
-the earlier native-URL recommendation did not establish alignment on this
-transport choice. Selection, comments, clipboard and latency must be accepted
+They are different experiences even when both use a browser tab. The independent
+viewer is the WebUI execution-browser route. Selection, comments, clipboard and latency must be accepted
 on the actual viewer, not inferred from a local URL test.
-
-The 2026-10-19 upstream session reports that the owner's phone screenshot passed
-the model-selection/message path. Recent source commits address mobile tasks,
-selected-model binding and model-catalogue readiness. That is a narrower result
-than acceptance of browser takeover, native comments, clipboard or latency. Keep
-those acceptance items open; unrelated gateway repair is not proof they passed.
-At the 17:18 CST session checkpoint, the upstream agent also reported two real WebUI
-conversations, restored history and reconciled model usage/billing. That closes
-that request path in its report, not the separate browser-interaction checklist.
 
 Desktop retains a separate Chrome/CDP window and attachment to personal Chrome
 through extension. Direct review without agent control still needs no extension.
 WebUI uses the authenticated independent viewer for the same cloud execution
 browser, reusing its session/lease. It can retain both cloud extension and CDP;
 those are control transports, not a choice between current and old browser
-binaries. The 2026-10-20 11:36 CST upstream clarification scopes the failed
-additional Desktop managed-extension probe to that extra entry, not an inability
-to start WebUI browsers. Release and physical-device acceptance remain separate.
+binaries. Different transport/device combinations require separate evidence;
+accepting one does not establish every additional extension or phone path.
+
+Business review must not require extra Return to AI / Return to human buttons.
+The existing browser protocol still enforces write exclusion and operation
+epochs. Adapt that protocol to bound chat/comment/model events rather than
+placing workflow instructions in a prompt. Reuse the existing conversation
+registry and durable inbox as described in the session/event contract.
 
 Do not automatically publish customer data to a public service merely to open
 a large view. Use an authorised review deployment or an explicitly permitted

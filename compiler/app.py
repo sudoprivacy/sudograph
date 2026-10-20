@@ -141,6 +141,7 @@ VENDOR = [
     os.path.join(_ROOT, "app", "vendor", "layout-base.js"),
     os.path.join(_ROOT, "app", "vendor", "cose-base.js"),
     os.path.join(_ROOT, "app", "vendor", "cytoscape-fcose.js"),
+    os.path.join(_ROOT, "app", "vendor", "driver.js"),
 ]
 
 
@@ -154,8 +155,9 @@ def reader_policy() -> dict[str, str]:
     with open(os.path.join(_ROOT, 'app', 'reader-policy.json'), encoding='utf8') as fh:
         policy = json.load(fh)
     if (not isinstance(policy, dict) or set(policy) != {'tutorial'}
-            or policy['tutorial'] not in {'manual', 'first-visit', 'off'}):
-        raise ValueError('reader-policy.json: tutorial must be manual, first-visit or off')
+            or policy['tutorial'] not in {'manual', 'off'}):
+        raise ValueError('reader-policy.json: tutorial must be manual or off; '
+                         'auto-start was removed')
     return policy
 
 
@@ -181,8 +183,16 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
         raise ValueError(f"unknown UI language {language!r}; available: {languages()}")
     catalogs['zh'] = {k: k for k in sorted(keys)}
     messages = catalogs.get(language, catalogs['zh'])
+    context_preview = None
+    if b.get('source_schema'):
+        from .context import Reader  # noqa: PLC0415 — one model-to-agent compiler
+
+        packet = Reader(b).pack()
+        context_preview = {key: value for key, value in packet.items()
+                           if key not in {'text', 'sudocode'}}
     b = {**b, 'ui': {'language': language, 'messages': messages, 'catalogs': catalogs,
                     'reader_policy': reader_policy(),
+                    'agent_context': context_preview,
                     'subgraph_contract': subgraph_select.contract()}}
     with open(template_path, encoding="utf-8") as fh:
         html = fh.read()
@@ -193,10 +203,13 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
                              ('/*__CATALOGUE__*/', 'catalogue.js'),
                              ('/*__BUSINESS__*/', 'business.js'),
                              ('/*__COMMENTS__*/', 'comments.js'),
+                             ('/*__AGENT_CONTEXT__*/', 'agent-context.js'),
                              ('/*__NAVIGATION__*/', 'navigation.js')]:
         with open(os.path.join(_ROOT, 'app', filename), encoding='utf-8') as fh:
             html = html.replace(marker, fh.read())
     html = html.replace('/*__GUIDE__*/', Path(_ROOT, 'app', 'guide.js').read_text(encoding='utf8'))
+    html = html.replace('/*__GUIDE_STYLE__*/',
+                        Path(_ROOT, 'app', 'vendor', 'driver.css').read_text(encoding='utf8'))
     used = set(re.findall(r"\bt\(['\"]([^'\"]+)['\"]", html))
     used.update(re.findall(r'data-ui="([^"]+)"', html))
     if used - keys:

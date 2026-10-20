@@ -2,8 +2,8 @@
   "status": "unreviewed-business-pilot",
   "language": "en",
   "artifact": "index.html",
-  "artifact_bytes": 11840784,
-  "artifact_sha256": "b6d87962550a1bddb27e585272bfa1e245add87a6bbe5449dd21cf278207b786",
+  "artifact_bytes": 11993398,
+  "artifact_sha256": "d3d298f14c4143018c7b2d15a5562fa7aea9b93388d671cac97b6dc8b39c7e48",
   "overlay": "pilot.yaml",
   "overlay_sha256": "438113aeb0fb00358e6ca122bea0ef6e7064036be4c0f90aefe3f37d040a7964",
   "registry": "pilot.registry.json",
@@ -19,8 +19,8 @@
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
     "artifact": "review.html",
-    "bytes": 11839283,
-    "sha256": "8c47d624845f9948da81663883ca6c29383a9d413a799063f5998f2d09804ef8",
+    "bytes": 11991631,
+    "sha256": "2fdedcd61dd269de274e617e16b0a70ddb04d53c5e596c95e776443a06ac0c14",
     "language": "zh"
   },
   "contributors": {
@@ -37,7 +37,7 @@
     "unconfirmed_source_question": "--hook"
   },
   "validation": {
-    "tests_passed": 356,
+    "tests_passed": 357,
     "browser_tool": "ai-dev-browser",
     "source_field_to_real_records": true,
     "source_node_references_shared_in_renderer": true,
@@ -105,9 +105,20 @@
     "authored_view_lists_required": false,
     "guide_manual_default": true,
     "guide_bilingual_and_mobile_verified": true,
-    "guide_canvas_draws": 0,
-    "guide_operator_policy_modes_verified": true,
-    "production_derived_views_and_guide_verified": true
+    "anchored_walkthrough_phases": [
+      1,
+      2,
+      3
+    ],
+    "walkthrough_uses_existing_canonical_objects": true,
+    "walkthrough_desktop_and_mobile_steps_verified": 12,
+    "walkthrough_source_only_fixture_verified": true,
+    "walkthrough_restores_navigation_and_selection": true,
+    "walkthrough_manual_or_off_only": true,
+    "walkthrough_has_no_dismissal_preference": true,
+    "context_preview_matches_compiler_reader_pack": true,
+    "inactive_walkthrough_pan_zoom_redraws": 0,
+    "live_agent_qa_in_review_page": false
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
   "publication": "publication.json",

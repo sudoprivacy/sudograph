@@ -5,7 +5,7 @@ import copy
 import pytest
 from test_business import base as business_fixture
 
-from compiler import business
+from compiler import app, business, html_export
 from compiler.context import Reader
 
 
@@ -39,6 +39,18 @@ def test_exact_knowledge_uses_existing_identities_and_keeps_proposal_state(reade
     assert pack["sudocode"]["_meta"]["sudocode"]["appendSystemPrompt"] == pack["text"]
     assert r.model["source_schema"] == baseline["source_schema"]
     assert r.read("catalog")["business_views"] == r.model["business"]["views"]
+
+
+def test_reader_preview_uses_the_same_context_compiler_without_record_preload(reader, tmp_path):
+    r, _, _ = reader
+    path = tmp_path / 'reader.html'
+    path.write_text(app.render(r.model), encoding='utf8')
+    preview = html_export.model(path)['ui']['agent_context']
+    packet = r.pack()
+    assert preview == {k: v for k, v in packet.items() if k not in {'text', 'sudocode'}}
+    assert preview['inventory']['record_rows_preloaded'] == 0
+    assert 'unreviewed' in next(b['text'] for b in preview['blocks']
+                                if b['id'] == 'business_definitions')
 
 
 def test_lookup_follows_both_forward_references_and_attached_rules(reader):

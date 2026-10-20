@@ -380,6 +380,7 @@ async function drawCanvas(v, shown, edges, mine) {
   else if(state.panel==='measure') showMeasurements(v);
   else if(state.panel==='coverage') showCoverage();
   else if(state.panel==='challenge') showChallenge();
+  else if(state.panel==='agent_context')showAgentContext();
   else if(state.panel==='records') showRecords(...state.recordArgs);
   else if(state.panel==='source_records')showSourceRecords(...state.sourceRecordArgs);
   else if(state.panel==='schema_relation')showSchemaRelation(state.relation);

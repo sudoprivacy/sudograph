@@ -48,10 +48,13 @@ Canonical ordering chooses the initial business subject; YAML entry order does
 not. Optional custom selections are still supported for other projects. See the
 [navigation contract](../../../docs/review-navigation-contract.md).
 
-The shared **Quick tour** is optional and starts manually by default. Operators
-can select first-visit or disabled mode in the checked reader policy. It explains
-review questions, source fields, real records and comments without moving the
-canvas, editing the model or adding pan/zoom listeners.
+The shared **Quick tour** starts manually and navigates real fields, records,
+business definitions and the stage-three context/evaluation surfaces. Popovers
+follow their targets; exiting restores the prior selection and camera. There is
+no first-visit preference or dismissal checkbox. The tour sends no comments and
+edits no facts. Its inactive state has no canvas movement listeners. The
+**Agent context** panel previews the existing context compiler; it does not
+pretend this static page is connected to a live workbench agent.
 
 **Green reuses the phase-one source colour. Orange marks unconfirmed source
 questions or business proposals, in their respective views. Grey reuses the

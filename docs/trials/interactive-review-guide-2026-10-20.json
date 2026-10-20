@@ -1,0 +1,540 @@
+{
+  "status": "local-acceptance-passed-publication-pending",
+  "implementation": "shared compiler and renderer; generated examples only",
+  "browser_library": {
+    "name": "Driver.js",
+    "version": "1.4.0",
+    "source": "same pinned distribution used by SudoAPI"
+  },
+  "manual_html_edits": false,
+  "walkthrough": {
+    "status": "passed",
+    "phases": [
+      1,
+      2,
+      3
+    ],
+    "steps": [
+      {
+        "step": "coverage",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 178.234375,
+        "width": 360,
+        "height": 253.78125
+      },
+      {
+        "step": "catalogue",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 163.953125,
+        "y": 551.421875,
+        "width": 360,
+        "height": 229.28125
+      },
+      {
+        "step": "field",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 319.765625,
+        "width": 360,
+        "height": 253.78125
+      },
+      {
+        "step": "records",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 323,
+        "y": 403.671875,
+        "width": 360,
+        "height": 229.28125
+      },
+      {
+        "step": "source-question",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 213,
+        "y": 264.421875,
+        "width": 360,
+        "height": 229.28125
+      },
+      {
+        "step": "business-view",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 323,
+        "y": 516.40625,
+        "width": 360,
+        "height": 253.78125
+      },
+      {
+        "step": "definition",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 174,
+        "y": 239.375,
+        "width": 360,
+        "height": 229.28125
+      },
+      {
+        "step": "business-question",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 200,
+        "y": 239.375,
+        "width": 360,
+        "height": 253.78125
+      },
+      {
+        "step": "comment",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 200,
+        "y": 239.375,
+        "width": 360,
+        "height": 253.78125
+      },
+      {
+        "step": "agent-context",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 184.78125,
+        "width": 360,
+        "height": 279.28125
+      },
+      {
+        "step": "agent-entry",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 271.203125,
+        "width": 360,
+        "height": 253.78125
+      },
+      {
+        "step": "evaluation",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 323,
+        "y": 153.1875,
+        "width": 360,
+        "height": 253.78125
+      }
+    ],
+    "manual_only_no_dismissal_preference": true,
+    "real_field_and_record_navigation": true,
+    "phase_jump_back_and_exit": true,
+    "facts_and_history_unchanged": true,
+    "selection_restored": true,
+    "inactive_pan_zoom_redraws": 0,
+    "mobile": [
+      {
+        "step": "coverage",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 179.875,
+        "width": 360,
+        "height": 279.28125
+      },
+      {
+        "step": "catalogue",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 20,
+        "y": 217.203125,
+        "width": 360,
+        "height": 278.28125
+      },
+      {
+        "step": "field",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 289.234375,
+        "width": 360,
+        "height": 278.28125
+      },
+      {
+        "step": "records",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 285.6875,
+        "width": 360,
+        "height": 278.28125
+      },
+      {
+        "step": "source-question",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 212.609375,
+        "width": 360,
+        "height": 303.78125
+      },
+      {
+        "step": "business-view",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 196.59375,
+        "width": 360,
+        "height": 303.78125
+      },
+      {
+        "step": "definition",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 202.5625,
+        "width": 360,
+        "height": 303.78125
+      },
+      {
+        "step": "business-question",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 228.0625,
+        "width": 360,
+        "height": 278.28125
+      },
+      {
+        "step": "comment",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 228.0625,
+        "width": 360,
+        "height": 278.28125
+      },
+      {
+        "step": "agent-context",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 190.96875,
+        "width": 360,
+        "height": 303.78125
+      },
+      {
+        "step": "agent-entry",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 180.53125,
+        "width": 360,
+        "height": 303.78125
+      },
+      {
+        "step": "evaluation",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 146.875,
+        "width": 360,
+        "height": 328.28125
+      }
+    ],
+    "physical_phone_hardware": false,
+    "comments_sent": 0
+  },
+  "unrelated_source_only_walkthrough": {
+    "status": "passed",
+    "phases": [
+      1,
+      2,
+      3
+    ],
+    "steps": [
+      {
+        "step": "coverage",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 178.234375,
+        "width": 360,
+        "height": 253.78125
+      },
+      {
+        "step": "catalogue",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 152.078125,
+        "y": 640.1875,
+        "width": 360,
+        "height": 229.28125
+      },
+      {
+        "step": "field",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 319.765625,
+        "width": 360,
+        "height": 253.78125
+      },
+      {
+        "step": "records",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 349.390625,
+        "width": 360,
+        "height": 229.28125
+      },
+      {
+        "step": "business-next",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 196.78125,
+        "width": 360,
+        "height": 253.78125
+      },
+      {
+        "step": "agent-context",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 228.375,
+        "width": 360,
+        "height": 279.28125
+      },
+      {
+        "step": "agent-entry",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 314.796875,
+        "width": 360,
+        "height": 253.78125
+      },
+      {
+        "step": "evaluation",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 196.78125,
+        "width": 360,
+        "height": 253.78125
+      }
+    ],
+    "manual_only_no_dismissal_preference": true,
+    "real_field_and_record_navigation": true,
+    "phase_jump_back_and_exit": true,
+    "facts_and_history_unchanged": true,
+    "selection_restored": true,
+    "inactive_pan_zoom_redraws": 0,
+    "mobile": [
+      {
+        "step": "coverage",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 173.78125,
+        "width": 360,
+        "height": 279.28125
+      },
+      {
+        "step": "catalogue",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 20,
+        "y": 212.015625,
+        "width": 360,
+        "height": 278.28125
+      },
+      {
+        "step": "field",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 289.234375,
+        "width": 360,
+        "height": 278.28125
+      },
+      {
+        "step": "records",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 310.90625,
+        "width": 360,
+        "height": 253.78125
+      },
+      {
+        "step": "business-next",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 243.15625,
+        "width": 360,
+        "height": 303.78125
+      },
+      {
+        "step": "agent-context",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 253.75,
+        "width": 360,
+        "height": 303.78125
+      },
+      {
+        "step": "agent-entry",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 244.3125,
+        "width": 360,
+        "height": 303.78125
+      },
+      {
+        "step": "evaluation",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 218.65625,
+        "width": 360,
+        "height": 328.28125
+      }
+    ],
+    "physical_phone_hardware": false,
+    "comments_sent": 0
+  },
+  "model_preservation": {
+    "source_schema": true,
+    "records": true,
+    "views": true,
+    "coverage": true,
+    "business_definitions": true,
+    "business_document": true
+  },
+  "label_geometry": {
+    "status": "passed",
+    "cases": 8,
+    "hidden_iframe_startup": true,
+    "actual_text_and_node_rectangles_checked": true,
+    "text_intersections": 0,
+    "text_outside_nodes": 0,
+    "header_child_intersections": 0,
+    "source_and_business_facts_unchanged": true,
+    "pan_zoom_redraws": 0,
+    "comment_mutations": 0,
+    "agent_evaluation": "not_run"
+  },
+  "source_navigation": {
+    "status": "passed",
+    "catalogue_object": "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Categories",
+    "field_identity_preserved": "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Categories/field/CategoryID",
+    "subgraph_objects": 7,
+    "back_restores_root": true,
+    "search_canvas_redraws": 0,
+    "catalogue_top_level_shows_full_source": true,
+    "source_root_scope_preserved": true,
+    "single_views_and_catalogue_entry": true,
+    "mobile_width": 390,
+    "source_and_business_facts_unchanged": true,
+    "comment_mutations": 0,
+    "agent_evaluation": "not_run"
+  },
+  "live_agent_qa_in_review_page": false,
+  "workbench_adapter": "not_deployed",
+  "guidance_inventory": "../prompt-guidance-inventory.md",
+  "guidance_removed_without_review": false,
+  "new_host_notification_adapter": "design_only",
+  "physical_phone_hardware_benchmark": false,
+  "agent_evaluation": "not_run",
+  "local_verification": {
+    "command": "python -m tools.verify",
+    "gates_passed": 6,
+    "tests_passed": 357,
+    "whole_html_regeneration_checked": true,
+    "frozen_baselines_unchanged": true
+  }
+}

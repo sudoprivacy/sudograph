@@ -201,6 +201,7 @@ function showSchemaNode(n) {
   if(!field)button(state.schemaExpanded.has(obj.id)?'收起字段':'展开字段',()=>schemaActivate(obj));
   button('查看数据源',()=>revealSchema(obj.source));
   button('查看源记录',()=>showSourceRecords(obj.id,0,field?n.column:null));
+  controls.lastChild.dataset.sourceRecords='true';
   if(field&&anchors.live) {button('评论字段',()=>commentSchemaField(n));controls.lastChild.classList.add('schema-comment');}
   if(field)button('查看关联字段',async()=>{
     const related=schemaGraph().edges.filter(e=>e.from===n.id||e.to===n.id);
@@ -280,10 +281,12 @@ async function showSourceRecords(id,offset=0,column=null) {
   const back=document.createElement('button');back.textContent=t('返回字段');back.onclick=()=>select(obj);bar.appendChild(back);$('panel').appendChild(bar);
   for(const [ix,row] of rows.entries()) {
     const item=document.createElement('details'),title=document.createElement('summary');
+    item.dataset.sourceRecord=String(offset+ix);
     const key=r.keys.map(k=>row[r.columns.indexOf(k)]).join(' · ');
     title.textContent=key||'#'+(offset+ix+1);item.appendChild(title);item.open=ix===0;
     for(const [j,name] of r.columns.entries())if(!column||name===column) {
       const line=document.createElement('div');line.className='kv';
+      line.dataset.recordField=obj.fields[j].id;
       const label=document.createElement('button');label.className='schema-cell-label';label.textContent=name;
       label.onclick=()=>revealSchema(obj.fields[j].id);line.appendChild(label);
       const value=row[j],text=document.createElement('span');

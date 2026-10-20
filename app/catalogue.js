@@ -60,10 +60,10 @@ function showSourceCatalogue() {
   panel.append(search,results);
   const button=(label,id)=>{const b=document.createElement('button');b.textContent=label;b.dataset.catalogueId=id||'overview';
     b.onclick=e=>{e.preventDefault();e.stopPropagation();navigationBegin();void openSourceSubgraph(id);};return b;};
-  const expanded=(id,summary,fill)=>{
+  const expanded=(id,summary,fill,open=false)=>{
     const d=document.createElement('details'),s=document.createElement('summary');s.append(summary);d.append(s);
     let loaded=false;const load=()=>{if(!loaded){loaded=true;fill(d);}};
-    d.open=state.catalogueExpanded.has(id);if(d.open)load();
+    d.open=open||state.catalogueExpanded.has(id);if(d.open)load();
     d.ontoggle=()=>{if(d.open){state.catalogueExpanded.add(id);load();}else state.catalogueExpanded.delete(id);};return d;
   };
   function renderResults() {
@@ -98,8 +98,8 @@ function showSourceCatalogue() {
         });list.appendChild(entry);
       }
       const title=button(bt(source.label)+' ('+source.objects.length+')',source.id);
-      const group=expanded(source.id,title,d=>d.appendChild(list));
-      group.open=true;results.appendChild(group);
+      const group=expanded(source.id,title,d=>d.appendChild(list),true);
+      results.appendChild(group);
     }
     const summary=document.createElement('p');summary.className='muted';summary.textContent=t('目录对象：{shown}/{total}',{shown,total});results.appendChild(summary);
     for(const [text,offset,disabled] of [['上一页',Math.max(0,state.catalogueOffset-100),!state.catalogueOffset],

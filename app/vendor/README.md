@@ -1,6 +1,6 @@
 # Vendored, not linked
 
-Both libraries are inlined into every generated app by `compiler/app.py`.
+The libraries are inlined into every generated app by `compiler/app.py`.
 
 An audit deliverable is opened from disk, often at a client site. A CDN
 reference turns "open this file" into "open this file, on a machine with
@@ -11,7 +11,11 @@ makes no network request at load. A test holds that.
 |---|---|---|---|
 | `cytoscape.min.js` | 3.30.2 | MIT (`cytoscape.LICENSE`) | unpkg (`cytoscape`) |
 | `elk.bundled.js` | 0.9.3 | EPL-2.0 | unpkg (`elkjs`) |
+| `driver.js`, `driver.css` | 1.4.0 | MIT (`driver.LICENSE`) | [Driver.js](https://github.com/kamranahmedse/driver.js), same pinned distribution used by SudoAPI |
 
 ELK computes positions; Cytoscape renders the active graph using those positions.
 DOM labels preserve text selection and application anchors locate canvas nodes.
 Rows are paged separately instead of adding the entire database to the canvas.
+Driver.js is initialised only for an explicitly started walkthrough. Its
+temporary highlight, scroll and resize handlers are removed on exit; the
+inactive guide does not subscribe to canvas movement.

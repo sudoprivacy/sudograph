@@ -1299,14 +1299,14 @@ def test_canvas_keeps_selectable_dom_labels_and_application_anchors():
     assert "api.on('hittest'" in html and 'canvasRect(id)' in html
 
 
-def test_layout_engines_are_vendored_for_offline_use():
+def test_reader_libraries_are_vendored_for_offline_use():
     assert "new ELK()" in _html()
     assert [
         os.path.join(app_mod._ROOT, "app", "vendor", "elk.bundled.js"),
         os.path.join(app_mod._ROOT, "app", "vendor", "cytoscape.min.js"),
     ] == app_mod.VENDOR[:2]
     assert [os.path.basename(path) for path in app_mod.VENDOR[2:]] == [
-        "layout-base.js", "cose-base.js", "cytoscape-fcose.js",
+        "layout-base.js", "cose-base.js", "cytoscape-fcose.js", "driver.js",
     ]
 
 
