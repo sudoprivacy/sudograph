@@ -26,14 +26,14 @@ function sourceReviewLegend() {
     `<span><svg viewBox="0 0 24 16" aria-hidden="true" style="fill:var(--hook)"><ellipse cx="12" cy="8" rx="11" ry="7"/></svg>${t('源数据待核对')}</span>`;
 }
 const isBusiness=()=>state.projection.startsWith('business:');
+const businessViewLabel=v=>t(v.selection_kind==='questions'?'待确认问题':'业务视图')+' · '+bt(v.label);
 for(const [key,v] of Object.entries(BUNDLE.business?.views||{})) {
   const option=document.createElement('option');option.value='business:'+key;
-  option.textContent=t('业务视图')+' · '+bt(v.label);$('projection').appendChild(option);
+  option.textContent=businessViewLabel(v);$('projection').appendChild(option);
 }
 if(BUNDLE.business) {
   $('projection').querySelector('option[value="all"]').hidden=true;
-  const first=Object.keys(BUNDLE.business.views)[0];
-  state.projection=first?'business:'+first:'schema:review';$('projection').value=state.projection;
+  state.projection=BUNDLE.business.navigation.default;$('projection').value=state.projection;
 }
 function businessGraph() {
   const selected=BUNDLE.business.views[state.projection.slice('business:'.length)];
@@ -69,7 +69,7 @@ async function drawBusiness(v,mine) {
   }else state.focus=null;
   $('overviewBtn').hidden=!state.focus;
   for(const [key,vv] of Object.entries(BUNDLE.business.views))
-    $('projection').querySelector('option[value='+CSS.escape('business:'+key)+']').textContent=t('业务视图')+' · '+bt(vv.label);
+    $('projection').querySelector('option[value='+CSS.escape('business:'+key)+']').textContent=businessViewLabel(vv);
   await drawCanvas(v,shown,edges,mine);
   if(mine===drawSeq)$('status').textContent=t('业务视图')+' · '+shown.size+' '+t('节点')+' · '+t('待业务确认');
 }

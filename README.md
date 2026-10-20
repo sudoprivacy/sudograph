@@ -54,9 +54,11 @@ that understanding inspectable and reusable. **Git is the history.**
    model providers. Discovery, identities, validation, default projections,
    dependency closure, access and rendering belong in infrastructure. Business
    context is input data, not a substitute for executable enforcement.
-   Current business-view grouping still requires authored declarations; the
-   [deterministic navigation design](docs/review-navigation-contract.md)
-   identifies this implementation gap and its acceptance boundary.
+   [Default business navigation](docs/review-navigation-contract.md) derives
+   subject and unresolved-question selections from checked definitions, without
+   authored view lists. Optional custom selections remain explicit configuration.
+   The [harness audit](docs/harness-determinism-audit.md) separates executable
+   guarantees, domain inputs and outstanding deployment work.
    Improvements must survive regeneration without the previous conversation.
    Never repair only a demo HTML or add a database-specific exception to pass it.
    The shared renderer supplies reader scripts, styles and comment integration
@@ -692,6 +694,12 @@ The overlay compiler enforces declared origins, existing source references,
 verifiable evidence quotations, canonical definition identities and versions.
 Business views reuse definition references. The native renderer checks the same
 contract; a no-context author cannot omit origins by taking another render path.
+With `views` omitted, the compiler derives one selection per business subject
+and optional unresolved-question selections from typed dependencies. View IDs
+and the initial selection do not depend on YAML ordering. Custom view lists are
+optional. The reader's **Quick tour** explains the review path; its checked
+operator policy defaults to manual opening and supports first-visit or disabled
+mode in [app/reader-policy.json](app/reader-policy.json).
 These structural checks do not approve an interpretation or authenticate a
 document's author. See the pilot guide for registry ownership and current limits.
 Source projections and overlays automatically carry source-catalogue evaluation

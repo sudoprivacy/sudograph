@@ -1,153 +1,115 @@
-# Review views, source catalogue and authoring responsibility
+# Review navigation contract
 
-This describes the current implementation, not a promise that every database
-produces the four Northwind menu entries or identical business proposals.
+The catalogue answers **where is the field, and what are its original values?**
+It enumerates the delivered source schema. Its root opens the full source graph,
+a source root opens that source, and object/field selection opens a bounded
+related subgraph. Expansion, real-record drilldown and stable comment targets
+reuse the same schema. Search grants no additional access.
 
-## Why both navigation sections exist
+Review views answer **what question are we checking together?** A reviewer can
+start from a business subject, trace a reference to fields and records, then
+comment to correct its meaning. They can also start from an unfamiliar field.
+The directory lists source objects and fields; business views additionally show
+definitions and rules absent from the database. Neither route copies facts.
 
-The catalogue answers **where is this source object or field?** It enumerates
-the delivered source schema. Its root opens the full source-object graph, a
-source root opens that source, and object/field selection opens a bounded related
-subgraph. Expansion, keys, real-record drilldown and canonical comment targets
-reuse that same schema. A catalogue search is not a new model or an access grant.
+## Deterministic defaults
 
-Review views answer **which question are we reviewing together?** They preserve
-a task-focused set of business definitions and their references. A rule can be
-reused in several views by the same identity. A reviewer can start from a task,
-trace a reference to its field and records, then comment on the business meaning.
-Starting from an unfamiliar field, the reviewer can instead use the catalogue,
-inspect records and identify the relevant business question. Neither route
-requires copying a definition or source fact.
+The source compiler always supplies Data projection and the source catalogue.
+An overlay with `source_review` issues additionally supplies Projection and
+data review. These are source questions with a verification plan, not phase-two
+business definitions. Raw scanning does not invent questions or business meaning.
 
-The current directory lists source objects/fields, not the added business rules
-and meanings. It therefore cannot by itself replace business-review entry points.
-There is some navigational overlap between Data projection and the full-source
-catalogue root, especially for a single source. That is a presentation choice,
-not two authoritative models or a requirement to keep four buttons forever.
+In `compiler.business`, `views` is now optional. When absent or empty:
 
-## What a new source environment produces
+1. `compiler.review_views` selects each checked business meaning/metric as a
+   subject. Required `purpose` records its stakeholder and decision.
+2. Its subject selection includes typed business rules/issues linked to it by
+   `applies_to`, then the compiler includes all declared dependencies. Shared
+   subjects, rules and source targets retain their canonical identities.
+3. Its Questions to confirm selection includes linked business issues whose
+   compiler-owned state is `unreviewed`, plus their required subject dependencies.
+   It appears only when such issues exist. This is an issue selector, not a
+   claim that every other proposal is approved. Source questions stay in phase one.
+4. Supporting evidence/implementation notes remain attached in details rather
+   than appearing as business nodes. Targets and reference edges are derived.
+5. Entry keys combine selector kind with the canonical subject signature. The
+   signature already includes project namespace. Algorithm version is separate
+   metadata, so layout changes do not churn entry or definition identities.
+6. Canonical subject order determines the first business selection. An explicit
+   business-overlay compilation establishes phase two; the first YAML key does
+   not choose the initial task. With no business subject, the initial selection
+   is source review if available, otherwise source projection.
 
-| Entry | Trigger and owner | What a fresh project should expect |
-| --- | --- | --- |
-| Source catalogue | Deterministic source scan/compiler | The actual source objects/fields within the delivered scope; no Northwind names or fixed object count |
-| Data projection | Shared reader when a source schema exists | Standard source presentation; the current initial kind filter is tables, with database-view/all filters available. The catalogue full-source action explicitly selects all kinds. |
-| Projection and data review | A checked overlay contains `source_review` questions | Optional presentation over the same source schema, with unconfirmed source questions and verification plans. Raw scanning alone does not manufacture these questions. |
-| Business review views | Explicit nonempty `views` declarations referencing checked business definitions | As many task views as the project declares. A pure phase-one scan has none of these. Northwind's two business views are authored pilot choices. |
+The reader supplies the labels, colours, bilingual hints and guide. Authors do
+not call an LLM or supply HTML to obtain these defaults. Checked definitions
+without any `views` declarations render directly. The Northwind pilot uses this
+path; its current two business entries are not a four-entry menu template for
+every future database.
 
-LLMs or people can propose source-review questions and business views. Their
-registration and rendering are deterministic; their usefulness and semantic
-coverage are not inferred or proven by the menu code. The first declared business
-view is currently the initial presentation when a business overlay is loaded.
-That is implementation order, not an algorithm choosing the most important
-business question.
+Optional custom `views` preserve the earlier label/seed contract. Their
+dependencies are still checked and derived, but their custom grouping is an
+explicit configuration choice. They default to source review/projection rather
+than the first author-written key. A reviewer can select any permitted entry.
 
-Permission-aware delivery must filter the model server-side before selection,
-counts and record access. The menu presents that result; it does not replace
-authorization. The static Northwind share does not establish deployed Sudowork
-principal-to-source integration.
+## Limits and enforcement
 
-## What the LLM decides and what the compiler derives
+The compiler validates roles, source identities, metric grain/scope, purposes,
+evidence quotes, cycles and version registry changes. Rules/issues must link to
+business subjects; source questions cannot depend on phase-two content. The
+current overlay has no authenticated per-definition approval endpoint: all
+proposals compile as `unreviewed`, and authors cannot add `review_status` to
+self-approve. Revision approval in GitLab is a different operation.
 
-| Work | Current responsibility |
-| --- | --- |
-| Business objective, stakeholder, definition, proposed policy and unresolved choices | Business participant and LLM; evidence and confirmation remain explicit |
-| Source field targets, metric grain/scope and definition dependencies | Author declares them using discovered identities; compiler validates references and required structure |
-| View label and seed definition list | Author proposes them. The YAML view declaration is a label plus definition references, not a drawing specification. |
-| Dependency closure, supporting notes, union of source targets and reference edges | Compiler derives them from the checked declarations |
-| Canonical identities, version/registry checks and exact duplicate signatures | Shared infrastructure; this does not prove semantic equivalence of differently worded concepts |
-| Shapes, colours, bilingual controls, field/record drilldown, layout and comment anchors | Shared renderer/compiler; an author does not design new HTML |
-| Whether the chosen business model is correct, useful and complete | Human/LLM review and appropriate business evaluation; successful compilation is insufficient |
+Business closures above 200 definitions are refused with their measured size
+and recovery guidance; required dependencies are never silently omitted.
+Custom smaller selections can narrow the task. This is an explicit canvas
+capacity boundary, not completed automatic partitioning of an arbitrary dense
+business domain. Source subgraphs separately provide bounded traversal and
+component paging. Natural-language interpretation is still domain input;
+algorithmic selection does not certify its truth or completeness.
 
-The compiler rejects unknown source IDs, duplicate references, unsupported roles,
-missing purposes/grain/scope, invalid evidence and version/registry conflicts. It
-requires unresolved proposals to remain unreviewed. It does not prove that a
-natural-language purpose is sensible, a reporting policy is correct or every
-business concern was discovered. These checks reduce mechanical authoring work;
-business understanding still requires substantial LLM reasoning and human input.
+Server authorization must precede delivery/selection/counts. Derived selectors
+grant nothing. A document referring to an unavailable source identity is refused;
+the compiler does not repair it by retrieving hidden objects. The public static
+Northwind share does not establish deployed Sudowork principal-to-source wiring.
 
-That describes the current boundary, not the desired dependency on model skill.
-The harness must not compensate by adding system prompts that tell authors how
-to group views. Business interpretation is supplied by people or external model
-providers; deterministic navigation must work without asking a model to design
-the interface.
+Acceptance covers view-free compilation, reordered/renamed author keys, shared
+rules, unresolved issues, absent business content, full dependency closure,
+capacity refusal, immutable source/record references and rejected self-approval.
+The browser journey `tools.check_review_guide` checks the actual generated
+navigation and guide; `tools.check_canvas_labels` checks hidden-frame text
+geometry. Neither is a new LLM business-understanding evaluation.
 
-## Required deterministic default-view design
+## Browser surface and integration status
 
-This is the intended next implementation, not a claim it is already in the
-compiler. Today the view loop in `compiler.business` still requires seed lists.
+The primary review surface is a standalone browser window/tab for both Desktop
+and WebUI, keeping the canvas outside a small ontology tab. A compact host panel
+can still manage the session. Two transports need explicit names:
 
-1. Take checked canonical definitions, typed roles/categories, source targets,
-   declared `applies_to` edges and trusted review state as input. Do not infer
-   business links or groups from label wording, embeddings or a model call.
-2. Derive the source projection and catalogue directly from source schema. A
-   source-review selector includes existing `source_review` items and their
-   targets. Source questions remain optional inputs; no invented questions are
-   needed to make a source project usable.
-3. Derive a business-subject entry for each checked meaning/metric with a declared
-   business purpose. Include its dependency closure and rules/questions attached
-   through declared links, with their source targets and parent objects. Shared
-   rules/fields keep their canonical identity across entries. Structural
-   grouping and bounded graph traversal use explicit limits and stable ordering.
-4. Derive a pending-business-review selector from business role and trusted
-   review state. Source-quality questions stay in source review. Do not ask an
-   author to hand-maintain an `open-questions` definition list.
-5. Derive stable entry IDs from project identity, projection kind and canonical
-   subject identity. Record algorithm version separately; changing a layout or
-   recompiling must not churn navigation/comment/permission identities. A
-   breaking identity change requires an explicit migration.
-6. Apply server authorization before selection/counts. Derived selectors narrow
-   the existing scope and grant no new access. Custom named views may remain as
-   optional explicit configuration over the same definitions and policy.
-7. Make hand-authored `views` optional for default rendering. The default entry
-   follows infrastructure/operator phase policy or an explicit reviewer choice,
-   not the first element emitted by an LLM. Preserve source navigation when
-   business content is absent, and use bounded views for large models.
+- Desktop can use the actual managed/personal Chromium window with CDP or an
+  extension when agent control is needed. Plain local review needs no extension.
+- A WebUI execution browser in the cloud appears in an authenticated independent
+  viewer tab using the shared browser session/control path. This shares execution
+  state, but transmits rendered images and input. It is not the same UX or latency
+  as directly opening the review URL in the user's browser.
 
-Acceptance must compile checked definitions with **no `views` declarations and
-no model calls**, then compare repeated output: the same entry identities,
-membership, dependency closure and stable ordering. It must cover shared rules,
-multiple subjects, no business content, source questions, pending/confirmed
-state, permission-limited delivery and bounded large components. Editing a
-definition or its review state must update the derived view without editing a
-second membership list. Existing custom views require a compatibility path.
+Direct local URL review remains useful and does not depend on the remote viewer.
+However, it does not by itself satisfy acceptance of a shared execution browser.
+The Sudograph integration adapter is still undeployed; its source registry,
+scan bridge and native renderer can progress independently of release delivery.
 
-The current fresh-agent trial demonstrates that authors can use the existing
-contract. It is not the enforcement mechanism for this deterministic design,
-and new prompt templates are not an acceptable substitute for its code/tests.
+At the 2026-10-20 11:20 CST checkpoint, browser feature
+[SudoWork #1275](https://github.com/sudoprivacy/sudowork/pull/1275) and cloud worker
+[Moss #413](https://github.com/sudoprivacy/moss/pull/413) were merged. Release
+[SudoWork #1276](https://github.com/sudoprivacy/sudowork/pull/1276) remained open.
+Its candidate receipt reports independent viewer, real model readback, Unicode
+input, browser restart/login persistence, Stop/Return and touch-viewport checks.
+Those candidate SPA tests used the then-production cloud worker; they do not
+prove the accepted app/worker release is installed or deployed. Physical-phone
+handoff remains open. Sudograph still needs text-selection, comments, clipboard
+and canvas latency acceptance on the actual viewer.
 
-The [fresh-context trial](trials/fresh-business-2026-10-14/README.md) produced
-annual-sales performance and category-mix views rather than the working pilot's
-annual-review and unresolved-decision grouping. It also proposed a different
-rounding policy in the receipt recorded at that time. Both passed structural
-checks; neither policy was approved by that trial.
-This is concrete evidence of meaningful author discretion, not reproducibility
-of one uniquely correct business partition. The trial is one isolated authoring
-run, not a guarantee of all agents or production business understanding.
-
-## Integration dependency boundary
-
-Native independent review, source scanning/coverage, comments, model/compiler
-iteration and the source-registry bridge do not depend on completing every
-Desktop/WebUI browser mode. Native review opens the authorised URL locally;
-remote BrowserPanel/viewer control is a separate acceptance path.
-
-As of the 2026-10-20 source/session inspection, viewer polling improvements are
-merged in [SudoWork #1273](https://github.com/sudoprivacy/sudowork/pull/1273).
-The existing-personal-Chrome application delivery is still in
-[SudoWork #1275](https://github.com/sudoprivacy/sudowork/pull/1275), and the updated
-cloud worker in [Moss #413](https://github.com/sudoprivacy/moss/pull/413); both were
-open when checked. Candidate Electron/model and public Unicode/return journeys
-have evidence, but that does not prove the candidate release is deployed.
-The 09:07 CST cloud login-after-restart attempt did not complete fixture
-navigation. At 09:12 the upstream agent reported that a real restart retained
-the login cookie without a duplicate submission; at 09:16 it reported the AI
-back on the same signed-in page, awaiting the ordinary tool permission step.
-The complete new journey was still being closed at that checkpoint. The earlier
-fixture failure is not a diagnosed login-persistence defect. Physical-phone
-browser interaction and the optional local extension relay retain separate
-acceptance limits.
-
-Proceed with native review and the first registered-source integration. Wait
-only where a particular browser path actually requires the unpublished change.
-The remaining Sudograph integration work is its own undeployed host adapter;
-it can proceed without waiting for a universal browser solution.
+See the [harness audit](harness-determinism-audit.md) for the code/input boundary
+and [source integration contract](source-connection-and-scan-contract.md) for
+remaining registered-source wiring. System prompts are not a substitute for any
+of these contracts or acceptance checks.

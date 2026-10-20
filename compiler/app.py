@@ -149,6 +149,16 @@ def languages() -> list[str]:
         return ['zh', *json.load(fh)]
 
 
+def reader_policy() -> dict[str, str]:
+    """Operator-owned reader settings, included in full export verification."""
+    with open(os.path.join(_ROOT, 'app', 'reader-policy.json'), encoding='utf8') as fh:
+        policy = json.load(fh)
+    if (not isinstance(policy, dict) or set(policy) != {'tutorial'}
+            or policy['tutorial'] not in {'manual', 'first-visit', 'off'}):
+        raise ValueError('reader-policy.json: tutorial must be manual, first-visit or off')
+    return policy
+
+
 def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 'zh',
            packed: bool = False) -> str:
     if b.get('business'):
@@ -172,6 +182,7 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
     catalogs['zh'] = {k: k for k in sorted(keys)}
     messages = catalogs.get(language, catalogs['zh'])
     b = {**b, 'ui': {'language': language, 'messages': messages, 'catalogs': catalogs,
+                    'reader_policy': reader_policy(),
                     'subgraph_contract': subgraph_select.contract()}}
     with open(template_path, encoding="utf-8") as fh:
         html = fh.read()
@@ -185,6 +196,7 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
                              ('/*__NAVIGATION__*/', 'navigation.js')]:
         with open(os.path.join(_ROOT, 'app', filename), encoding='utf-8') as fh:
             html = html.replace(marker, fh.read())
+    html = html.replace('/*__GUIDE__*/', Path(_ROOT, 'app', 'guide.js').read_text(encoding='utf8'))
     used = set(re.findall(r"\bt\(['\"]([^'\"]+)['\"]", html))
     used.update(re.findall(r'data-ui="([^"]+)"', html))
     if used - keys:

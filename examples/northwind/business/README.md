@@ -22,7 +22,9 @@ working model and review URL; the business overlay is a checked input to that
 shared model, not a separate site. The public phase-one acceptance baseline
 remains separate as historical evidence.
 
-The pilot keeps nine canonical identities, two source presentations and two business views:
+The pilot keeps nine canonical identities and two source presentations. Its
+business subject and unresolved-question selections now come from the shared
+algorithm, with no authored `views` list in `pilot.yaml`:
 
 - Four business nodes: an annual order-sales metric, a historical transaction
   pricing policy, an inclusion/currency question and a category-reporting question.
@@ -38,6 +40,18 @@ The pilot keeps nine canonical identities, two source presentations and two busi
   policy differs from checking what the source expression already computes.
 - The second view reuses definitions and their dependencies by identity. It creates no additional
   definitions or independent copies of their meanings.
+
+Subject selection includes attached typed business rules/questions and their
+dependency closure. The question selection keeps unresolved issues and their
+required subject context. Evidence and implementation notes remain in details.
+Canonical ordering chooses the initial business subject; YAML entry order does
+not. Optional custom selections are still supported for other projects. See the
+[navigation contract](../../../docs/review-navigation-contract.md).
+
+The shared **Quick tour** is optional and starts manually by default. Operators
+can select first-visit or disabled mode in the checked reader policy. It explains
+review questions, source fields, real records and comments without moving the
+canvas, editing the model or adding pan/zoom listeners.
 
 **Green reuses the phase-one source colour. Orange marks unconfirmed source
 questions or business proposals, in their respective views. Grey reuses the

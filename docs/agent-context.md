@@ -165,7 +165,8 @@ and registered-source scan bridge remain separate integration work, described in
 the [source connection and scan contract](source-connection-and-scan-contract.md).
 
 The upper **Review views** entries come from standard source presentations and
-checked overlay view declarations. They are not a ranked subset of source
+checked subject/question selectors, or optional custom overlay view declarations.
+They are not a ranked subset of source
 objects. The lower catalogue is the structural inventory of the same authorised
 model. The optional `tools.check_canvas_labels` browser journey starts a generated
 reader in a hidden iframe, then checks actual text/node rectangles after reveal,
@@ -175,7 +176,8 @@ that selectable DOM captions do not overlap.
 See the [navigation and responsibility contract](review-navigation-contract.md)
 for the exact generation triggers, default filtering and business-author
 discretion. Raw scanning does not invent source-review questions or business
-views, and compilation does not certify the usefulness of authored semantics.
+meanings. Default business selections are derived once checked meanings exist;
+compilation does not certify the usefulness of authored semantics.
 
 Use `context_read` with `id: subgraph` and an optional `selection` object when a
 whole source graph is too large. The packet includes a request template and a

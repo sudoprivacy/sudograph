@@ -16,7 +16,7 @@ import unicodedata
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
-from . import blind, source_schema
+from . import blind, review_views, source_schema
 from .spec import read_document
 
 FORMAT = "sudograph-business-overlay/v4"
@@ -54,7 +54,7 @@ def compile_document(doc, model, *, _history=False):
     mapping(
         doc,
         {"format", "namespace", "baseline", "documents", "definitions", "views", "translations"},
-        {"format", "namespace", "baseline", "definitions", "views"},
+        {"format", "namespace", "baseline", "definitions"},
         "business overlay",
     )
     legacy = _history and doc["format"] == "sudograph-business-overlay/v3"
@@ -277,11 +277,16 @@ def compile_document(doc, model, *, _history=False):
             dependents[target].append(identity)
     views = {}
     review_ids = [i for i, n in definitions.items() if n.get("role") == "source_review"]
-    if not isinstance(doc["views"], dict) or (not doc["views"] and not review_ids):
-        raise ValueError("views: declare business views, or source_review questions for phase one")
+    authored_views = doc.get("views", {})
+    if not isinstance(authored_views, dict):
+        raise ValueError("views: use an optional mapping of custom review selections")
+    automatic = not authored_views and not legacy
+    selections = review_views.defaults(definitions) if automatic else authored_views
     used = set(review_ids)
-    for key, item in doc["views"].items():
-        mapping(item, {"label", "definitions"}, {"label", "definitions"}, f"view {key}")
+    for key, item in selections.items():
+        mapping(item, {"label", "definitions"} | (
+            {"selection_kind", "subject"} if automatic else set()
+        ), {"label", "definitions"}, f"view {key}")
         text(item["label"], f"view {key}.label")
         refs = item["definitions"]
         if not isinstance(refs, list) or not refs or any(not isinstance(v, str) for v in refs):
@@ -301,6 +306,14 @@ def compile_document(doc, model, *, _history=False):
         # business purpose silently omitted, and no extra definition is copied.
         for identity in ids:
             ids.extend(v for v in definitions[identity]["applies_to"] if v not in ids)
+        if automatic:
+            ids.sort()
+        if len(ids) > review_views.MAX_DEFINITIONS:
+            raise ValueError(
+                f"view {key}: {len(ids)} business definitions exceed the "
+                f"{review_views.MAX_DEFINITIONS} definition canvas limit; "
+                "declare smaller custom selections; dependencies cannot be silently omitted"
+            )
         used.update(ids)
         # Supporting evidence is attached by reference, outside the business
         # canvas. Include nested notes without copying or changing identities.
@@ -314,7 +327,7 @@ def compile_document(doc, model, *, _history=False):
                 ):
                     supporting_ids.add(dependent)
                     attached.append(dependent)
-        supporting = [identity for identity in definitions if identity in supporting_ids]
+        supporting = sorted(supporting_ids)
         used.update(supporting)
         targets = sorted(
             {target for identity in ids for target in definitions[identity]["targets"]}
@@ -344,12 +357,16 @@ def compile_document(doc, model, *, _history=False):
             }
             for identity in ids for target in definitions[identity]["applies_to"]
         )
+        if automatic:
+            edges.sort(key=lambda edge: edge["id"])
         views[key] = {
             "label": item["label"],
             "definitions": ids,
             "supporting": supporting,
             "targets": targets,
             "edges": edges,
+            **({"selection_kind": item["selection_kind"], "subject": item["subject"]}
+               if automatic else {}),
         }
     if used != set(definitions):
         raise ValueError(
@@ -383,6 +400,15 @@ def compile_document(doc, model, *, _history=False):
         "document": doc,
         "definitions": definitions,
         "views": views,
+        "navigation": {
+            "algorithm": review_views.ALGORITHM,
+            "mode": "derived" if automatic else "custom",
+            "default": (
+                "business:" + next(k for k, v in views.items()
+                                   if v.get("selection_kind") == "subject")
+                if automatic and views else "schema:review" if review_ids else "schema"
+            ),
+        },
         **({"source_review": {
             "definitions": review_ids,
             "edges": [
@@ -470,7 +496,7 @@ def load(path):
     mapping(
         doc,
         {"format", "namespace", "baseline", "documents", "definitions", "views", "translations"},
-        {"format", "namespace", "baseline", "definitions", "views"},
+        {"format", "namespace", "baseline", "definitions"},
         "business overlay",
     )
     pin = mapping(doc["baseline"], {"manifest", "sha256"}, {"manifest", "sha256"}, "baseline pin")

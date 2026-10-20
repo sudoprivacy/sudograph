@@ -70,7 +70,7 @@ function showSourceCatalogue() {
     const query=state.catalogueSearch.trim().toLowerCase();results.replaceChildren();
     const viewsHeading=document.createElement('h2');viewsHeading.textContent=t('审阅视图');results.appendChild(viewsHeading);
     const viewsNote=document.createElement('p');viewsNote.className='muted';
-    viewsNote.textContent=t('按核对任务组织；下方目录按源库结构组织，两者引用同一模型。');results.appendChild(viewsNote);
+    viewsNote.textContent=t('正在核对什么问题？从视图进入，沿引用查看依据，再评论矫正。');results.appendChild(viewsNote);
     const root=button(t('数据投影')+' · '+t('全部源对象'),null);root.dataset.view='schema';
     root.setAttribute('aria-current',String(isSchema()&&!isSourceReview()));results.appendChild(root);
     for(const option of $('projection').options) {
@@ -80,6 +80,8 @@ function showSourceCatalogue() {
       b.onclick=()=>{navigationBegin();void openReviewView(option.value);};results.appendChild(b);
     }
     const heading=document.createElement('h2');heading.textContent=t('源对象目录');results.appendChild(heading);
+    const catalogueNote=document.createElement('p');catalogueNote.className='muted';
+    catalogueNote.textContent=t('字段在哪里、原值是什么？展开目录查找字段，选择对象或字段查看关联与真实记录。');results.appendChild(catalogueNote);
     const matches=n=>[n.name,n.column,bt(n.label)].some(x=>String(x||'').toLowerCase().includes(query));
     let skipped=0,shown=0,total=0;
     for(const source of schemaSources) {

@@ -1,0 +1,57 @@
+{
+  "status": "local_acceptance_passed",
+  "algorithm": {
+    "algorithm": "sudograph-review-selection/v1",
+    "mode": "derived",
+    "default": "business:subject-04e47c0ad412d4e757c0e0a6b65ae709d527cd9eedba78c047c99ac49828cb67"
+  },
+  "model_calls": 0,
+  "authored_views_present": false,
+  "canonical_definitions_preserved": 9,
+  "source_schema_phase_one_views_records_unchanged": true,
+  "business_definition_content_and_reference_edge_ids_unchanged": true,
+  "navigation_migration": {
+    "previous_custom_entries": [
+      "sales-meaning",
+      "open-questions"
+    ],
+    "derived_entries": [
+      "subject-04e47c0ad412d4e757c0e0a6b65ae709d527cd9eedba78c047c99ac49828cb67",
+      "questions-04e47c0ad412d4e757c0e0a6b65ae709d527cd9eedba78c047c99ac49828cb67"
+    ],
+    "scope": "explicit pilot configuration migration; existing custom-view API remains supported"
+  },
+  "browser": {
+    "guide": {
+      "derived_views_without_authored_lists": true,
+      "manual_default_does_not_interrupt": true,
+      "business_and_catalogue_question_hints": true,
+      "dismissal_and_replay": true,
+      "tour_source_facts_navigation_and_canvas_draws_unchanged": true,
+      "english_and_chinese": true,
+      "mobile_width": 390,
+      "real_phone_hardware": false,
+      "comments_mutated": false
+    },
+    "labels": {
+      "status": "passed",
+      "cases": 8,
+      "hidden_iframe_startup": true,
+      "actual_text_and_node_rectangles_checked": true,
+      "text_intersections": 0,
+      "text_outside_nodes": 0,
+      "header_child_intersections": 0,
+      "source_and_business_facts_unchanged": true,
+      "pan_zoom_redraws": 0,
+      "comment_mutations": 0,
+      "agent_evaluation": "not_run"
+    }
+  },
+  "limits": {
+    "business_confirmation_endpoint": "not_implemented; author approval refused",
+    "business_closure_limit": 200,
+    "oversized_closure": "explicit refusal; no silent truncation",
+    "physical_phone": "not_run",
+    "agent_business_understanding_evaluation": "not_run"
+  }
+}

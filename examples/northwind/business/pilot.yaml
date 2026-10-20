@@ -220,19 +220,6 @@ definitions:
     verification: Inspect actual ExtendedPrice decimal precision and source subtotal SQL. Compare aggregation
       of original values with aggregation of values rounded only for display. Keep hypothetical examples
       separate from observed records and do not impose a settlement policy.
-views:
-  sales-meaning:
-    label: Annual order-sales review
-    definitions:
-    - sales-total
-    - price-meaning
-    - tax-freight-question
-    - category-question
-  open-questions:
-    label: Annual-sales decisions to confirm
-    definitions:
-    - tax-freight-question
-    - category-question
 translations:
   zh:
     Business context from Northwind: Northwind 提供的业务背景
@@ -279,8 +266,6 @@ translations:
       Missing refund, currency or tax data is a definition gap, not proof that the source database is
       wrong.
     : 确认年度订单销售额前，销售与财务须对齐：是否计入运费和税、退货或取消订单归入哪一年、报表采用什么币种。OrderDate 只确定下单年份，不能证明回款或收入确认日期。缺少退货、币种或税信息是口径缺口，不代表源数据库错误。
-    Annual order-sales review: 年度订单销售额核对
-    Annual-sales decisions to confirm: 年度销售额待确认决策
     Does the source expression round line amounts?: 源明细金额表达式是否真的舍入？
     ? The source ExtendedPrice expression contains /100 * 100. Does that expression actually round its
       result, or preserve additional decimals? This is a question about the existing source computation,
