@@ -47,6 +47,16 @@ that understanding inspectable and reusable. **Git is the history.**
    meaning. Machine consistency checks cannot certify that meaning.
 6. **A fresh agent must succeed through the same interfaces.** Essential rules
    belong in parsers, schemas, checked write paths and the shared renderer.
+   **The harness must primarily use deterministic algorithms.** Do not make
+   execution depend on system-prompt guidance, conversational memory or the
+   model choosing to follow a workflow. Models are optional external authors of
+   candidate business content; improving their business reasoning belongs to
+   model providers. Discovery, identities, validation, default projections,
+   dependency closure, access and rendering belong in infrastructure. Business
+   context is input data, not a substitute for executable enforcement.
+   Current business-view grouping still requires authored declarations; the
+   [deterministic navigation design](docs/review-navigation-contract.md)
+   identifies this implementation gap and its acceptance boundary.
    Improvements must survive regeneration without the previous conversation.
    Never repair only a demo HTML or add a database-specific exception to pass it.
    The shared renderer supplies reader scripts, styles and comment integration
@@ -262,6 +272,10 @@ business confirmation and the format-comparison evaluation remain separate work.
 The [Sudowork integration review](docs/sudowork-integration-review.md) records
 proposed feature ownership and human/agent experiences. Existing connection and
 browser-session UI can be reused, but the host adapter is not yet deployed.
+The [review navigation contract](docs/review-navigation-contract.md) explains
+which entries a new source project produces and which business-view choices
+remain author decisions. Views organise review tasks; the catalogue locates
+source objects and fields in the same model.
 The first integration must preserve all existing Sudograph capabilities and
 human/agent workflows; host reuse is not a reason to reduce them.
 The [source connection and scan design](docs/source-connection-and-scan-contract.md)

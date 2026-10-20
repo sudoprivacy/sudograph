@@ -5,6 +5,13 @@ claim that the cross-repository integration has been implemented or deployed.
 The source-graph selector and renderer fixes described below are Sudograph
 capabilities; they do not establish a working Sudowork adapter.
 
+The [navigation and responsibility contract](review-navigation-contract.md)
+defines what fresh source projects generate, what business authors still decide,
+and which integration work is independent of browser release completion.
+The latest 2026-10-20 browser dependency checkpoint is recorded there; older
+release evidence below is historical, not a claim that all candidate changes
+have reached production.
+
 The first integration must preserve **100% of existing Sudograph capabilities
 and human/agent workflows**. Sudograph deliberately developed part of the
 workflow in depth. Reuse the host around those capabilities, and compare against

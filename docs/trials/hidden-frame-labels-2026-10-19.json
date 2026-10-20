@@ -1,6 +1,11 @@
 {
   "status": "local_and_production_browser_passed",
   "bug": "hidden iframe cached zero-height text measurements before reveal",
+  "evidence_scope": {
+    "application_failure_mechanism": "confirmed by hidden-frame reproduction and regression",
+    "exact_production_host_transition": "not traced",
+    "shareone_display_none_claim": "not established; inspected main uses display:block"
+  },
   "before": {
     "overlapping_parent_headers": 5,
     "cached_header_height": 16,
