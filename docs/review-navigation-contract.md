@@ -138,10 +138,14 @@ The existing-personal-Chrome application delivery is still in
 cloud worker in [Moss #413](https://github.com/sudoprivacy/moss/pull/413); both were
 open when checked. Candidate Electron/model and public Unicode/return journeys
 have evidence, but that does not prove the candidate release is deployed.
-The latest cloud login-after-restart fixture did not complete its navigation,
-so that new attempt remains unaccepted; it does not establish a diagnosed login
-persistence defect. Physical-phone browser interaction and the optional local
-extension relay retain their separate acceptance limits.
+The 09:07 CST cloud login-after-restart attempt did not complete fixture
+navigation. At 09:12 the upstream agent reported that a real restart retained
+the login cookie without a duplicate submission; at 09:16 it reported the AI
+back on the same signed-in page, awaiting the ordinary tool permission step.
+The complete new journey was still being closed at that checkpoint. The earlier
+fixture failure is not a diagnosed login-persistence defect. Physical-phone
+browser interaction and the optional local extension relay retain separate
+acceptance limits.
 
 Proceed with native review and the first registered-source integration. Wait
 only where a particular browser path actually requires the unpublished change.
