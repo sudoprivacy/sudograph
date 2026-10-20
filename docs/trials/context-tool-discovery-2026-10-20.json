@@ -1,5 +1,5 @@
 {
-  "status": "local-contract-checks-passed-publication-pending",
+  "status": "published-context-discovery-verified",
   "preloaded_guidance": "three short capability/trust facts",
   "tool_help": "discoverable versioned context_read with id subgraph_contract",
   "failure_recovery": "selector errors retain core Failure docstring; normal help omits recovery",
@@ -28,5 +28,29 @@
     "tests_passed": 358,
     "whole_html_regeneration_checked": true,
     "frozen_baselines_unchanged": true
-  }
+  },
+  "publication": {
+    "status": "passed",
+    "owner_download_matches_generated_html": true,
+    "actual_shareone_iframe_verified": true,
+    "bytes": 11989921,
+    "sha256": "0c982ecf553f00421323d6439e25d0fc4dfccae7d7cc3e66ec996e85ab9d259f",
+    "context_discovery_pointer_visible": true,
+    "full_tool_help_preloaded": false,
+    "failure_recovery_preloaded": false,
+    "record_rows_preloaded": 0,
+    "source_objects": 30,
+    "comment_mutations": 0,
+    "existing_comment_threads_preserved": 48,
+    "remote_execution_browser_viewer_test": false,
+    "implementation_commit": "8876b6885c25386e0310b8bf954dd9e08aa87282",
+    "ci": {
+      "conclusion": "",
+      "status": "queued",
+      "url": "https://github.com/sudoprivacy/sudograph/actions/runs/39409987436"
+    },
+    "url": "https://s.shareone.vip/s/sudograph-northwind"
+  },
+  "integration_design_share": "https://s.shareone.vip/md/sudograph-sudowork-integration-plan",
+  "integration_design_readback_matches_source": true
 }
