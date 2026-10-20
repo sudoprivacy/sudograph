@@ -341,7 +341,7 @@ class Publisher:
         return {
             "model_file": MODEL_FILE,
             "knowledge_operations": ["context", "context_read"],
-            "subgraph": subgraph_contract(),
+            "subgraph": subgraph_contract(include_recovery=False),
             "evaluation": {"read": "context_read with id: evaluation",
                            "questions": "automatic source-catalog questions; private raw-DB oracle",
                            "score": "not_run until isolated answerer responses are graded"},
@@ -385,8 +385,7 @@ class Publisher:
                 "precision, missing values, keys or source-view time coverage in source_review, "
                 "with a verification plan. A question is not proof of a source defect.",
                 "phase_two": "Propose what the business means and how people use it: stakeholders, "
-                "decisions, metrics, policies and business relationships. Annual sales needs its "
-                "order-year definition, reporting population and commercial price policy. "
+                "decisions, metrics, policies and business relationships. "
                 "Renaming source SQL or adding a data-quality question does not "
                 "establish business meaning.",
                 "shared_identity": "Reuse current_model and identity_registry. Edit an existing "

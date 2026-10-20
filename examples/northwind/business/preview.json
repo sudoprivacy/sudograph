@@ -2,8 +2,8 @@
   "status": "unreviewed-business-pilot",
   "language": "en",
   "artifact": "index.html",
-  "artifact_bytes": 11993398,
-  "artifact_sha256": "d3d298f14c4143018c7b2d15a5562fa7aea9b93388d671cac97b6dc8b39c7e48",
+  "artifact_bytes": 11991688,
+  "artifact_sha256": "43fdac0c9fa959b3503b74eba7ea4abf3eb426cd2eef496dd95d8015402b64c1",
   "overlay": "pilot.yaml",
   "overlay_sha256": "438113aeb0fb00358e6ca122bea0ef6e7064036be4c0f90aefe3f37d040a7964",
   "registry": "pilot.registry.json",
@@ -19,8 +19,8 @@
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
     "artifact": "review.html",
-    "bytes": 11991631,
-    "sha256": "2fdedcd61dd269de274e617e16b0a70ddb04d53c5e596c95e776443a06ac0c14",
+    "bytes": 11989921,
+    "sha256": "0c982ecf553f00421323d6439e25d0fc4dfccae7d7cc3e66ec996e85ab9d259f",
     "language": "zh"
   },
   "contributors": {
@@ -37,7 +37,7 @@
     "unconfirmed_source_question": "--hook"
   },
   "validation": {
-    "tests_passed": 357,
+    "tests_passed": 358,
     "browser_tool": "ai-dev-browser",
     "source_field_to_real_records": true,
     "source_node_references_shared_in_renderer": true,
@@ -121,7 +121,9 @@
     "live_agent_qa_in_review_page": false,
     "production_anchored_walkthrough_verified": true,
     "production_manual_guide_without_dismissal_preference": true,
-    "production_compiled_context_preview_verified": true
+    "production_compiled_context_preview_verified": true,
+    "context_help_discovered_on_demand": true,
+    "context_help_authentication_and_revision_enforced": true
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
   "publication": "publication.json",

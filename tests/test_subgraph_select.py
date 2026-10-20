@@ -44,7 +44,7 @@ def test_source_connector_does_not_merge_independent_components(catalogue):
     assert all(e["kind"] in {"source_fk", "source_view"} for e in result["edges"])
     reader = Reader({"source_schema": catalogue})
     assert reader.read("subgraph", selection={}) == result
-    assert reader.payload["subgraph_contract"] == contract()
+    assert reader.read("subgraph_contract") == contract(include_recovery=False)
     assert "LLMs may explain" in contract()["description"]
 
 

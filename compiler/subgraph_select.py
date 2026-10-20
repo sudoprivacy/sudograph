@@ -35,17 +35,19 @@ class SelectionError(ValueError):
                 "hint": self.hint, "retryable": self.retryable}
 
 
-def contract():
+def contract(*, include_recovery=True):
     # Python 3.13+ strips docstring indentation at compilation; older versions
     # retain it. Canonicalise before embedding the contract in checked exports.
     documentation = getdoc(subgraph_select)
-    return {"description": documentation.partition("Failure:")[0].strip(),
-            "recovery": documentation.partition("Failure:")[2].strip(),
+    result = {"description": documentation.partition("Failure:")[0].strip(),
             "parameters": {f.name: {**f.metadata, "default": f.default} for f in fields(Selection)},
             "relationships": ["source_fk", "source_view"],
             "llm_role": "Name or explain selected groups; propose new business relationships "
                         "through checked phase-two definitions, never by editing source links "
                         "or selection results."}
+    if include_recovery:
+        result["recovery"] = documentation.partition("Failure:")[2].strip()
+    return result
 
 
 def _request(value):

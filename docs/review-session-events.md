@@ -67,6 +67,13 @@ fields must not wake the agent. Comment resolution is not business approval.
 
 ## Browser acceptance to share with its owner
 
+Forward this section to the browser owner as joint integration acceptance.
+The browser owner supplies session/viewer/input/transport behavior. The Sudowork
+adapter owns conversation/project/share binding and trusted event routing;
+Sudograph owns the model, renderer and canonical comment targets. Accept the
+combined journey together. This is not a request for the browser owner to build
+the compiler, business-confirmation service or ShareOne notification receiver.
+
 - Open the large review surface from a bound task and recover that same binding
   after refresh/reconnect on Desktop and WebUI.
 - In a real authenticated WebUI viewer, select an exact phrase, comment on its

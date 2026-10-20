@@ -19,6 +19,11 @@ the working Sudograph baseline before replacing any corresponding host feature.
 The inventory below is an acceptance floor, not permission to remove an unlisted
 working capability.
 
+The responsibility split is agreed; the full production design is not yet
+specified. The [remaining adapter boundaries](#remaining-adapter-design-boundaries)
+distinguish missing interface decisions from capabilities that need actual
+cross-repository/device acceptance.
+
 ## Existing implementation evidence
 
 Sudowork `origin/dev` was inspected at
@@ -212,18 +217,50 @@ Permissions apply before selection; counts must never reveal unauthorised object
 8. Fetch versioned context, browse a bounded subgraph and find evaluation questions
    with a fresh agent. Keep actual LLM scores separate from preparation/unit tests.
 
-The owner chose standalone review as the primary surface, with the transport
-clarification above. Host catalogue
-placement, connector rollout and the per-fact model/review authority map still
-need their integration acceptance.
-The browser integration owner is still completing device/user acceptance; do not
-label the upstream work or the Sudograph host integration fully accepted on the
-basis of implementation commits or AI checks alone.
+## Replacement of the legacy builder prompts
 
-The owner subsequently identified the reported visual regression as the default
-first business view. The reproduced fCoSE overlap is a separate finding, not
-closure of that feedback. Fresh-browser checks at widths 1366, 1024 and 850,
-including the comment sidebar, did not reproduce intersecting node/label boxes.
-Whole-graph fit did make text very small. The owner subsequently rechecked and
-reported no current problem, offering a screenshot if it recurs. Record this as
-not currently reproduced; no identified cause/fix for that exact report is claimed.
+The inspected Ontology AI Builder builds both an initial conversation message
+and an `extra.presetContext`. The latter repeats a ten-step workflow and lists
+legacy write tools. For a Sudograph-managed project, retire both templates when
+the corresponding entry is replaced. Preserve the user's business goal, existing
+conversation lifecycle, project/source binding and useful host UX. The replacement
+discovers scoped tools through actual contracts and loads checked business
+knowledge through the model adapter.
+
+Removing a prompt is not a write guard. The bound project must expose the managed
+write/publish authority, reject stale revisions and self-approval, and prevent
+parallel writes to a legacy ontology store. Existing unrelated legacy projects
+keep their current runtime until an explicit migration is accepted. Do not remove
+their tools globally or silently reinterpret RDF as a Sudograph definition.
+
+## Remaining adapter design boundaries
+
+Responsibilities, SSOT, the standalone route, deterministic compilation and
+reuse of existing agent/browser/notification layers are agreed. They are enough
+to design a concrete first vertical slice, but are not a complete production
+interface specification. The remaining decisions are:
+
+| Boundary | What still needs a concrete specification | Recommended starting point |
+| --- | --- | --- |
+| Scanner/provider wire contract | Versioned request/result schemas, exact type/SQL/key representation, observation tokens, cancellation/resume and capability equivalence across Python and host providers | One coordinator, batched provider operations, explicit unsupported/partial results; prove SQLite first, then port each provider against the same receipt |
+| Source identity, execution and permissions | Path-based identity migration, trusted source aliases, credential/access handles, host principal to project/row/field grants, worker packaging and reachable execution placement | Reuse registered identity/secret/permission services; preserve existing canonical IDs through a checked mapping and pin the compiler package; never infer execution location from a UI URL |
+| Business confirmation | Who may confirm which definition revision, how evidence/dependency changes invalidate confirmation, and how confirmation is withdrawn | A trusted action tied to canonical definition/version and dependency evidence; keep GitLab revision approval, comment resolution and business confirmation distinct |
+| Bound events and active sessions | Typed external-event inbox API, durable binding ownership/lifecycle, ACK/idempotency, reconnect and busy-session delivery, accepted semantic-revision events | One project/task/conversation/browser binding for the first slice; durable inbox before ACK, no second process over an active conversation and no agent self-wakeup |
+| Existing ontology/RDF migration | Mapping of retained statements, old IDs, unsupported semantics and the cutover away from legacy writers | Start the first integration fixture in a new managed project; require an explicit import/migration receipt for existing projects, preserving unmappable evidence rather than guessing |
+| Browser review lifecycle | How direct chat/comment continuation coexists with the browser input lease without mandatory business handoff buttons | Agree the lifecycle with the browser owner; retain server write exclusion and operation epochs, and never use inactivity as consent |
+
+End-to-end facts still require acceptance even after these interfaces are
+specified: authenticated principal/scoped reads, real remote selection/comment/
+clipboard/IME, large-graph interaction latency, device support, event crash/retry,
+and each database's consistent observation and complete coverage. Measure local
+UI work separately from frame transport/network delay before setting a supported
+performance budget. No production/device result follows from a local viewport
+or a source-code audit.
+
+The recommended first implementation slice is one registered SQLite source,
+managed project, conversation and standalone browser. Exercise connect through
+the existing form/basic chat entry, full scan, compiler rejection/repair, review,
+comment delivery, checked publication and versioned context read. Then extend
+the same contracts to PostgreSQL/MySQL, multiple bindings and legacy imports.
+This slice establishes interfaces; the first product release still preserves
+the agreed Sudograph capability floor above.

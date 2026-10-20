@@ -10,10 +10,11 @@ control a real browser. This is a source audit, not a claim about every external
 host, every plugin or every future deployment.
 
 This is not an inventory of all text supplied to a model. The separate
-[prompt guidance inventory](prompt-guidance-inventory.md) lists six compiled
-guidance units, failure-time recovery, development AGENTS instructions and the
-old Sudowork builder's initial workflow task. The latter contains a real step
-sequence and must not become the integration's enforcement mechanism.
+[prompt guidance inventory](prompt-guidance-inventory.md) separates three short
+preloaded facts from on-demand tool guidance, failure-time recovery, development
+AGENTS instructions and the old Sudowork builder's initial task/preset context.
+Both legacy templates are retired for the replacement managed entry. Required
+transitions remain tool/state checks, not workflow instructions.
 
 | Responsibility | Enforcement or input | Decision |
 | --- | --- | --- |

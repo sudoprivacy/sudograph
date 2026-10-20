@@ -1,0 +1,32 @@
+{
+  "status": "local-contract-checks-passed-publication-pending",
+  "preloaded_guidance": "three short capability/trust facts",
+  "tool_help": "discoverable versioned context_read with id subgraph_contract",
+  "failure_recovery": "selector errors retain core Failure docstring; normal help omits recovery",
+  "protocol_route_changed": false,
+  "authentication_and_stale_revision_http_checks": "passed",
+  "source_and_business_preservation": {
+    "source_schema": true,
+    "records": true,
+    "views": true,
+    "coverage": true,
+    "business": true
+  },
+  "knowledge_blocks_unchanged": [
+    "source_catalog",
+    "business_definitions",
+    "source_review",
+    "evidence"
+  ],
+  "pointers_utf8_bytes_before": 3598,
+  "pointers_utf8_bytes_after": 1938,
+  "manual_html_edits": false,
+  "legacy_host_templates": "both initialPrompt and presetContext retired by replacement-entry design; legacy host not modified",
+  "physical_device_or_remote_viewer_acceptance": false,
+  "local_verification": {
+    "gates_passed": 6,
+    "tests_passed": 358,
+    "whole_html_regeneration_checked": true,
+    "frozen_baselines_unchanged": true
+  }
+}

@@ -180,9 +180,12 @@ meanings. Default business selections are derived once checked meanings exist;
 compilation does not certify the usefulness of authored semantics.
 
 Use `context_read` with `id: subgraph` and an optional `selection` object when a
-whole source graph is too large. The packet includes a request template and a
-contract derived from the same parameter model used by the selector. Its
-decision-time description and failure recovery come from the core docstring.
+whole source graph is too large. The packet includes request templates, including
+`context_read` with `id: subgraph_contract` for on-demand tool documentation.
+That read returns parameters, description and role boundaries from the core
+selector; full help and recovery instructions are not preloaded. Actual failures
+include recovery from the same core docstring. Help reads require the same current
+revision/digest and authentication as other managed reads.
 The existing operator CLI accepts the same JSON selection through `--selection`
 with `--read subgraph`; the JSON result is the same as `Reader.read`.
 

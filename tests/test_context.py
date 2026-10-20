@@ -3,10 +3,12 @@
 import copy
 
 import pytest
+import yaml
 from test_business import base as business_fixture
 
 from compiler import app, business, html_export
 from compiler.context import Reader
+from compiler.subgraph_select import SelectionError
 
 
 @pytest.fixture
@@ -51,6 +53,26 @@ def test_reader_preview_uses_the_same_context_compiler_without_record_preload(re
     assert preview['inventory']['record_rows_preloaded'] == 0
     assert 'unreviewed' in next(b['text'] for b in preview['blocks']
                                 if b['id'] == 'business_definitions')
+
+
+def test_preload_discovers_on_demand_help_and_refusals_keep_recovery(reader):
+    r, _, _ = reader
+    packet = r.pack()
+    pointers = yaml.safe_load(next(b['text'] for b in packet['blocks'] if b['id'] == 'pointers'))
+    request = pointers['requests']['subgraph_contract']
+    assert request == {'operation': 'context_read', 'revision': r.revision,
+                       'context_digest': r.digest, 'id': 'subgraph_contract'}
+    help_result = r.read(request['id'])
+    assert help_result['parameters']['max_nodes']['maximum'] == 200
+    assert help_result['description'] not in packet['text']
+    assert help_result['llm_role'] not in packet['text']
+    assert 'recovery' not in help_result
+    help_result['parameters']['max_nodes']['maximum'] = 999
+    assert r.read(request['id'])['parameters']['max_nodes']['maximum'] == 200
+    with pytest.raises(SelectionError) as refused:
+        r.read('subgraph', selection={'approved': True})
+    hint = refused.value.as_dict()['hint']
+    assert 'catalogue' in hint and hint not in packet['text']
 
 
 def test_lookup_follows_both_forward_references_and_attached_rules(reader):

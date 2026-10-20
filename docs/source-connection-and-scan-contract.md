@@ -217,11 +217,13 @@ agent onboarding must not maintain separate connection stores or bypass policy.
 
 ## Human review and navigation
 
-Both Desktop and WebUI open the native review URL in a local browser tab for
-formal review. It renders locally, with native selectable text and comments. The
-agent edits through model tools; human and agent reference the same revision and
-canonical target IDs. Reuse Sudowork's remote viewer only when the human needs to
-operate the exact execution browser. Independent native pages do not implicitly
+Both Desktop and WebUI use a large standalone surface. Desktop opens an actual
+Chrome window; WebUI opens an authenticated independent viewer of the same cloud
+execution browser. BrowserPanel is a companion surface. Direct native review
+URLs remain available for independent sharing/review. The agent edits through
+model tools; human and agent reference the same revision and canonical target
+IDs. A local native page and a remote viewer require separate selection, comment,
+clipboard and latency acceptance. Independent native pages do not implicitly
 share DOM state, camera position or an execution control lease.
 
 Retain Sudograph compiler, ELK/Cytoscape renderer, stable comments, bilingual
@@ -269,8 +271,10 @@ authorisation grant.
 5. Accept a fresh-context agent's discovery and repair workflow. Keep this separate
    from unit/browser checks and from business-meaning evaluation.
 
-The browser session design is an upstream dependency. Implementation and AI
-production checks are recorded in Sudowork #1260 and its browser-sessions
-document. User/device acceptance is still in progress. Those checks do not
-establish a fully accepted browser experience, a production Sudograph host
-adapter or physical phone support.
+The browser session design is an upstream dependency. Its implementation checks
+do not establish a fully accepted Sudograph browser experience, a production
+host adapter or physical phone support. Use the concrete
+[browser acceptance contract](review-session-events.md#browser-acceptance-to-share-with-its-owner)
+and the remaining
+[adapter design boundaries](sudowork-integration-review.md#remaining-adapter-design-boundaries)
+before claiming production integration readiness.

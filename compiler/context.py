@@ -81,7 +81,7 @@ class Reader:
             "documents": self.documents,
             "business_views": copy.deepcopy(model.get("business", {}).get("views", {})),
             "evaluation": {"status": "not_run", "challenge": blind.for_schema(schema)},
-            "subgraph_contract": subgraph_contract(),
+            "subgraph_contract": subgraph_contract(include_recovery=False),
         }
         self.pointers = registered_pointers([] if pointers is None else pointers)
         self.source_digest = business.digest(schema)
@@ -128,7 +128,8 @@ class Reader:
                            "context_digest": self.digest, "id": "evaluation"},
             "subgraph": {"operation": "context_read", "revision": self.revision,
                          "context_digest": self.digest, "id": "subgraph", "selection": {}},
-            "subgraph_contract": subgraph_contract(),
+            "subgraph_contract": {"operation": "context_read", "revision": self.revision,
+                                  "context_digest": self.digest, "id": "subgraph_contract"},
             "read": {"operation": "context_read", "revision": self.revision,
                      "context_digest": self.digest, "id": "<canonical source/definition ID>"},
             "records": {"operation": "context_read", "revision": self.revision,
@@ -175,8 +176,8 @@ class Reader:
             raise ValueError("offset and limit apply only to records")
         if identity == "catalog":
             return copy.deepcopy(self.payload)
-        if identity == "evaluation":
-            return copy.deepcopy(self.payload["evaluation"])
+        if identity in {"evaluation", "subgraph_contract"}:
+            return copy.deepcopy(self.payload[identity])
         if identity in self.definitions:
             # Include dependent rules/issues/notes as well as forward references:
             # retrieving a metric alone must not silently omit its qualifications.

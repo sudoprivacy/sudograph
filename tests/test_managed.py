@@ -221,6 +221,14 @@ def test_knowledge_http_routes_use_existing_auth_and_stale_response(installed, m
         assert denied.value.code == 403
         with post({"operation": "context"}) as response:
             packet = json.load(response)["result"]
+        help_request = {"operation": "context_read", "revision": packet["revision"],
+                        "context_digest": packet["context_digest"], "id": "subgraph_contract"}
+        with post(help_request) as response:
+            help_result = json.load(response)["result"]["result"]
+            assert "description" in help_result and "recovery" not in help_result
+        with pytest.raises(urllib.error.HTTPError) as denied_help:
+            post(help_request, token="")
+        assert denied_help.value.code == 403
         identity = publisher.baseline["source_schema"]["sources"][0]["objects"][0]["id"]
         request = {"operation": "context_read", "revision": packet["revision"],
                    "context_digest": packet["context_digest"], "id": identity,
@@ -244,6 +252,9 @@ def test_knowledge_http_routes_use_existing_auth_and_stale_response(installed, m
             post(graph_request, token="")
         assert denied_graph.value.code == 403
         fake.head = FIRST
+        with pytest.raises(urllib.error.HTTPError) as stale_help:
+            post(help_request)
+        assert stale_help.value.code == 409
         with pytest.raises(urllib.error.HTTPError) as stale:
             post(request)
         assert stale.value.code == 409
