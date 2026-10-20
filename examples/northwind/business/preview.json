@@ -118,7 +118,10 @@
     "walkthrough_has_no_dismissal_preference": true,
     "context_preview_matches_compiler_reader_pack": true,
     "inactive_walkthrough_pan_zoom_redraws": 0,
-    "live_agent_qa_in_review_page": false
+    "live_agent_qa_in_review_page": false,
+    "production_anchored_walkthrough_verified": true,
+    "production_manual_guide_without_dismissal_preference": true,
+    "production_compiled_context_preview_verified": true
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
   "publication": "publication.json",

@@ -1,5 +1,5 @@
 {
-  "status": "local-acceptance-passed-publication-pending",
+  "status": "published-browser-acceptance-passed",
   "implementation": "shared compiler and renderer; generated examples only",
   "browser_library": {
     "name": "Driver.js",
@@ -536,5 +536,341 @@
     "tests_passed": 357,
     "whole_html_regeneration_checked": true,
     "frozen_baselines_unchanged": true
+  },
+  "publication": {
+    "status": "passed",
+    "bytes": 11991631,
+    "sha256": "2fdedcd61dd269de274e617e16b0a70ddb04d53c5e596c95e776443a06ac0c14",
+    "owner_download_matches_generated_html": true,
+    "actual_iframe_checked": true,
+    "default_language": "zh",
+    "manual_only_no_dismissal_preference": true,
+    "existing_comment_threads_preserved": 48,
+    "comment_mutations": 0,
+    "fresh_loads": 2,
+    "label_geometry": [
+      {
+        "projection": "business:subject-04e47c0ad412d4e757c0e0a6b65ae709d527cd9eedba78c047c99ac49828cb67",
+        "language": "zh",
+        "nodes": 19,
+        "parents": 5,
+        "violations": []
+      },
+      {
+        "projection": "business:subject-04e47c0ad412d4e757c0e0a6b65ae709d527cd9eedba78c047c99ac49828cb67",
+        "language": "zh",
+        "nodes": 19,
+        "parents": 5,
+        "violations": []
+      },
+      {
+        "projection": "schema",
+        "language": "zh",
+        "nodes": 31,
+        "parents": 0,
+        "violations": []
+      }
+    ],
+    "walkthrough": [
+      {
+        "step": "coverage",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 178.234375,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "desktop"
+      },
+      {
+        "step": "catalogue",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 163.953125,
+        "y": 520.421875,
+        "width": 360,
+        "height": 229.28125,
+        "viewport": "desktop"
+      },
+      {
+        "step": "field",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 354.359375,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "desktop"
+      },
+      {
+        "step": "records",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 323,
+        "y": 403.671875,
+        "width": 360,
+        "height": 229.28125,
+        "viewport": "desktop"
+      },
+      {
+        "step": "source-question",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 213,
+        "y": 264.421875,
+        "width": 360,
+        "height": 229.28125,
+        "viewport": "desktop"
+      },
+      {
+        "step": "business-view",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 323,
+        "y": 508.40625,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "desktop"
+      },
+      {
+        "step": "definition",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 174,
+        "y": 239.375,
+        "width": 360,
+        "height": 229.28125,
+        "viewport": "desktop"
+      },
+      {
+        "step": "business-question",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 200,
+        "y": 239.375,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "desktop"
+      },
+      {
+        "step": "comment",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 205,
+        "y": 165.1875,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "desktop"
+      },
+      {
+        "step": "agent-context",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 184.78125,
+        "width": 360,
+        "height": 279.28125,
+        "viewport": "desktop"
+      },
+      {
+        "step": "agent-entry",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 338,
+        "y": 271.203125,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "desktop"
+      },
+      {
+        "step": "evaluation",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 323,
+        "y": 153.1875,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "desktop"
+      },
+      {
+        "step": "coverage",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 134.28125,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "mobile"
+      },
+      {
+        "step": "catalogue",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 20,
+        "y": 196.828125,
+        "width": 360,
+        "height": 229.28125,
+        "viewport": "mobile"
+      },
+      {
+        "step": "field",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 194.5,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "mobile"
+      },
+      {
+        "step": "records",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 214.90625,
+        "width": 360,
+        "height": 229.28125,
+        "viewport": "mobile"
+      },
+      {
+        "step": "source-question",
+        "phase": 1,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 202.96875,
+        "width": 360,
+        "height": 229.28125,
+        "viewport": "mobile"
+      },
+      {
+        "step": "business-view",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 139.765625,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "mobile"
+      },
+      {
+        "step": "definition",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 170.375,
+        "width": 360,
+        "height": 229.28125,
+        "viewport": "mobile"
+      },
+      {
+        "step": "business-question",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 145.875,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "mobile"
+      },
+      {
+        "step": "comment",
+        "phase": 2,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 20,
+        "y": 104.6875,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "mobile"
+      },
+      {
+        "step": "agent-context",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 98.78125,
+        "width": 360,
+        "height": 279.28125,
+        "viewport": "mobile"
+      },
+      {
+        "step": "agent-entry",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 133.703125,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "mobile"
+      },
+      {
+        "step": "evaluation",
+        "phase": 3,
+        "target_visible": true,
+        "popup_inside": true,
+        "separate": true,
+        "x": 11,
+        "y": 92.6875,
+        "width": 360,
+        "height": 253.78125,
+        "viewport": "mobile"
+      }
+    ],
+    "inactive_pan_zoom_redraws": 0,
+    "top_level_source_objects": 30,
+    "physical_phone_hardware": false,
+    "live_agent_qa": false,
+    "implementation_commit": "48f3fc54c78cc9b52cf7c9d9697baafb6a063bff",
+    "url": "https://s.shareone.vip/s/sudograph-northwind",
+    "ci": {
+      "conclusion": "",
+      "status": "queued",
+      "url": "https://github.com/sudoprivacy/sudograph/actions/runs/39400412562"
+    }
   }
 }
