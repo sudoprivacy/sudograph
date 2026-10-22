@@ -45,12 +45,22 @@
     "remote_execution_browser_viewer_test": false,
     "implementation_commit": "8876b6885c25386e0310b8bf954dd9e08aa87282",
     "ci": {
-      "conclusion": "",
-      "status": "queued",
+      "conclusion": "success",
+      "status": "completed",
       "url": "https://github.com/sudoprivacy/sudograph/actions/runs/39409987436"
     },
     "url": "https://s.shareone.vip/s/sudograph-northwind"
   },
   "integration_design_share": "https://s.shareone.vip/md/sudograph-sudowork-integration-plan",
-  "integration_design_readback_matches_source": true
+  "integration_design_readback_matches_source": true,
+  "publication_recheck": {
+    "checked_on": "2026-10-22",
+    "status": "passed",
+    "download_matches_current_checked_artifact": true,
+    "artifact_bytes": 11989921,
+    "artifact_sha256": "0c982ecf553f00421323d6439e25d0fc4dfccae7d7cc3e66ec996e85ab9d259f",
+    "previous_comment_threads_preserved": 48,
+    "current_comment_threads": 48,
+    "comment_mutations": 0
+  }
 }
