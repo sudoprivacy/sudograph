@@ -186,9 +186,20 @@ PostgreSQL and MySQL need separate provider acceptance. Record snapshot isolatio
 pagination ordering, keyless results, views, generated columns, composite keys,
 types, timezone/decimal/binary values and permission-limited enumeration all need
 evidence. Do not promise a globally consistent snapshot across independent
-databases. For large production databases, prefer complete structure plus
-authorised live record paging; a sample must not masquerade as an offline full
-record projection. The current Northwind offline record baseline stays intact.
+databases. The connected-deployment default is complete authorised structure
+plus on-demand live record paging, for demos and customer deployments alike.
+A full record copy is not required before business review. A sample must not
+masquerade as a complete record export. The current Northwind record baseline
+remains historical acceptance evidence.
+
+"Offline" means that a file carries data and can be read without reaching its
+source; it is not a customer/environment category. A full dated export can remain
+an explicit capability, but is not a second default product workflow. When a live
+source is unreachable, report it; do not silently relabel an old snapshot as a
+current read. A live result carries its source and observation evidence. Coverage
+reports structural completeness, record access and exported-record completeness
+separately. The static reader and current context reader still use registered
+snapshots; the live host/data adapter remains implementation work.
 
 ## Chat onboarding and FDE intake
 

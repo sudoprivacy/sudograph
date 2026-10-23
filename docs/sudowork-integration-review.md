@@ -236,18 +236,46 @@ their tools globally or silently reinterpret RDF as a Sudograph definition.
 ## Remaining adapter design boundaries
 
 Responsibilities, SSOT, the standalone route, deterministic compilation and
-reuse of existing agent/browser/notification layers are agreed. They are enough
-to design a concrete first vertical slice, but are not a complete production
-interface specification. The remaining decisions are:
+reuse of existing agent/browser/notification layers are agreed. The product
+also supports multiple people, conversations, review shares and downstream
+agents over one canonical model; there is no single maintenance-session limit.
+Complete authorised structure plus on-demand records is the common connected
+default, independent of whether the deployment is a demo or customer system.
+These requirements are not a complete production interface specification.
+
+### Business-first and source-first modelling
+
+Both directions refine the same ontology. Source-first discovery supplies
+observed fields/records for business review. Business-first intake turns supplied
+conversation, prompts and documents into versioned candidate concepts, rules,
+questions and evidence; source mappings can follow later. Business narratives
+are domain input. Parser, identity, permission and publication rules stay in
+code rather than being replaced by a workflow prompt.
+
+Preserve concept identity when resolving a pending binding. The current overlay
+requires source targets and hashes targets into business identity, so unbound
+concepts and stable late binding need a checked compiler/registry extension.
+Do not loosen it by inventing source IDs. Collect host conversation evidence
+through an authenticated intake reference, not by inventing an HTTPS citation.
+
+Business confirmation concerns the meaning of a model definition. Editing or
+reviewing that meaning publishes model changes; it does not commit anything to
+the raw database. Its precise review UX still needs agreement, without assuming
+a separate mandatory approval workflow. Source corrections use their own
+explicitly authorised write path.
+
+### Adapter interfaces
+
+The remaining engineering contracts and product details are:
 
 | Boundary | What still needs a concrete specification | Recommended starting point |
 | --- | --- | --- |
 | Scanner/provider wire contract | Versioned request/result schemas, exact type/SQL/key representation, observation tokens, cancellation/resume and capability equivalence across Python and host providers | One coordinator, batched provider operations, explicit unsupported/partial results; prove SQLite first, then port each provider against the same receipt |
 | Source identity, execution and permissions | Path-based identity migration, trusted source aliases, credential/access handles, host principal to project/row/field grants, worker packaging and reachable execution placement | Reuse registered identity/secret/permission services; preserve existing canonical IDs through a checked mapping and pin the compiler package; never infer execution location from a UI URL |
-| Business confirmation | Who may confirm which definition revision, how evidence/dependency changes invalidate confirmation, and how confirmation is withdrawn | A trusted action tied to canonical definition/version and dependency evidence; keep GitLab revision approval, comment resolution and business confirmation distinct |
-| Bound events and active sessions | Typed external-event inbox API, durable binding ownership/lifecycle, ACK/idempotency, reconnect and busy-session delivery, accepted semantic-revision events | One project/task/conversation/browser binding for the first slice; durable inbox before ACK, no second process over an active conversation and no agent self-wakeup |
-| Existing ontology/RDF migration | Mapping of retained statements, old IDs, unsupported semantics and the cutover away from legacy writers | Start the first integration fixture in a new managed project; require an explicit import/migration receipt for existing projects, preserving unmappable evidence rather than guessing |
-| Browser review lifecycle | How direct chat/comment continuation coexists with the browser input lease without mandatory business handoff buttons | Agree the lifecycle with the browser owner; retain server write exclusion and operation epochs, and never use inactivity as consent |
+| Business confirmation | How agreement about definition meaning is captured, who may record it, and which version/evidence it covers | Preserve review state and evidence; separate ontology changes, GitLab revision review, comment resolution and raw database writes; do not assume an additional per-edit approval process |
+| Concurrent sessions, shares and events | Base-revision checks, compatible edit merging, same-definition conflict results, subscription routing, ACK/idempotency and active-session delivery | Support multiple bindings to one canonical model from the first adapter contract; durably enqueue per destination and never start a second process over an active conversation |
+| YAML/RDF interchange | Explicit vocabulary and reversible mapping for identities, versions, definitions, evidence and review state | Low-priority bidirectional converter for the checked semantic model; prove model-to-RDF-to-model fidelity; retain unsupported external statements or refuse them explicitly |
+| Browser review lifecycle | Accept actual graph/comment behavior over the upstream conversation-control protocol, including continuous interaction and devices | Reuse ordinary conversation continuation and the input barrier; no mandatory business handoff buttons; keep real graph latency and physical-device acceptance separate |
 
 End-to-end facts still require acceptance even after these interfaces are
 specified: authenticated principal/scoped reads, real remote selection/comment/
@@ -261,6 +289,14 @@ The recommended first implementation slice is one registered SQLite source,
 managed project, conversation and standalone browser. Exercise connect through
 the existing form/basic chat entry, full scan, compiler rejection/repair, review,
 comment delivery, checked publication and versioned context read. Then extend
-the same contracts to PostgreSQL/MySQL, multiple bindings and legacy imports.
-This slice establishes interfaces; the first product release still preserves
-the agreed Sudograph capability floor above.
+the same contracts to PostgreSQL/MySQL and other deployments. A one-conversation
+smoke fixture is only a test simplification; multi-user/multi-conversation and
+multi-share concurrency must be accepted before the first adapter is complete.
+The first product release preserves the agreed Sudograph capability floor.
+
+YAML/RDF conversion is the general interchange capability; migrating an existing
+workspace adds identity mapping, authority and history handling around it. Keep
+that migration low priority unless an actual project requires it. Defining our
+own RDF vocabulary can preserve all supported model fields; arbitrary third-party
+RDF must not be advertised as automatically understood or losslessly converted
+without a supported mapping. Conversion never creates a second editable SSOT.

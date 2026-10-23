@@ -20,6 +20,23 @@ and the shared registry are reused. Layouts, translations and trial models are
 not alternative definitions. The current pilot's definitions retain their
 `unreviewed` state; publication/merge approval does not confirm their meaning.
 
+Business input may arrive before source discovery, through conversations or
+documents. The intended model supports concepts with explicitly pending source
+bindings, then refines those bindings without changing concept identity. This
+is a required compiler extension: the current overlay requires nonempty source
+targets, source-bound metric grain, and includes targets in its identity digest.
+It cannot yet represent an independently identified, unbound business concept.
+Unbound definitions must remain visible as gaps rather than acquiring fabricated
+columns or executable status. Evidence intake must also accept trusted supplied
+conversation/document references; the current document format requires HTTPS
+text evidence and does not itself capture arbitrary host conversations.
+
+Reviewing a business meaning changes the canonical model, not source records.
+For example, agreeing that sales uses order date rather than ship date changes
+the definition and its references; it does not update either source column.
+Semantic review state records agreement about a definition. It neither implies
+a source write-back nor introduces a mandatory new approval click for every edit.
+
 ## Where information belongs
 
 | Information | Where it exists today | Default destination | Authority and lifetime |
@@ -106,6 +123,16 @@ or memory provider. A native Rust host can instead append its ordered blocks
 through the existing `SystemPrompt` methods. This repository has not patched or
 deployed sudocode session-start code; the adapter payload and authenticated
 reader are implemented, while automatic cross-repository wiring remains next.
+
+The packet's `text` and ordered blocks are also host-neutral outputs. Multiple
+authoring conversations and review shares may refine one canonical model, and
+any authorised downstream agent can load its compiled knowledge through a host
+adapter. The editable model remains the SSOT; prompt copies are derived,
+versioned and potentially stale. Each receiving host supplies an authorised
+projection and authenticated tools rather than assuming every recipient has
+the author's access. Records remain on-demand reads. Current `Reader.page`
+reads a pinned snapshot; the agreed live-record default requires the data/host
+adapter and must not be claimed from a static prompt or HTML export.
 
 Keep shared runtime instructions first, followed by stable source knowledge,
 versioned business knowledge and pointers; task messages and changing memory use

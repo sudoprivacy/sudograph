@@ -4,10 +4,12 @@ This is an integration contract, not a claim of a deployed Sudograph adapter.
 It reuses existing Sudowork conversation/workspace and browser-session binding,
 ShareOne durable event delivery, and Sudocode's mailbox transport.
 
-## One explicit binding
+## Shared model and explicit review bindings
 
-When the agent opens a review, the host records the authorised tenant/project,
-conversation, model revision, share and execution-browser session. Extend the
+Multiple people, conversations, agents and review shares may work on the same
+canonical model. No single primary maintenance conversation is required. For
+each review context the host records the authorised tenant/project, conversation,
+model revision, share and optional execution-browser session. Extend the
 existing host registry; do not create another editable model or ask a prompt to
 remember which conversation a browser belongs to. A link carries an opaque
 binding reference, not credentials or authorization.
@@ -15,8 +17,28 @@ binding reference, not credentials or authorization.
 The host resolves that reference and validates current ownership/scope before
 opening a conversation, delivering an event or loading agent context. There is
 no fallback to the latest active agent, a guessed local session path or a model
-chosen from page text. Multiple bound reviewers/conversations require explicit
-fan-out configuration. Static unbound examples show that state honestly.
+chosen from page text. A project may have many bindings; each share, view and
+subscriber references that same model authority. Subscriptions route an event
+to the relevant conversations with their current permissions, not every agent
+indiscriminately. Static unbound examples show that state honestly.
+
+## Concurrent edits and reusable agent context
+
+Users and agents may reason and submit proposals concurrently. Each proposed
+change must identify its base model revision and affected canonical definitions.
+The managed write boundary must reject stale overwrites, merge compatible
+independent edits only after revalidation, and return a concrete conflict for
+incompatible edits to the same definition. Publish one accepted model revision
+atomically; do not solve concurrency by restricting the number of conversations.
+These cross-session concurrency semantics still need adapter implementation and
+acceptance; the current submit interface does not carry an explicit client base
+revision and is not evidence of that completed integration.
+
+Any authorised phase-three agent may consume compiler-produced text/blocks and
+versioned pointers from the same model. Its host need not be the authoring host.
+Compile from its authorised projection and refresh stale context through checked
+reads; a saved prompt does not grant source access. ShareOne hosts review pages
+and comments, not a second editable model or a general model-merge coordinator.
 
 ## Human workflow and browser arbitration
 
@@ -31,8 +53,10 @@ permit concurrent AI/human writes or treating an idle timer as human consent.
 Human review gestures must not be replayed into another tab or source revision.
 Chat/comment intent can resume the bound agent under allowed capabilities;
 it does not automatically grant browser input while a human is interacting.
-The upstream browser currently exposes explicit takeover/return controls. A
-low-friction review mode needs its own accepted lifecycle over that protocol.
+The upstream conversation-control correction removes mandatory business handoff
+buttons. Integrate its interrupt/barrier and ordinary-message continuation, then
+accept the actual graph and comment journey. A model proposal/review changes
+ontology definitions; source database writes remain a separate capability.
 
 ## Reuse the notification and inbox layers
 
@@ -49,21 +73,28 @@ delivery and filter owner/visitor events in the trusted receiver; agent replies
 advance the cursor without waking the agent again.
 
 1. Validate event tenant/share and resolve the registered binding.
-2. Deduplicate by event ID and durably enqueue references to the parent thread,
-   model revision and canonical targets. Keep credentials and full record pages
-   out of the event.
+2. Deduplicate by event and destination binding ID and durably enqueue references
+   to the parent thread, model revision and canonical targets. Keep credentials
+   and full record pages out of the event.
 3. ACK only after durable host acceptance. Crash/retry must not duplicate a turn,
    a publication or a comment reply. Use stable idempotency keys for side effects.
-4. Wake an idle session or queue for the active host session. Do not launch a
-   second `scode acp` process over the same active conversation.
+4. Resolve all authorised subscribed destinations. Wake an idle session or queue
+   for each active host session. Do not launch a second `scode acp` process over
+   the same active conversation.
 5. Read the current thread and current revision before editing. Enforce access
    again after revocation and reject stale revisions.
 
+Conversation text and supplied documents are additional knowledge inputs bound
+to their originating project/conversation. Retain evidence references and derive
+model proposals; the host must not require a graph comment as the only intake.
 Comment events and accepted semantic model revisions are different sources.
 The managed model publisher is authoritative for model/revision changes; the
 bridge should extend/reuse the notification framework rather than parse DOM
 text to infer a business edit. Panning, zooming, dragging layout or opening
-fields must not wake the agent. Comment resolution is not business approval.
+fields must not wake the agent. Ignore self-generated comment replies as wakeup
+triggers while still delivering accepted model-revision notifications to other
+subscribed contexts. Comment resolution is not business confirmation or a source
+database write. No new mandatory per-edit approval UI is specified by this design.
 
 ## Browser acceptance to share with its owner
 

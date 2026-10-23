@@ -13,6 +13,10 @@ that understanding inspectable and reusable. **Git is the history.**
    missing meaning; the agent revises the model and compiles it again. A business
    question that the model cannot answer remains an explicit gap. Producing a
    graph is one step in this loop, not the acceptance criterion.
+   The intended workflow supports both source-first discovery and business-first
+   conversation/documents. Business concepts may precede source binding; later
+   binding must preserve their identities. The current overlay still requires
+   source targets; the integration design must close that limitation.
 2. **Source facts keep their authority.** Databases and documents remain the SSOT
    for their facts. The model stores references, definitions and decisions with
    provenance. Portable snapshots are dated read-only evidence and must be
@@ -41,6 +45,10 @@ that understanding inspectable and reusable. **Git is the history.**
    records. Keep values from the same row together and retain its declared key.
    Examples help discover exceptions; they do not prove the whole dataset is
    correct. Data volume must not determine the number of nodes on the canvas.
+   The agreed connected-deployment default is complete authorised structure plus
+   on-demand record reads. Full record snapshots are explicit historical/export
+   artifacts, not a prerequisite for every review. The current static Northwind
+   reader uses a snapshot; its live-data adapter is not deployed.
 5. **The compiler makes provable mistakes actionable.** Invalid columns, source
    identities, references, expressions and incompatible calculations are refused
    with a reason and a repair direction. Human review establishes business
@@ -91,6 +99,10 @@ that understanding inspectable and reusable. **Git is the history.**
    objects, fields, rows, definitions and exports before returning them. The
    reader renders that authorised result; hiding a menu or node cannot grant
    or revoke access.
+   Multiple people, conversations and review shares may use the same canonical
+   model. The integration must check revisions and surface conflicting edits at
+   the managed write boundary; a single-writer conversation is not a product
+   restriction. Views, shares and compiled contexts remain derived projections.
 9. **Specialist agents propose useful, reviewable conclusions.** An agent can
    combine source evidence with pretrained knowledge, accumulated domain memory,
    and specialised or post-trained models. State a concrete candidate meaning
@@ -102,6 +114,9 @@ that understanding inspectable and reusable. **Git is the history.**
    Give agents compiler-derived knowledge and versioned pointers to the complete
    model, evidence and authorised customer data gateways. Agents choose useful
    working memories; server tools continue enforcing access and validation.
+   Compiled knowledge is host-neutral: any authorised agent may consume its text
+   and pointers. Sudocode reuses its existing loader; other hosts can provide
+   adapters without creating another editable ontology.
 10. **Source corrections follow a separate approved write path.** A field
     comment can motivate a source correction. An agent may prepare a versioned
     SQL/schema/data migration and its diff, validation and rollback evidence
