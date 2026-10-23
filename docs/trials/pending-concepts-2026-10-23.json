@@ -1,5 +1,5 @@
 {
-  "status": "local_verification_passed",
+  "status": "published_and_local_verification_passed",
   "format": "sudograph-business-overlay/v5",
   "registry": "sudograph-business-registry/v2",
   "tests_passed": 364,
@@ -26,8 +26,28 @@
     "comment_mutations": 0,
     "remote_viewer_or_physical_phone_test": false
   },
-  "publication": "pending",
+  "publication": {
+    "share_url": "https://s.shareone.vip/s/sudograph-northwind",
+    "commit": "9d8f14425a4591610144af0be3cc917eb7236763",
+    "download_exact_byte_match": true,
+    "actual_iframe": {
+      "format": "sudograph-business-overlay/v5",
+      "definitions": 9,
+      "objects": 30,
+      "labels": 19,
+      "referenced": true
+    },
+    "existing_comment_threads_preserved": 48,
+    "comment_mutations": 0,
+    "ci_run": "https://github.com/sudoprivacy/sudograph/actions/runs/39967000577",
+    "ci_state_at_receipt": "queued; no hosted runner assigned"
+  },
   "host_chat_adapter": "not_deployed",
   "gitlab_remote_source": "unsupported_in_current_shareone_fetcher",
-  "manual_html_edits": false
+  "manual_html_edits": false,
+  "integration_plan": {
+    "url": "https://s.shareone.vip/md/sudograph-sudowork-integration-plan",
+    "source_readback_exact_byte_match": true,
+    "comment_mutations": 0
+  }
 }

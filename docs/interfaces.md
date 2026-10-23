@@ -136,7 +136,7 @@ The [draft provenance](../examples/northwind/business/provenance.md) separates
 stored upstream formulas from the agent's rounding, scope and workflow proposals.
 
 `compiler.business` is the checked phase-two overlay entrance. Its
-`sudograph-business-overlay/v4` document pins a frozen phase-one manifest,
+`sudograph-business-overlay/v5` document pins a frozen phase-one manifest,
 declares a namespace and canonical definitions, and references those definitions
 from named business views. Every definition has an explicit origin (`provided`
 or `inferred`), a contributor category, source targets and a version. Provided
@@ -148,22 +148,27 @@ references, not new source foreign keys. Provided claims require a checked
 SQL/document quotation. Source SQL definitions/results themselves remain phase
 one, including calculations. Origin does not represent business approval.
 
-Every definition declares `role: business`, `source_evidence` or
+Every definition declares `role: business`, `source_review`, `source_evidence` or
 `implementation_note`. Only business definitions may enter business views.
 Source observations and arithmetic/implementation notes attach through
 `applies_to` and remain available in evidence details under their canonical IDs.
 Every business meaning or metric requires a `purpose` with a stakeholder and
 the decision it supports. This enforces an explicit reviewable business purpose;
 it cannot prove that prose describes the right business or that a model chose
-the right role. Human review remains necessary. Older contract versions are
-refused, including by the managed publisher and direct renderer.
+the right role. Human review remains necessary. V4 stays compatible with its
+original binding/identity rules; earlier versions are refused for new input,
+including by the managed publisher and direct renderer.
 The operator-anchored accepted Git history has a separate v3 decoder solely to
 rebuild the identity/version registry. It preserves old content digests; it
 cannot submit, render or release a v3 model. Upgrading a definition requires the
 same canonical ID, the new required fields and a higher content version.
 
 Every definition declares `category: meaning`, `metric`, `rule` or `issue`.
-Metrics require a source-field grain and an explicit proposed scope. A rule
+Metrics require an explicit proposed scope. V5 business concepts may use
+`targets: []`, with compiler-derived `binding_status: unbound`; an unbound metric
+has empty source grain. Once targets are present, metric grain must reference
+actual source fields. Source reviews still require actual targets and a
+verification plan. A rule
 references its named business subject through `applies_to`; a source column
 alone does not establish the purpose of a rule. Business issues must reference affected
 definitions. Unknown references, self references and dependency cycles fail.
@@ -177,6 +182,10 @@ time. Definitions have one identity across views/languages; a registry refuses
 edits without new versions. An operator must own the registry in a service.
 The current overlay records statements and questions, not executable metrics or
 human confirmations. It is not yet a registered authenticated Gateway resource.
+V5 reserves business identity independently of targets. Binding changes retain
+identity and require a higher content version; the canonical registry also
+reserves retired concepts. Checked legacy reservations preserve existing graph
+IDs on upgrade. See the [identity and binding contract](business-identity-and-binding.md).
 
 Saved overlay exports pass a full shared-renderer comparison, including scripts,
 CSS, comment SDK settings and packed wrappers. Only platform newline conversion
