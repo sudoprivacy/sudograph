@@ -19,8 +19,10 @@ from urllib.parse import quote, urlparse
 from . import blind, review_views, source_schema
 from .spec import read_document
 
-FORMAT = "sudograph-business-overlay/v4"
-REGISTRY = "sudograph-business-registry/v1"
+FORMAT = "sudograph-business-overlay/v5"
+BOUND_FORMAT = "sudograph-business-overlay/v4"
+REGISTRY = "sudograph-business-registry/v2"
+OLD_REGISTRY = "sudograph-business-registry/v1"
 
 
 def digest(value):
@@ -50,7 +52,45 @@ def source_nodes(model):
     }
 
 
-def compile_document(doc, model, *, _history=False):
+def identity_key(namespace, concept):
+    return digest([namespace, unicodedata.normalize("NFKC", concept).strip().casefold()])
+
+
+def reservations(previous):
+    """Read operator-owned reservations, including retired definitions."""
+    if not previous:
+        return {}
+    if previous.get("format") not in {REGISTRY, OLD_REGISTRY}:
+        raise ValueError("unsupported business identity registry")
+    result = {}
+    for identity, entry in previous.get("definitions", {}).items():
+        anchor = entry.get("identity")
+        if anchor is None:
+            if previous["format"] == OLD_REGISTRY:
+                continue
+            raise ValueError("business registry is missing an identity reservation")
+        mapping(anchor, {"namespace", "concept", "legacy_targets"},
+                {"namespace", "concept"}, "identity reservation")
+        namespace = text(anchor["namespace"], "identity namespace")
+        concept = text(anchor["concept"], "identity concept")
+        key = identity_key(namespace, concept)
+        signature = key
+        if "legacy_targets" in anchor:
+            targets = anchor["legacy_targets"]
+            if (not isinstance(targets, list) or any(not isinstance(t, str) for t in targets)
+                    or targets != sorted(set(targets))):
+                raise ValueError("invalid legacy identity reservation")
+            signature = digest([namespace, unicodedata.normalize("NFKC", concept)
+                                .strip().casefold(), targets])
+        if identity != "sg-business/" + quote(namespace, safe="") + "/" + signature:
+            raise ValueError("business identity differs from its compiler-owned reservation")
+        if key in result and result[key][0] != identity:
+            raise ValueError("duplicate concept identity reservations; explicit migration required")
+        result[key] = (identity, anchor)
+    return result
+
+
+def compile_document(doc, model, *, previous=None, _history=False):
     mapping(
         doc,
         {"format", "namespace", "baseline", "documents", "definitions", "views", "translations"},
@@ -58,7 +98,8 @@ def compile_document(doc, model, *, _history=False):
         "business overlay",
     )
     legacy = _history and doc["format"] == "sudograph-business-overlay/v3"
-    if doc["format"] != FORMAT and not legacy:
+    independent = doc["format"] == FORMAT
+    if doc["format"] not in {FORMAT, BOUND_FORMAT} and not legacy:
         raise ValueError(f"business overlay: use format: {FORMAT}")
     namespace = text(doc["namespace"], "namespace")
     mapping(doc["baseline"], {"manifest", "sha256"}, {"manifest", "sha256"}, "baseline pin")
@@ -74,7 +115,10 @@ def compile_document(doc, model, *, _history=False):
         raw = text(document["text"], f"document {key}.text")
         if hashlib.sha256(raw.encode("utf8")).hexdigest() != document["sha256"]:
             raise ValueError(f"document {key}: evidence text differs from its SHA-256")
-    definitions, keys, seen = {}, {}, set()
+    reserved = reservations(previous)
+    if independent and previous and previous.get("format") == OLD_REGISTRY:
+        raise ValueError("upgrade the registry using its existing v4 model before changing to v5")
+    definitions, keys, seen, identities = {}, {}, set(), {}
     if not isinstance(doc["definitions"], dict) or not doc["definitions"]:
         raise ValueError("definitions: declare at least one canonical definition")
     for key, item in doc["definitions"].items():
@@ -147,18 +191,21 @@ def compile_document(doc, model, *, _history=False):
         targets = item["targets"]
         if (
             not isinstance(targets, list)
-            or not targets
+            or (not targets and (not independent or role != "business"))
             or any(not isinstance(v, str) for v in targets)
         ):
-            raise ValueError(f"{where}.targets: reference source object/field IDs")
+            raise ValueError(
+                f"{where}.targets: reference source object/field IDs; "
+                "v5 business concepts may use [] while awaiting a source binding"
+            )
         if len(set(targets)) != len(targets) or set(targets) - nodes.keys():
             raise ValueError(
                 f"{where}.targets: unknown or duplicate source ID; discover source_schema IDs"
             )
         if item["category"] == "metric":
-            grain = item.get("grain")
+            grain = item.get("grain", [] if independent and not targets else None)
             if (
-                not isinstance(grain, list) or not grain
+                not isinstance(grain, list) or (not grain and bool(targets))
                 or any(not isinstance(v, str) for v in grain)
                 or len(set(grain)) != len(grain)
                 or any(v not in targets or nodes[v].get("kind") != "schema_field" for v in grain)
@@ -170,13 +217,20 @@ def compile_document(doc, model, *, _history=False):
         elif "grain" in item or "scope" in item:
             raise ValueError(f"{where}: grain and scope belong to metric definitions")
         concept = unicodedata.normalize("NFKC", item["concept"]).strip().casefold()
-        signature = digest([namespace, concept, sorted(targets)])
+        key_signature = identity_key(namespace, concept)
+        signature = key_signature if independent else digest([namespace, concept, sorted(targets)])
         identity = "sg-business/" + quote(namespace, safe="") + "/" + signature
+        anchor = {"namespace": namespace, "concept": concept}
+        if not independent:
+            anchor["legacy_targets"] = sorted(targets)
+        elif key_signature in reserved:
+            identity, anchor = reserved[key_signature]
         if signature in seen:
             raise ValueError(
-                f"{where}: duplicate concept and targets; reuse its definition in views"
+                f"{where}: duplicate concept; reuse its definition in views"
             )
         seen.add(signature)
+        identities[identity] = anchor
         evidence = item.get("evidence", [])
         if not isinstance(evidence, list) or (item["origin"] == "provided" and not evidence):
             raise ValueError(
@@ -209,6 +263,8 @@ def compile_document(doc, model, *, _history=False):
             "kind": "business_definition",
             **item,
             "review_status": "unreviewed",
+            **({"binding_status": "referenced" if targets else "unbound"} if independent else {}),
+            **({"grain": grain} if independent and item["category"] == "metric" else {}),
         }
         keys[key] = identity
     for definition in definitions.values():
@@ -423,17 +479,18 @@ def compile_document(doc, model, *, _history=False):
             ],
         }} if review_ids else {}),
         "source_digest": digest(model),
+        **({"identities": identities} if independent else {}),
     }
 
 
-def build(doc, baseline):
+def build(doc, baseline, *, previous=None):
     if (
         baseline.get("projection", {}).get("mode") != "source_projection"
         or not baseline["projection"].get("source_read_only")
         or baseline.get("business")
     ):
         raise ValueError("business overlay requires a separate read-only phase-one baseline")
-    business = compile_document(doc, baseline["source_schema"])
+    business = compile_document(doc, baseline["source_schema"], previous=previous)
     translations = {lang: dict(terms) for lang, terms in baseline.get("translations", {}).items()}
     for language, terms in doc.get("translations", {}).items():
         existing = translations.setdefault(language, {})
@@ -453,7 +510,11 @@ def validate(model):
     business = model["business"]
     if model["projection"]["mode"] != "business":
         raise ValueError("business definitions cannot be added to a phase-one export")
-    expected = compile_document(business["document"], model["source_schema"])
+    identities = business.get("identities", {})
+    previous = {"format": REGISTRY, "definitions": {
+        identity: {"identity": anchor} for identity, anchor in identities.items()
+    }}
+    expected = compile_document(business["document"], model["source_schema"], previous=previous)
     if business != expected:
         raise ValueError(
             "business identities, evidence or view references changed; "
@@ -467,11 +528,24 @@ def validate(model):
 
 def registry(model, previous):
     definitions = model["business"]["definitions"]
-    if previous and previous.get("format") != REGISTRY:
-        raise ValueError("unsupported business identity registry")
+    reserved = reservations(previous)
     entries = dict(previous.get("definitions", {}))
+    document = model["business"]["document"]
     for identity, item in definitions.items():
-        content = digest({k: v for k, v in item.items() if k not in {"key", "version"}})
+        anchor = model["business"].get("identities", {}).get(identity, {
+            "namespace": document["namespace"],
+            "concept": unicodedata.normalize("NFKC", item["concept"]).strip().casefold(),
+            "legacy_targets": sorted(item["targets"]),
+        })
+        key = identity_key(anchor["namespace"], anchor["concept"])
+        if key in reserved and reserved[key][0] != identity:
+            raise ValueError(
+                f"definition {item['key']}: concept already has an identity; "
+                "compile with the canonical registry and use v5 for binding changes"
+            )
+        reserved[key] = (identity, anchor)
+        content = digest({k: v for k, v in item.items()
+                          if k not in {"key", "version", "binding_status"}})
         old = entries.get(identity)
         if old and (
             item["version"] < old["version"]
@@ -481,11 +555,14 @@ def registry(model, previous):
                 f"definition {item['key']}: content changed without a new version; "
                 "keep the ID and increment version"
             )
-        entries[identity] = {"version": item["version"], "content_digest": content}
+        entries[identity] = {"version": item["version"], "content_digest": content,
+                             "identity": anchor}
+    if any("identity" not in entry for entry in entries.values()):
+        raise ValueError("replay canonical model history to migrate retired registry entries")
     return {"format": REGISTRY, "definitions": entries}
 
 
-def load(path):
+def load(path, *, registry_path=None):
     # The baseline checker is the established file/contract authority; reuse it
     # instead of introducing a second implementation of frozen snapshot checks.
     from tools.check_baselines import bundle, check  # noqa: PLC0415
@@ -507,7 +584,9 @@ def load(path):
         )
     check(manifest)
     data = json.loads(manifest.read_text(encoding="utf8"))
-    return build(doc, bundle(manifest.parent / data["artifact"]))
+    ledger = Path(registry_path or path.with_suffix(".registry.json"))
+    previous = json.loads(ledger.read_text(encoding="utf8")) if ledger.exists() else {}
+    return build(doc, bundle(manifest.parent / data["artifact"]), previous=previous)
 
 
 def write(path, data):
@@ -542,7 +621,7 @@ def main(argv=None):
     if args.pack_html and not args.app:
         parser.error("--pack-html requires --app")
     try:
-        model = load(args.spec)
+        model = load(args.spec, registry_path=args.registry)
         path = Path(args.registry or str(Path(args.spec).with_suffix(".registry.json")))
         previous = json.loads(path.read_text(encoding="utf8")) if path.exists() else {}
         checked = registry(model, previous)
@@ -567,7 +646,7 @@ def main(argv=None):
         print(
             json.dumps(
                 {
-                    "format": FORMAT,
+                    "format": model["business"]["format"],
                     "definitions": len(model["business"]["definitions"]),
                     "views": list(model["business"]["views"]),
                     "review_status": "unreviewed",

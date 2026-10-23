@@ -100,7 +100,7 @@ def compile_model(content, baseline, previous=None, *, namespace=None, _history=
             decoded = business.compile_document(doc, baseline["source_schema"], _history=True)
             model = {"business": decoded}
         else:
-            model = business.build(doc, baseline)
+            model = business.build(doc, baseline, previous=previous)
         registry = business.registry(model, previous or {})
     return model, registry
 
@@ -353,6 +353,12 @@ class Publisher:
             "target_sha": target,
             "current_model": self.document(target),
             "identity_registry": self.registry(target),
+            "source_binding": {
+                "pending": "v5 business definitions may use targets: []; source reviews may not",
+                "identity": "concept identity is reserved independently of source bindings",
+                "metric": "unbound metrics retain scope; grain is empty until source fields bind; "
+                          "source references do not establish executability or business approval",
+            },
             "submit": {
                 "operation": "submit",
                 "model": "complete YAML text",
@@ -400,6 +406,14 @@ class Publisher:
             "workflow": (
                 "submit inputs; CI runs automatically; GitLab reviewer approves; service publishes"
             ),
+            "model_change": {
+                "trigger": "submitted model revision, not each chat message or camera movement",
+                "derived_outputs": ["checked model", "rendered HTML", "agent context"],
+                "failure": "return compiler diagnostics; retain the last published revision",
+                "publication": "verified CI artifact after the configured GitLab review gate",
+                "source_writeback": False,
+                "host_chat_adapter": "not_deployed",
+            },
             "html_inputs": "refused",
             "self_approval": "refused",
         }

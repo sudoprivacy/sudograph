@@ -55,7 +55,8 @@ function businessGraph() {
 }
 function businessLines(n,language) {
   return [{cls:'',parts:[bt(n.label,language)]},
-    ...(n.category==='meaning'?[]:[{cls:'mark',parts:[t(n.role==='source_review'?'源数据待核对':BUSINESS_CATEGORIES[n.category],{},language)]}])];
+    ...(n.category==='meaning'?[]:[{cls:'mark',parts:[t(n.role==='source_review'?'源数据待核对':BUSINESS_CATEGORIES[n.category],{},language)]}]),
+    ...(n.binding_status==='unbound'?[{cls:'mark',parts:[t('待绑定源字段',{},language)]}]:[])];
 }
 async function drawBusiness(v,mine) {
   $('schemaFilter').hidden=true;
@@ -87,13 +88,17 @@ function showBusinessNode(n) {
   if(n.purpose) {
     const p=document.createElement('p');p.textContent=bt(n.purpose.stakeholder)+' · '+bt(n.purpose.decision);$('panel').appendChild(p);
   }
+  if(n.binding_status==='unbound') {
+    const p=document.createElement('p');p.dataset.bindingStatus='unbound';
+    p.textContent=t('待绑定源字段：概念已建立，尚不能据此计算数据。');$('panel').appendChild(p);
+  }
   if(sourceReview) {
     const p=document.createElement('p');p.textContent=t('核对方法')+'：'+bt(n.verification);$('panel').appendChild(p);
     const note=document.createElement('p');note.className='muted';note.textContent=t('橙色是待核对的问题，不表示源数据已经出错；不会改写源值。');$('panel').appendChild(note);
   }
   const controls=document.createElement('div');controls.className='schema-actions';
   const button=(label,action)=>{const b=document.createElement('button');b.textContent=t(label);b.onclick=action;controls.appendChild(b);};
-  button('核对源字段',async()=>{state.focus=n.id;await draw();});
+  if(n.targets.length)button('核对源字段',async()=>{state.focus=n.id;await draw();});
   if(anchors.live){button(sourceReview?'评论数据问题':'评论业务定义',()=>anchors.comment(n.id,bt(n.label),bt(n.statement)));controls.lastChild.dataset.commentOnly='true';}
   $('panel').prepend(controls);
   const refs=document.createElement('div');

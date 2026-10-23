@@ -15,8 +15,8 @@ that understanding inspectable and reusable. **Git is the history.**
    graph is one step in this loop, not the acceptance criterion.
    The intended workflow supports both source-first discovery and business-first
    conversation/documents. Business concepts may precede source binding; later
-   binding must preserve their identities. The current overlay still requires
-   source targets; the integration design must close that limitation.
+   binding preserves their identities. The v5 overlay supports pending concepts;
+   the compiler and canonical registry enforce identity reuse and version checks.
 2. **Source facts keep their authority.** Databases and documents remain the SSOT
    for their facts. The model stores references, definitions and decisions with
    provenance. Portable snapshots are dated read-only evidence and must be
@@ -323,7 +323,14 @@ review and business views. `source_review` requires a source target and verifica
 plan, works without business definitions, and cannot enter business view definitions
 or depend on a phase-two subject. Typed business definitions distinguish meanings, candidate metrics,
 rules and issues; rules reference their business subjects and metrics declare
-grain and scope. The registry rejects duplicate identities and unversioned edits.
+scope. V5 business definitions may use `targets: []` before source mapping;
+unbound metrics have no invented source grain. They are visibly unbound, not
+executable. Binding or rebinding preserves the concept ID and requires a new
+content version. Source-review questions still need actual source targets.
+The registry rejects duplicate identities and unversioned edits, including
+attempts to recreate an existing concept with different targets. Existing v4 IDs
+can be retained through the operator-owned registry upgrade; see the
+[identity and binding contract](docs/business-identity-and-binding.md).
 Trusted human confirmation, identity migrations and authenticated overlay delivery
 remain service work; CLI input is not proof of authority.
 Loading already refuses duplicate YAML keys with both source locations and

@@ -21,13 +21,15 @@ not alternative definitions. The current pilot's definitions retain their
 `unreviewed` state; publication/merge approval does not confirm their meaning.
 
 Business input may arrive before source discovery, through conversations or
-documents. The intended model supports concepts with explicitly pending source
-bindings, then refines those bindings without changing concept identity. This
-is a required compiler extension: the current overlay requires nonempty source
-targets, source-bound metric grain, and includes targets in its identity digest.
-It cannot yet represent an independently identified, unbound business concept.
-Unbound definitions must remain visible as gaps rather than acquiring fabricated
-columns or executable status. Evidence intake must also accept trusted supplied
+documents. The v5 overlay accepts business definitions with `targets: []` and
+derives `binding_status: unbound`. Binding and rebinding preserve the canonical
+concept ID through the operator registry; changed content still needs a higher
+version. An unbound metric retains its declared scope with empty source grain.
+The context reader carries this status unchanged, as does the native graph.
+Source reviews still require real source targets. See the
+[identity contract](business-identity-and-binding.md), including legacy migration.
+Unbound definitions do not acquire fabricated columns or executable status.
+Evidence intake must also accept trusted supplied
 conversation/document references; the current document format requires HTTPS
 text evidence and does not itself capture arbitrary host conversations.
 

@@ -252,10 +252,11 @@ questions and evidence; source mappings can follow later. Business narratives
 are domain input. Parser, identity, permission and publication rules stay in
 code rather than being replaced by a workflow prompt.
 
-Preserve concept identity when resolving a pending binding. The current overlay
-requires source targets and hashes targets into business identity, so unbound
-concepts and stable late binding need a checked compiler/registry extension.
-Do not loosen it by inventing source IDs. Collect host conversation evidence
+The v5 compiler/registry now supports pending business concepts and stable late
+binding, retaining existing IDs through checked legacy reservations. The graph
+and context reader expose an unbound status; source-review questions still need
+actual source IDs. See the [identity contract](business-identity-and-binding.md).
+Collect host conversation evidence
 through an authenticated intake reference, not by inventing an HTTPS citation.
 
 Business confirmation concerns the meaning of a model definition. Editing or
@@ -263,6 +264,19 @@ reviewing that meaning publishes model changes; it does not commit anything to
 the raw database. Its precise review UX still needs agreement, without assuming
 a separate mandatory approval workflow. Source corrections use their own
 explicitly authorised write path.
+
+Every submitted model revision enters the managed compile/CI/render path;
+invalid changes return repair diagnostics and leave the previous published graph
+in place. A valid proposal produces derived artifacts automatically, while
+publication follows the existing GitLab gate. Chat text, a comment by itself,
+and camera changes are not model commits. The host chat/comment-to-proposal
+adapter is still an integration deliverable. Review graphs and agent context
+must reference the same accepted revision, without manual HTML edits.
+
+GitLab owns model YAML and revision history; a ShareOne remote source would
+point at the generated HTML artifact. ShareOne's current fetch whitelist does
+not support GitLab or private repository credentials. This is a separate
+hosting integration, tracked in the [GitLab remote-source request](shareone-gitlab-remote-source-fr.md).
 
 ### Adapter interfaces
 

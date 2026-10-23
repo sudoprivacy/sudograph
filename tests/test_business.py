@@ -411,3 +411,125 @@ def test_moving_existing_note_to_phase_one_keeps_identity_and_requires_new_versi
         business.registry(second, saved)
     note["version"] += 1
     business.registry(business.build(doc, model), saved)
+
+
+def test_top_down_concept_late_binding_preserves_identity_views_comments_and_versions(base):
+    from compiler.context import Reader  # noqa: PLC0415
+
+    model, doc = base
+    doc.pop("views")
+    item = doc["definitions"]["refund-question"]
+    targets = item["targets"]
+    item["targets"] = []
+    first = business.build(doc, model)
+    previous = business.registry(first, {})
+    identity = next(i for i, n in first["business"]["definitions"].items()
+                    if n["key"] == "refund-question")
+    view = next(k for k, v in first["business"]["views"].items() if v["subject"] == identity)
+    assert first["business"]["definitions"][identity]["binding_status"] == "unbound"
+    assert Reader(first).read(identity)["definition"]["binding_status"] == "unbound"
+    app.render(first)
+    for revision, binding in [(2, targets), (3, []), (4, [next(
+        n["id"] for n in business.source_nodes(model["source_schema"]).values()
+        if n["kind"] == "schema_field")])]:
+        item["targets"] = binding
+        with pytest.raises(ValueError, match="new version"):
+            business.registry(business.build(doc, model, previous=previous), previous)
+        item["version"] = revision
+        changed = business.build(doc, model, previous=previous)
+        previous = business.registry(changed, previous)
+        assert changed["business"]["views"][view]["subject"] == identity
+        assert changed["business"]["definitions"][identity]["targets"] == binding
+        assert changed["source_schema"] is model["source_schema"]
+
+
+def test_unbound_metrics_do_not_invent_grain_and_invalid_bindings_still_fail(base):
+    model, doc = base
+    doc.pop("views")
+    item = doc["definitions"]["refund-question"]
+    item.update(category="metric", targets=[], scope="Annual shipped orders")
+    compiled = business.build(doc, model)
+    metric = next(n for n in compiled["business"]["definitions"].values()
+                  if n["category"] == "metric")
+    assert metric["grain"] == [] and metric["binding_status"] == "unbound"
+    app.render(compiled)
+    item["grain"] = ["invented-field"]
+    with pytest.raises(ValueError, match="grain"):
+        business.build(doc, model)
+    item["targets"] = ["invented-field"]
+    with pytest.raises(ValueError, match="source ID"):
+        business.build(doc, model)
+    doc["definitions"] = {"data-question": source_question(model)}
+    doc["definitions"]["data-question"]["targets"] = []
+    with pytest.raises(ValueError, match="targets"):
+        business.build(doc, model)
+
+
+def test_source_free_concepts_are_checked_without_inventing_source_objects(base):
+    model, doc = base
+    doc.pop("views")
+    item = doc["definitions"]["refund-question"]
+    item["targets"] = []
+    doc["definitions"] = {"refund-question": item}
+    schema = {**model["source_schema"], "sources": [], "schema_complete": False,
+              "record_complete": False}
+    checked = business.compile_document(doc, schema)
+    assert len(checked["definitions"]) == 1
+    assert all(not v["targets"] and not v["edges"] for v in checked["views"].values())
+
+
+def test_legacy_migration_preserves_existing_ids_and_retargeting_cannot_bypass_registry(base):
+    model, doc = base
+    doc["format"] = business.BOUND_FORMAT
+    old = business.build(doc, model)
+    legacy = business.registry(old, {})
+    # Reproduce the exact v1 ledger used before this upgrade.
+    legacy = {"format": business.OLD_REGISTRY, "definitions": {
+        i: {k: v for k, v in entry.items() if k != "identity"}
+        for i, entry in legacy["definitions"].items()
+    }}
+    upgraded = business.registry(old, legacy)
+    doc["format"] = business.FORMAT
+    with pytest.raises(ValueError, match="upgrade the registry"):
+        business.build(doc, model, previous=legacy)
+    current = business.build(doc, model, previous=upgraded)
+    assert set(current["business"]["definitions"]) == set(old["business"]["definitions"])
+    business.registry(current, upgraded)
+    business.validate(current)
+    item = doc["definitions"]["refund-question"]
+    item.update(targets=[], version=2)
+    bound = business.build(doc, model, previous=upgraded)
+    assert set(bound["business"]["definitions"]) == set(old["business"]["definitions"])
+    business.registry(bound, upgraded)
+    # Forgetting the canonical ledger is refused, not interpreted as a new object.
+    with pytest.raises(ValueError, match="already has an identity"):
+        business.registry(business.build(doc, model), upgraded)
+
+
+def test_duplicate_concepts_cannot_be_recreated_for_different_fields_or_views(base):
+    model, doc = base
+    clone = copy.deepcopy(doc["definitions"]["refund-question"])
+    clone.update(targets=[], label="A renamed duplicate")
+    doc["definitions"]["duplicate"] = clone
+    with pytest.raises(ValueError, match="duplicate concept"):
+        business.build(doc, model)
+
+
+def test_retired_reservations_and_rendered_identity_proofs_remain_enforced(base):
+    model, doc = base
+    doc.pop("views")
+    initial = business.build(doc, model)
+    previous = business.registry(initial, {})
+    retired = doc["definitions"].pop("refund-question")
+    without = business.build(doc, model, previous=previous)
+    previous = business.registry(without, previous)
+    assert len(previous["definitions"]) == 2
+    retired.update(targets=[], version=2)
+    doc["definitions"]["returned"] = retired
+    restored = business.build(doc, model, previous=previous)
+    assert set(restored["business"]["definitions"]) == set(initial["business"]["definitions"])
+    business.registry(restored, previous)
+    anchor = next(iter(restored["business"]["identities"].values()))
+    anchor["concept"] = "a different concept"
+    with pytest.raises(ValueError, match="compiler-owned reservation"):
+        app.render(restored)

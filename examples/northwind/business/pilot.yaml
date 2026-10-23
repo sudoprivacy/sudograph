@@ -1,4 +1,4 @@
-format: sudograph-business-overlay/v4
+format: sudograph-business-overlay/v5
 namespace: northwind-sales-review
 baseline:
   manifest: ../../northwind-phase-one/2026-10-10/baseline.json

@@ -2,10 +2,10 @@
   "status": "unreviewed-business-pilot",
   "language": "en",
   "artifact": "index.html",
-  "artifact_bytes": 11991688,
-  "artifact_sha256": "43fdac0c9fa959b3503b74eba7ea4abf3eb426cd2eef496dd95d8015402b64c1",
+  "artifact_bytes": 11996785,
+  "artifact_sha256": "2b93a69cfbcf66f988ebdef9ac6dc339a14b7990fd05cf0a2462e19ef82c6d77",
   "overlay": "pilot.yaml",
-  "overlay_sha256": "438113aeb0fb00358e6ca122bea0ef6e7064036be4c0f90aefe3f37d040a7964",
+  "overlay_sha256": "36308fa56f644246ffd4d5146a00e0bd69edce4766ab1cbde17aec439cb18194",
   "registry": "pilot.registry.json",
   "canonical_definitions": 9,
   "origins": {
@@ -19,8 +19,8 @@
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
     "artifact": "review.html",
-    "bytes": 11989921,
-    "sha256": "0c982ecf553f00421323d6439e25d0fc4dfccae7d7cc3e66ec996e85ab9d259f",
+    "bytes": 11995006,
+    "sha256": "0a36f83dad1714951f1fdcf5817030cc551b10329886aafda649832c63e1f9ca",
     "language": "zh"
   },
   "contributors": {
@@ -37,7 +37,7 @@
     "unconfirmed_source_question": "--hook"
   },
   "validation": {
-    "tests_passed": 358,
+    "tests_passed": 364,
     "browser_tool": "ai-dev-browser",
     "source_field_to_real_records": true,
     "source_node_references_shared_in_renderer": true,
@@ -123,7 +123,9 @@
     "production_manual_guide_without_dismissal_preference": true,
     "production_compiled_context_preview_verified": true,
     "context_help_discovered_on_demand": true,
-    "context_help_authentication_and_revision_enforced": true
+    "context_help_authentication_and_revision_enforced": true,
+    "pending_concept_binding_enforced": true,
+    "legacy_business_ids_preserved_on_v5_upgrade": true
   },
   "live_shareone_url": "https://s.shareone.vip/s/sudograph-northwind",
   "publication": "publication.json",
@@ -150,5 +152,12 @@
     "custom_views": 0,
     "canonical_definition_ids_changed": 0,
     "business_approval_endpoint": "not_implemented"
+  },
+  "source_binding": {
+    "format": "sudograph-business-overlay/v5",
+    "identity_registry": "sudograph-business-registry/v2",
+    "existing_definitions_referenced": 9,
+    "new_pending_definitions_in_northwind": 0,
+    "canonical_ids_preserved": 9
   }
 }

@@ -1,0 +1,33 @@
+{
+  "status": "local_verification_passed",
+  "format": "sudograph-business-overlay/v5",
+  "registry": "sudograph-business-registry/v2",
+  "tests_passed": 364,
+  "verification_gates_passed": 6,
+  "late_binding_and_rebinding_identity_preserved": true,
+  "content_version_required_for_binding_changes": true,
+  "unbound_metric_grain_empty": true,
+  "source_review_still_requires_targets": true,
+  "duplicate_concepts_with_different_targets_refused": true,
+  "retired_reservations_retained": true,
+  "legacy_migration": {
+    "definition_ids_preserved": 9,
+    "content_versions_and_digests_preserved": true,
+    "source_schema_and_records_unchanged": true
+  },
+  "browser": {
+    "tool": "ai-dev-browser",
+    "pending_metric_visible": true,
+    "pending_status_english_and_chinese": true,
+    "empty_grain_no_fake_calculation": true,
+    "language_switch_preserves_identity": true,
+    "northwind_definitions": 9,
+    "northwind_source_objects": 30,
+    "comment_mutations": 0,
+    "remote_viewer_or_physical_phone_test": false
+  },
+  "publication": "pending",
+  "host_chat_adapter": "not_deployed",
+  "gitlab_remote_source": "unsupported_in_current_shareone_fetcher",
+  "manual_html_edits": false
+}

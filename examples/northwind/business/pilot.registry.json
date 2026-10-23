@@ -1,41 +1,115 @@
 {
-  "format": "sudograph-business-registry/v1",
+  "format": "sudograph-business-registry/v2",
   "definitions": {
     "sg-business/northwind-sales-review/3e83ea51866bcc11ca391cc54078a11b16a80ab97f6cda4aa8c95c66b8b3d0c8": {
       "version": 4,
-      "content_digest": "aafb6da2c0a8449acd003925db42176a2f0b82789353a1c7094b34d0ed8dd520"
+      "content_digest": "aafb6da2c0a8449acd003925db42176a2f0b82789353a1c7094b34d0ed8dd520",
+      "identity": {
+        "namespace": "northwind-sales-review",
+        "concept": "supplied-business-context",
+        "legacy_targets": [
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders"
+        ]
+      }
     },
     "sg-business/northwind-sales-review/ee96c5d18b965bce7678900e149bf695a96c8ccd4fa50fce59d141e79696486d": {
       "version": 5,
-      "content_digest": "750092ff2e7e575d9d24b99da10183a31c6298d4e2feace68826db643adc9c28"
+      "content_digest": "750092ff2e7e575d9d24b99da10183a31c6298d4e2feace68826db643adc9c28",
+      "identity": {
+        "namespace": "northwind-sales-review",
+        "concept": "source-extended-price",
+        "legacy_targets": [
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice",
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Discount",
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/Quantity",
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice"
+        ]
+      }
     },
     "sg-business/northwind-sales-review/df9ea8ceb07ab8fde180dc12fad6abee567b3037f22643f82253d284426dda84": {
       "version": 5,
-      "content_digest": "19b6127cb22239b44049924e1b7b6d5170113b1da851268762237f01359c6c9c"
+      "content_digest": "19b6127cb22239b44049924e1b7b6d5170113b1da851268762237f01359c6c9c",
+      "identity": {
+        "namespace": "northwind-sales-review",
+        "concept": "source-category-time-scope",
+        "legacy_targets": [
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderDate",
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/CategoryID",
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/ProductSales"
+        ]
+      }
     },
     "sg-business/northwind-sales-review/4d07134dbf521d9ba3c239ec2a687f2932775b7aa53dfb2910e1ed4aa1adb247": {
       "version": 4,
-      "content_digest": "5dc0ff88d5cc39c164ad9f61db85a8372c5d44294a5e8214e06b12690f1d1ea9"
+      "content_digest": "5dc0ff88d5cc39c164ad9f61db85a8372c5d44294a5e8214e06b12690f1d1ea9",
+      "identity": {
+        "namespace": "northwind-sales-review",
+        "concept": "category-sales-scope",
+        "legacy_targets": [
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/CategoryID",
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Sales%20by%20Category/field/ProductSales"
+        ]
+      }
     },
     "sg-business/northwind-sales-review/399aedd4b745c809773e51a1fe8e35efbc644c2015f55a89026674de21e6a13e": {
       "version": 5,
-      "content_digest": "448c304d51eb62663bded7af96c0b815e36dc54e2716f00810a4cc12efd1ef61"
+      "content_digest": "448c304d51eb62663bded7af96c0b815e36dc54e2716f00810a4cc12efd1ef61",
+      "identity": {
+        "namespace": "northwind-sales-review",
+        "concept": "unit-price-business-meaning",
+        "legacy_targets": [
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice",
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Products/field/UnitPrice"
+        ]
+      }
     },
     "sg-business/northwind-sales-review/cd2dde6a53f387b058c5f43b8c81565e24187a2effa6239b2dd2508cc6fa0cca": {
       "version": 5,
-      "content_digest": "d394c92bea6328792ccc57c803ed6171a6d36d014b8c63547077c4d2b0239fe6"
+      "content_digest": "d394c92bea6328792ccc57c803ed6171a6d36d014b8c63547077c4d2b0239fe6",
+      "identity": {
+        "namespace": "northwind-sales-review",
+        "concept": "rounding-policy",
+        "legacy_targets": [
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice"
+        ]
+      }
     },
     "sg-business/northwind-sales-review/0686d74a8e93b45fef695006d83380909c3d343c20e912977f0864d9103aff79": {
       "version": 4,
-      "content_digest": "82495cf400644c8998f123aeb8361088013388812fb31c06ba13677bdbf3ccf0"
+      "content_digest": "82495cf400644c8998f123aeb8361088013388812fb31c06ba13677bdbf3ccf0",
+      "identity": {
+        "namespace": "northwind-sales-review",
+        "concept": "freight-tax-currency",
+        "legacy_targets": [
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details/field/UnitPrice",
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/Freight"
+        ]
+      }
     },
     "sg-business/northwind-sales-review/04e47c0ad412d4e757c0e0a6b65ae709d527cd9eedba78c047c99ac49828cb67": {
       "version": 3,
-      "content_digest": "0443ac1bb18bd64ffac15fefe45baec536264934042a5b77f8b038c3898eabb5"
+      "content_digest": "0443ac1bb18bd64ffac15fefe45baec536264934042a5b77f8b038c3898eabb5",
+      "identity": {
+        "namespace": "northwind-sales-review",
+        "concept": "order-line-sales-amount-total",
+        "legacy_targets": [
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice",
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/OrderID",
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ProductID",
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Orders/field/OrderDate"
+        ]
+      }
     },
     "sg-business/northwind-sales-review/ec05b7e1657140476bd7cdb10e1e7413700a6606c3b99f5438f3c038bfb2439a": {
       "version": 3,
-      "content_digest": "09033e5c3a78afd6253ade124d9be1bd69c914e86b7cc79954f4375b3b0cdf4c"
+      "content_digest": "09033e5c3a78afd6253ade124d9be1bd69c914e86b7cc79954f4375b3b0cdf4c",
+      "identity": {
+        "namespace": "northwind-sales-review",
+        "concept": "line-rounding-versus-total-rounding-impact",
+        "legacy_targets": [
+          "sg-source/e22151e697c322748d7fa3fc3b0e48e5/object/Order%20Details%20Extended/field/ExtendedPrice"
+        ]
+      }
     }
   }
 }

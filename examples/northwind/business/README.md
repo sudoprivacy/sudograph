@@ -156,12 +156,14 @@ must exist in that evidence; document text is checked against its SHA-256. This
 checks reference integrity, not whether a quotation logically proves the claim.
 The compiler does not authenticate an external document just from its URL.
 
-IDs derive from the namespace, normalised canonical concept and source targets.
-Display labels, language, YAML aliases and the selected view do not change them.
-Duplicate concept/target definitions are refused; views carry references. A
-change to the canonical concept or targets changes the meaning being identified.
-Retargeting requires deliberate migration. The compiler cannot deduplicate every
-pair of differently worded but semantically equivalent concepts.
+V5 reserves IDs by namespace and normalised canonical concept, independently of
+source bindings. This pilot retains its original IDs through the canonical
+registry's checked legacy reservations. Display labels, language, YAML aliases,
+selected views and binding changes do not change them. Rebinding requires a new
+content version. Duplicate concepts are refused even with different targets;
+views carry references. The compiler cannot deduplicate every pair of differently
+worded but semantically equivalent concepts. See the
+[identity and binding contract](../../../docs/business-identity-and-binding.md).
 
 The adjacent `pilot.registry.json` is the shared version registry. Changed
 definition content requires a higher version; stale versions are rejected even

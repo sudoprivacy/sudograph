@@ -268,7 +268,8 @@ def test_knowledge_http_routes_use_existing_auth_and_stale_response(installed, m
 def test_managed_contract_and_write_path_enforce_business_purpose(installed):
     publisher, _, baseline = installed
     contract = publisher.contract()
-    assert contract["business_format"] == "sudograph-business-overlay/v4"
+    assert contract["business_format"] == business.FORMAT
+    assert "targets: []" in contract["source_binding"]["pending"]
     assert "role" in contract["definition_required"]
     assert "stakeholder" in contract["definition_roles"]["business"]
     doc = overlay(baseline)

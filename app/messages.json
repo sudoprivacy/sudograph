@@ -319,6 +319,8 @@
     "信息来源": "Information origin",
     "确认状态": "Review status",
     "核对源字段": "Inspect source fields",
+    "待绑定源字段": "Awaiting source binding",
+    "待绑定源字段：概念已建立，尚不能据此计算数据。": "Awaiting source binding: this concept exists, but cannot yet calculate data.",
     "评论业务定义": "Comment on definition",
     "引用证据": "Cited evidence",
     "原始资料": "Original material",
