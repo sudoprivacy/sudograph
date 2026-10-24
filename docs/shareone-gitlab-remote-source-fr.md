@@ -44,3 +44,33 @@ stable URL/comments and artifact-level viewer permissions. The source is compile
 HTML, not `model.yaml`. Until this capability is delivered, the existing public
 Northwind GitHub remote source remains accurately described as GitHub-backed;
 GitLab hosting must not be claimed as integrated.
+
+## Implementation and acceptance status (2026-10-24)
+
+The implementation is in [ShareOne PR #320](https://github.com/sudoprivacy/shareone/pull/320),
+with [Skill PR #53](https://github.com/sudoprivacy/shareone-skill/pull/53).
+Production release and live acceptance are pending CI; this section does not
+claim that an actual customer private GitLab is connected.
+
+The implementation pins complete GitLab commits, checks raw response revision,
+path and SHA-256, scopes server credential references to project/artifact/publisher,
+and defaults private artifacts to owner/collaborator viewing. Explicit public
+export requires both an operator grant and an owner viewer-scope change. Cache
+bytes are staged before source/digest/access facts are conditionally published.
+GitLab remains the content version authority. Operator setup and permission
+details are in [the ShareOne deployment contract](https://github.com/sudoprivacy/shareone/blob/feat/gitlab-remote-sources/docs/gitlab-remote-sources.md).
+
+Local validation: 651 backend tests passed, with 9 environment-dependent skips;
+135 final review/storage/API checks and 17 standalone Skill API checks passed.
+Six real-server/ai-dev-browser acceptance groups cover exact commit/digest,
+stable URL/comments, the viewer matrix, source revocation, redirect/oversize
+last-good retention and explicit export/revocation. The upstream GitLab transport
+is a controlled fixture in that browser suite. A separate real public GitLab raw
+API probe verified two different immutable commits and complete response hashes.
+
+Remaining customer integration: provide the actual GitLab origin, project and
+compiled HTML artifact path; register its read-only credential and permitted
+ShareOne publisher; deploy/verify an internal-network connector if needed; then
+repeat private-project acceptance from the production fetcher. Neither the
+allowlist nor local fixtures prove customer-network reachability. Existing
+Northwind remains GitHub-backed and must not be relabelled as a GitLab deployment.
