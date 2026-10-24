@@ -60,8 +60,10 @@ bytes are staged before source/digest/access facts are conditionally published.
 GitLab remains the content version authority. Operator setup and permission
 details are in [the ShareOne deployment contract](https://github.com/sudoprivacy/shareone/blob/feat/gitlab-remote-sources/docs/gitlab-remote-sources.md).
 
-Local validation: 651 backend tests passed, with 9 environment-dependent skips;
-135 final review/storage/API checks and 17 standalone Skill API checks passed.
+Local validation: 659 backend tests passed, with 17 environment-dependent skips;
+the separate real PostgreSQL transaction suite passed all 9 cases, and all 17
+standalone Skill API checks passed. Unknown viewer scopes remain restricted;
+access gates are rechecked when source or permission changes commit during fetch.
 Six real-server/ai-dev-browser acceptance groups cover exact commit/digest,
 stable URL/comments, the viewer matrix, source revocation, redirect/oversize
 last-good retention and explicit export/revocation. The upstream GitLab transport
