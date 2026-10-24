@@ -5,6 +5,12 @@ claim that the cross-repository integration has been implemented or deployed.
 The source-graph selector and renderer fixes described below are Sudograph
 capabilities; they do not establish a working Sudowork adapter.
 
+The [2026-10-24 host adapter audit](sudowork-ontology-adapter-audit.md) reinspects
+current Sudowork `dev`. Studio already supplies construction conversations,
+scoped tool writes, transactional revisions, repair UX and live host refresh.
+Extend that implementation; the missing part is the Sudograph model-authority
+provider plus WebUI/event/data integration, not another chat-to-model framework.
+
 The [navigation and responsibility contract](review-navigation-contract.md)
 defines what fresh source projects generate, what business authors still decide,
 and which integration work is independent of browser release completion.
@@ -226,6 +232,11 @@ the corresponding entry is replaced. Preserve the user's business goal, existing
 conversation lifecycle, project/source binding and useful host UX. The replacement
 discovers scoped tools through actual contracts and loads checked business
 knowledge through the model adapter.
+
+The current Studio conversation factory and `ontologyConversationRuntime`
+also inject construction/runtime instructions on creation and restoration.
+Select tools and compiled context through the same project-authority resolver
+there; changing only the older AI Builder page leaves those injection paths.
 
 Removing a prompt is not a write guard. The bound project must expose the managed
 write/publish authority, reject stale revisions and self-approval, and prevent

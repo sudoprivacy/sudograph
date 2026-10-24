@@ -4,6 +4,13 @@ This is an integration contract, not a claim of a deployed Sudograph adapter.
 It reuses existing Sudowork conversation/workspace and browser-session binding,
 ShareOne durable event delivery, and Sudocode's mailbox transport.
 
+The [host reuse audit](sudowork-ontology-adapter-audit.md) identifies the existing
+Studio conversation factory, persistent ownership, MCP/runtime preparation,
+scoped write bridge, revision checks and refresh/repair UX to extend. Existing
+WebUI ontology channels remain unmapped at the inspected revision; Desktop
+loopback setup and the current busy-rejecting repair helper are not a deployed
+cloud ontology provider or durable comment receiver.
+
 ## Shared model and explicit review bindings
 
 Multiple people, conversations, agents and review shares may work on the same
