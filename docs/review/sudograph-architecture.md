@@ -4,17 +4,18 @@
 
 This is the commentable counterpart of the [README architecture](https://github.com/sudoprivacy/sudograph#where-this-sits). The diagram, labels and boundaries come from that single source. Select readable text in the node and relationship inventories below to comment on a specific responsibility or connection. The README discussion link is temporary and will be removed after design alignment.
 
-Diagram source SHA-256: `e66ec0cc1218c1807eaec2438e3d90a9a0c445e1fd5e8625753587ee7977e94c`.
+Diagram source SHA-256: `44a0af22e67b6b03c8ecae3ab0388ad5bf0a7016bf81f0b06c670d74297d8457`.
 
 **Markdown viewer issue:** region comments on Mermaid nodes currently lose their element location after reload. Prefer text comments on the inventories while the [ShareOne BR/FR](https://github.com/sudoprivacy/sudograph/blob/main/docs/shareone-markdown-mermaid-comments-br-2026-10-13.md) is pending. The complete diagram remains the visual reference.
 
 ## Architecture
 
 Source discovery reads databases and documents through registered access paths.
-The original systems own their facts. GitLab owns the history of source-bound
-configuration and canonical business definitions; snapshots and HTML are derived
-read-only evidence. Agents submit checked inputs, CI runs automatically, and the
-publisher independently verifies the exact reviewed revision before release.
+The original systems own their facts. One canonical model owns definitions and
+references. Its checked edits automatically produce the review graph and context;
+no GitLab approval is required for each modelling turn. GitLab reviews executable
+production source-change plans. Version history and optional artifact delivery
+must not become an additional business-editing gate.
 
 ```mermaid
 flowchart LR
@@ -24,17 +25,19 @@ flowchart LR
   end
   ACCESS["registered source access<br/>scanner and authorised Gateway"]
   NEXUS["Nexus<br/>data and operation authority"]
-  BASELINE["registered phase-one snapshot<br/>source identities, fields and records"]
+  BASELINE["registered phase-one catalogue<br/>source identities, schema and observations"]
 
   subgraph MANAGED["Sudograph managed infrastructure"]
-    AUTHOR["authoring interface<br/>contract, submit, status"]
-    MODEL["private GitLab model repository<br/>model.yaml, canonical definitions, versions"]
-    MR["GitLab merge request<br/>exact commit and authenticated review"]
-    CI["operator-owned CI<br/>pinned compiler and shared renderer"]
-    DRAFT["verified review draft<br/>business meaning remains unconfirmed"]
-    PUBLISHER["trusted publisher<br/>recheck authority and CI<br/>compile and verify complete HTML"]
-    READER["authenticated accepted reader<br/>named views and stable comment identities"]
-    CONTEXT["authenticated agent context<br/>ordered knowledge blocks and exact reads"]
+    AUTHOR["checked authoring interface<br/>identity, base revision, operation ID"]
+    MODEL["canonical model and revision history<br/>YAML definitions, source pins and evidence"]
+    CI["automatic compiler and renderer checks<br/>same validated model revision"]
+    DRAFT["generated review graph<br/>update after each valid model change"]
+    READER["authorised review reader<br/>views, records and stable comment identities"]
+    CONTEXT["deterministic context packet<br/>exact definitions, versions and read pointers"]
+    COMPACT["phase-three main LLM<br/>optional organisation and compression"]
+    PLAN["production source-change plan<br/>SQL or API diff, checks and rollback"]
+    MR["GitLab production change review<br/>exact plan revision and human authority"]
+    PUBLISHER["production CI and execution checks<br/>reviewed plan, source grants and preconditions"]
   end
 
   PEOPLE["business reviewers"]
@@ -46,50 +49,55 @@ flowchart LR
   NEXUS -->|source and view grants| ACCESS
   ACCESS --> BASELINE
   AGENT -->|checked inputs and intent| AUTHOR
-  AUTHOR --> MODEL
-  MODEL --> MR
-  MR -->|automatic| CI
+  AUTHOR -->|validate proposed revision| CI
   BASELINE -->|pinned source facts| CI
-  CI --> DRAFT
-  DRAFT --> PEOPLE
-  PEOPLE -->|comments and corrections| AGENT
-  PEOPLE -->|approve exact commit| MR
-  MR -->|authenticated approval event| PUBLISHER
-  BASELINE -->|same source identities| PUBLISHER
-  PUBLISHER -->|guarded fast-forward merge| MODEL
-  PUBLISHER -->|verified bytes and receipt| READER
+  CI -->|accept checked revision atomically| MODEL
+  CI -->|reject with repair diagnostics| AGENT
+  MODEL --> DRAFT
+  DRAFT --> READER
   READER --> PEOPLE
+  PEOPLE -->|comments and corrections| AGENT
   MODEL -->|current checked revision| CONTEXT
-  BASELINE -->|same source identities and snapshots| CONTEXT
+  BASELINE -->|same source identities and read pointers| CONTEXT
+  CONTEXT -.-> COMPACT
+  COMPACT -.->|derived summary with exact-read pointers| AGENT
   AGENT -->|authenticated context and paginated reads| CONTEXT
   NEXUS -.->|model SSO integration planned| AUTHOR
-  MR -.->|separate migration review| WRITEBACK
+  AGENT -.->|explicit production intent| PLAN
+  PLAN -.-> MR
+  PEOPLE -.->|approve exact production plan| MR
+  MR -.-> PUBLISHER
+  PUBLISHER -.->|checked production plan only| WRITEBACK
   NEXUS -.->|operation grant| WRITEBACK
   WRITEBACK -.->|approved source change only| DB
 ```
 
 Four boundaries organise the implementation:
 
-* **Source systems are read-only.** Connectors take; nothing writes back through
-  them. A figure that appears in two independent systems is corroborated because
-  they cannot have copied from us.
+* **Discovery and review read source systems.** Editing a definition does not
+  mutate its source. Production writes require the separate planned path below;
+  read access does not grant write authority.
 * **Bound values come from the source.** The spec states where to read; values
-  arrive through the checked read path. Version definitions and reasoning in git.
+  arrive through the checked read path. Version canonical definitions and evidence.
   Inline values in synthetic examples are fixtures; phase-one projections reject
   authored records and formulas.
 * **Relationships are generated, never synchronised.** Anything stated twice can
   disagree with itself, so it is stated once and derived everywhere else.
-* **Writes state their intent and require authority.** Model proposals use the
-  managed GitLab path; authors cannot push to the protected target or install
-  different CI. Source changes require their own reviewed migration and executor.
+* **Model editing and production effects have different boundaries.** Model
+  edits require authorisation, compiler checks and revision/conflict handling.
+  They do not require GitLab human approval. Production source changes need an
+  exact reviewed plan, operation grants and executor checks.
 
-The GitLab/runner/publisher path has passed actual isolated Docker deployment
-acceptance, including revision-bound review, rollback, artifact integrity and
-membership revocation. The source Gateway and its Nexus authority adapter are
-implemented separately. Dotted connections show work that is not connected in
-this managed deployment: customer Nexus SSO and approved source write-back.
-GitLab authenticates model reviewers; Nexus remains the source/data authority.
-Neither permission domain is replaced by a graph menu or a YAML approval flag.
+The solid paths describe the intended model loop and its existing compiler,
+renderer and context components; the complete host loop is not deployed. The
+optional GitLab model-publishing prototype passed isolated Docker acceptance
+for revision review, rollback, artifact integrity and membership revocation.
+It remains available, with its existing checks, while the default authoring
+adapter is integrated. This prototype is not a production database-write gate.
+The source Gateway and Nexus authority adapter exist separately. Dotted paths
+show planned production execution and SSO integration. Main-LLM context
+compression is also planned; only deterministic context generation exists today.
+Graph menus and YAML flags cannot grant source or production execution authority.
 
 The current Northwind ShareOne URL is a separately hosted static review artifact,
 not a customer login deployment or an automatic destination of the GitLab fixture.
@@ -107,22 +115,24 @@ Identifiers below are the node names in the Mermaid source. Labels, layout and a
 | `FILES` | documents and files |
 | `ACCESS` | registered source access / scanner and authorised Gateway |
 | `NEXUS` | Nexus / data and operation authority |
-| `BASELINE` | registered phase-one snapshot / source identities, fields and records |
-| `AUTHOR` | authoring interface / contract, submit, status |
-| `MODEL` | private GitLab model repository / model.yaml, canonical definitions, versions |
-| `MR` | GitLab merge request / exact commit and authenticated review |
-| `CI` | operator-owned CI / pinned compiler and shared renderer |
-| `DRAFT` | verified review draft / business meaning remains unconfirmed |
-| `PUBLISHER` | trusted publisher / recheck authority and CI / compile and verify complete HTML |
-| `READER` | authenticated accepted reader / named views and stable comment identities |
-| `CONTEXT` | authenticated agent context / ordered knowledge blocks and exact reads |
+| `BASELINE` | registered phase-one catalogue / source identities, schema and observations |
+| `AUTHOR` | checked authoring interface / identity, base revision, operation ID |
+| `MODEL` | canonical model and revision history / YAML definitions, source pins and evidence |
+| `CI` | automatic compiler and renderer checks / same validated model revision |
+| `DRAFT` | generated review graph / update after each valid model change |
+| `READER` | authorised review reader / views, records and stable comment identities |
+| `CONTEXT` | deterministic context packet / exact definitions, versions and read pointers |
+| `COMPACT` | phase-three main LLM / optional organisation and compression |
+| `PLAN` | production source-change plan / SQL or API diff, checks and rollback |
+| `MR` | GitLab production change review / exact plan revision and human authority |
+| `PUBLISHER` | production CI and execution checks / reviewed plan, source grants and preconditions |
 | `PEOPLE` | business reviewers |
 | `AGENT` | agents |
 | `WRITEBACK` | separately approved source executor / planned |
 
 ## Relationship inventory for precise comments
 
-Every source edge is retained, including separate edges between the same endpoints. A solid connection describes the architecture's current path; it does not imply that separate services are connected in the isolated GitLab deployment. The implementation boundaries above remain authoritative.
+Every source edge is retained, including separate edges between the same endpoints. A solid connection describes the intended model loop; it does not prove that its host adapters are connected or that planned compression is implemented. The implementation boundaries above remain authoritative.
 
 | From | To | Diagram style | Exact source annotation |
 | --- | --- | --- | --- |
@@ -131,35 +141,36 @@ Every source edge is retained, including separate edges between the same endpoin
 | `NEXUS` | `ACCESS` | Current path | source and view grants |
 | `ACCESS` | `BASELINE` | Current path | Unlabelled in the source diagram |
 | `AGENT` | `AUTHOR` | Current path | checked inputs and intent |
-| `AUTHOR` | `MODEL` | Current path | Unlabelled in the source diagram |
-| `MODEL` | `MR` | Current path | Unlabelled in the source diagram |
-| `MR` | `CI` | Current path | automatic |
+| `AUTHOR` | `CI` | Current path | validate proposed revision |
 | `BASELINE` | `CI` | Current path | pinned source facts |
-| `CI` | `DRAFT` | Current path | Unlabelled in the source diagram |
-| `DRAFT` | `PEOPLE` | Current path | Unlabelled in the source diagram |
-| `PEOPLE` | `AGENT` | Current path | comments and corrections |
-| `PEOPLE` | `MR` | Current path | approve exact commit |
-| `MR` | `PUBLISHER` | Current path | authenticated approval event |
-| `BASELINE` | `PUBLISHER` | Current path | same source identities |
-| `PUBLISHER` | `MODEL` | Current path | guarded fast-forward merge |
-| `PUBLISHER` | `READER` | Current path | verified bytes and receipt |
+| `CI` | `MODEL` | Current path | accept checked revision atomically |
+| `CI` | `AGENT` | Current path | reject with repair diagnostics |
+| `MODEL` | `DRAFT` | Current path | Unlabelled in the source diagram |
+| `DRAFT` | `READER` | Current path | Unlabelled in the source diagram |
 | `READER` | `PEOPLE` | Current path | Unlabelled in the source diagram |
+| `PEOPLE` | `AGENT` | Current path | comments and corrections |
 | `MODEL` | `CONTEXT` | Current path | current checked revision |
-| `BASELINE` | `CONTEXT` | Current path | same source identities and snapshots |
+| `BASELINE` | `CONTEXT` | Current path | same source identities and read pointers |
+| `CONTEXT` | `COMPACT` | Planned connection | Unlabelled in the source diagram |
+| `COMPACT` | `AGENT` | Planned connection | derived summary with exact-read pointers |
 | `AGENT` | `CONTEXT` | Current path | authenticated context and paginated reads |
 | `NEXUS` | `AUTHOR` | Planned connection | model SSO integration planned |
-| `MR` | `WRITEBACK` | Planned connection | separate migration review |
+| `AGENT` | `PLAN` | Planned connection | explicit production intent |
+| `PLAN` | `MR` | Planned connection | Unlabelled in the source diagram |
+| `PEOPLE` | `MR` | Planned connection | approve exact production plan |
+| `MR` | `PUBLISHER` | Planned connection | Unlabelled in the source diagram |
+| `PUBLISHER` | `WRITEBACK` | Planned connection | checked production plan only |
 | `NEXUS` | `WRITEBACK` | Planned connection | operation grant |
 | `WRITEBACK` | `DB` | Planned connection | approved source change only |
 
 ## Hands-on review after architecture alignment
 
-The previous disposable acceptance stack has been removed. This discussion page is not a running GitLab workspace or a login screen. Start a separate installation using the [deployment instructions](https://github.com/sudoprivacy/sudograph/blob/main/infra/gitlab/README.md) before attempting the following review.
+The previous disposable acceptance stack has been removed. This discussion page is not a running GitLab workspace or a login screen. The host integration must support the following journey.
 
-1. An authorised agent reads the registered contract and submits a model change with intent.
-2. Inspect the resulting GitLab merge request, exact commit and automatically generated CI review artifact. Successful CI alone must not publish the proposal.
-3. As the independent reviewer, inspect the draft and approve that exact revision in GitLab.
-4. Confirm the publisher independently checks and compiles it, merges the reviewed revision and serves the accepted reader with a verifiable receipt.
-5. Check that a new commit needs a new review; try a reviewed rollback and verify that definitions retain their identities.
+1. An authorised agent submits a model edit with its base revision and operation ID.
+2. The compiler refuses invalid inputs with repair diagnostics; a valid edit updates the canonical revision and generated graph without GitLab approval.
+3. Business people discuss the definition through the graph or bound chat; agreement and unresolved issues retain their evidence and scope.
+4. Any authorised agent reads the same versioned knowledge and exact pointers. Optional main-LLM compression remains derived from that revision.
+5. A requested production source correction follows a separately reviewed executable plan and authorised executor; ordinary model edits do not write to the source.
 
-The [deployed acceptance record](https://github.com/sudoprivacy/sudograph/blob/main/docs/trials/gitlab-managed-2026-10-13.md) proves the technical path on synthetic data. Human hands-on review is still needed to establish that the interaction matches the intended workflow.
+The [deployed acceptance record](https://github.com/sudoprivacy/sudograph/blob/main/docs/trials/gitlab-managed-2026-10-13.md) proves the optional GitLab model-publishing prototype on synthetic data. It does not prove the default host editing loop or production source write-back. See its [deployment instructions](https://github.com/sudoprivacy/sudograph/blob/main/infra/gitlab/README.md) only when evaluating that optional delivery path.

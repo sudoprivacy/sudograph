@@ -4,6 +4,14 @@ This directory belongs to Sudograph infrastructure. It installs a private model
 project, an operator-owned CI project, a compiler runner and a publishing service.
 Authors submit model inputs; they do not install CI or choose which checks run.
 
+This is the optional GitLab **model-publishing prototype**, not the default
+interactive model-editing workflow. Ordinary checked ontology edits must update
+the review graph/context without a merge request or human release approval.
+Production source changes need a separate reviewed executable plan and authorised
+executor; this stack does not implement that executor. See the
+[current architecture](../../README.md#where-this-sits) and
+[scope clarification](../../docs/managed-deployment.md).
+
 ## Isolated acceptance profile
 
 Install Python 3.12 dependencies and Docker with Compose. Use a new private

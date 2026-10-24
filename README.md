@@ -57,9 +57,12 @@ that understanding inspectable and reusable. **Git is the history.**
    belong in parsers, schemas, checked write paths and the shared renderer.
    **The harness must primarily use deterministic algorithms.** Do not make
    execution depend on system-prompt guidance, conversational memory or the
-   model choosing to follow a workflow. Models are optional external authors of
-   candidate business content; improving their business reasoning belongs to
-   model providers. Discovery, identities, validation, default projections,
+   model choosing to follow a workflow. In phases one and two, model authorship
+   must not add an LLM summarisation call to every convergence step. Phase three
+   may combine a deterministic context packet with organisation and compression
+   by the main conversation's LLM. The summary remains derived, version-bound
+   knowledge with exact definitions and retrieval pointers available. Discovery,
+   identities, validation, default projections,
    dependency closure, access and rendering belong in infrastructure. Business
    context is input data, not a substitute for executable enforcement.
    [Default business navigation](docs/review-navigation-contract.md) derives
@@ -70,15 +73,18 @@ that understanding inspectable and reusable. **Git is the history.**
    Improvements must survive regeneration without the previous conversation.
    Never repair only a demo HTML or add a database-specific exception to pass it.
    The shared renderer supplies reader scripts, styles and comment integration
-   automatically. A Sudograph deployment must provision its managed GitLab
-   workspace, automatic validation and trusted publishing path together. Business
-   reviewers comment and approve; agents submit definitions. Neither must remember
-   to run a verifier. The service compiles checked inputs and refuses unverified
-   handoffs automatically. `compiler.check_export` is an internal gate, not a
-   customer obligation. This repository's CI protects its example inventory and
-   frozen baselines. Managed GitLab provisioning, automatic CI and publication
-   now have a [deployed acceptance](docs/trials/gitlab-managed-2026-10-13.md);
-   customer Nexus SSO and source write-back remain separate work. See the
+   automatically. A deployment must check model changes and generated outputs
+   automatically; neither reviewers nor agents must remember a verifier command.
+   Everyday model edits, review updates and context reads do not require a GitLab
+   merge request or release approval. Git can retain history in the background.
+   Production source changes require a separately reviewed executable plan and
+   an authorised executor. `compiler.check_export` is an internal gate, not a
+   customer obligation. This repository's CI protects examples and frozen
+   baselines. The existing GitLab model-publishing adapter has a
+   [deployed prototype acceptance](docs/trials/gitlab-managed-2026-10-13.md);
+   it is an optional delivery path, not the default interactive editing workflow.
+   The host editing adapter, customer SSO and source write-back remain separate
+   integration work. See the
    [deployment contract](docs/managed-deployment.md).
    Change checked inputs or the shared renderer and regenerate before publishing.
 7. **Identity supports references without copying facts.** Generate source,
@@ -109,7 +115,7 @@ that understanding inspectable and reusable. **Git is the history.**
    when there is enough basis, explain assumptions and give examples when they
    help a business reviewer. Do not present every unknown as an unexplained
    question. Keep evidence, inferred meaning and human confirmation distinct;
-   memory and training are not substitutes for source facts or approval. These
+   memory and training are not substitutes for source facts or human input. These
    are agent inputs, not a claim that a memory or training service is deployed.
    Give agents compiler-derived knowledge and versioned pointers to the complete
    model, evidence and authorised customer data gateways. Agents choose useful
@@ -158,10 +164,11 @@ alignment. The README remains the architecture source.
 <!-- architecture-discussion:end -->
 
 Source discovery reads databases and documents through registered access paths.
-The original systems own their facts. GitLab owns the history of source-bound
-configuration and canonical business definitions; snapshots and HTML are derived
-read-only evidence. Agents submit checked inputs, CI runs automatically, and the
-publisher independently verifies the exact reviewed revision before release.
+The original systems own their facts. One canonical model owns definitions and
+references. Its checked edits automatically produce the review graph and context;
+no GitLab approval is required for each modelling turn. GitLab reviews executable
+production source-change plans. Version history and optional artifact delivery
+must not become an additional business-editing gate.
 
 ```mermaid
 flowchart LR
@@ -171,17 +178,19 @@ flowchart LR
   end
   ACCESS["registered source access<br/>scanner and authorised Gateway"]
   NEXUS["Nexus<br/>data and operation authority"]
-  BASELINE["registered phase-one snapshot<br/>source identities, fields and records"]
+  BASELINE["registered phase-one catalogue<br/>source identities, schema and observations"]
 
   subgraph MANAGED["Sudograph managed infrastructure"]
-    AUTHOR["authoring interface<br/>contract, submit, status"]
-    MODEL["private GitLab model repository<br/>model.yaml, canonical definitions, versions"]
-    MR["GitLab merge request<br/>exact commit and authenticated review"]
-    CI["operator-owned CI<br/>pinned compiler and shared renderer"]
-    DRAFT["verified review draft<br/>business meaning remains unconfirmed"]
-    PUBLISHER["trusted publisher<br/>recheck authority and CI<br/>compile and verify complete HTML"]
-    READER["authenticated accepted reader<br/>named views and stable comment identities"]
-    CONTEXT["authenticated agent context<br/>ordered knowledge blocks and exact reads"]
+    AUTHOR["checked authoring interface<br/>identity, base revision, operation ID"]
+    MODEL["canonical model and revision history<br/>YAML definitions, source pins and evidence"]
+    CI["automatic compiler and renderer checks<br/>same validated model revision"]
+    DRAFT["generated review graph<br/>update after each valid model change"]
+    READER["authorised review reader<br/>views, records and stable comment identities"]
+    CONTEXT["deterministic context packet<br/>exact definitions, versions and read pointers"]
+    COMPACT["phase-three main LLM<br/>optional organisation and compression"]
+    PLAN["production source-change plan<br/>SQL or API diff, checks and rollback"]
+    MR["GitLab production change review<br/>exact plan revision and human authority"]
+    PUBLISHER["production CI and execution checks<br/>reviewed plan, source grants and preconditions"]
   end
 
   PEOPLE["business reviewers"]
@@ -193,50 +202,55 @@ flowchart LR
   NEXUS -->|source and view grants| ACCESS
   ACCESS --> BASELINE
   AGENT -->|checked inputs and intent| AUTHOR
-  AUTHOR --> MODEL
-  MODEL --> MR
-  MR -->|automatic| CI
+  AUTHOR -->|validate proposed revision| CI
   BASELINE -->|pinned source facts| CI
-  CI --> DRAFT
-  DRAFT --> PEOPLE
-  PEOPLE -->|comments and corrections| AGENT
-  PEOPLE -->|approve exact commit| MR
-  MR -->|authenticated approval event| PUBLISHER
-  BASELINE -->|same source identities| PUBLISHER
-  PUBLISHER -->|guarded fast-forward merge| MODEL
-  PUBLISHER -->|verified bytes and receipt| READER
+  CI -->|accept checked revision atomically| MODEL
+  CI -->|reject with repair diagnostics| AGENT
+  MODEL --> DRAFT
+  DRAFT --> READER
   READER --> PEOPLE
+  PEOPLE -->|comments and corrections| AGENT
   MODEL -->|current checked revision| CONTEXT
-  BASELINE -->|same source identities and snapshots| CONTEXT
+  BASELINE -->|same source identities and read pointers| CONTEXT
+  CONTEXT -.-> COMPACT
+  COMPACT -.->|derived summary with exact-read pointers| AGENT
   AGENT -->|authenticated context and paginated reads| CONTEXT
   NEXUS -.->|model SSO integration planned| AUTHOR
-  MR -.->|separate migration review| WRITEBACK
+  AGENT -.->|explicit production intent| PLAN
+  PLAN -.-> MR
+  PEOPLE -.->|approve exact production plan| MR
+  MR -.-> PUBLISHER
+  PUBLISHER -.->|checked production plan only| WRITEBACK
   NEXUS -.->|operation grant| WRITEBACK
   WRITEBACK -.->|approved source change only| DB
 ```
 
 Four boundaries organise the implementation:
 
-* **Source systems are read-only.** Connectors take; nothing writes back through
-  them. A figure that appears in two independent systems is corroborated because
-  they cannot have copied from us.
+* **Discovery and review read source systems.** Editing a definition does not
+  mutate its source. Production writes require the separate planned path below;
+  read access does not grant write authority.
 * **Bound values come from the source.** The spec states where to read; values
-  arrive through the checked read path. Version definitions and reasoning in git.
+  arrive through the checked read path. Version canonical definitions and evidence.
   Inline values in synthetic examples are fixtures; phase-one projections reject
   authored records and formulas.
 * **Relationships are generated, never synchronised.** Anything stated twice can
   disagree with itself, so it is stated once and derived everywhere else.
-* **Writes state their intent and require authority.** Model proposals use the
-  managed GitLab path; authors cannot push to the protected target or install
-  different CI. Source changes require their own reviewed migration and executor.
+* **Model editing and production effects have different boundaries.** Model
+  edits require authorisation, compiler checks and revision/conflict handling.
+  They do not require GitLab human approval. Production source changes need an
+  exact reviewed plan, operation grants and executor checks.
 
-The GitLab/runner/publisher path has passed actual isolated Docker deployment
-acceptance, including revision-bound review, rollback, artifact integrity and
-membership revocation. The source Gateway and its Nexus authority adapter are
-implemented separately. Dotted connections show work that is not connected in
-this managed deployment: customer Nexus SSO and approved source write-back.
-GitLab authenticates model reviewers; Nexus remains the source/data authority.
-Neither permission domain is replaced by a graph menu or a YAML approval flag.
+The solid paths describe the intended model loop and its existing compiler,
+renderer and context components; the complete host loop is not deployed. The
+optional GitLab model-publishing prototype passed isolated Docker acceptance
+for revision review, rollback, artifact integrity and membership revocation.
+It remains available, with its existing checks, while the default authoring
+adapter is integrated. This prototype is not a production database-write gate.
+The source Gateway and Nexus authority adapter exist separately. Dotted paths
+show planned production execution and SSO integration. Main-LLM context
+compression is also planned; only deterministic context generation exists today.
+Graph menus and YAML flags cannot grant source or production execution authority.
 
 The current Northwind ShareOne URL is a separately hosted static review artifact,
 not a customer login deployment or an automatic destination of the GitLab fixture.

@@ -62,15 +62,18 @@ use the same adjacent registry as the business compiler.
 ## Model change and publication
 
 Business input may arrive in chat, documents or graph comments. The host routes
-it to an agent, which proposes a structured model change. The managed writer
-validates every submitted revision; CI compiles and renders derived HTML
-automatically. Invalid changes return concrete diagnostics and leave the last
-published revision in place. A valid proposal has its own revision/artifacts;
-release follows the configured GitLab review and artifact checks. Model changes
-also determine agent-context content and its revision/digest.
+it to an agent, which edits the canonical structured model. The checked writer
+validates every effective change and automatically compiles/renders its graph.
+Invalid changes return concrete diagnostics and leave the last usable revision
+in place. Valid edits do not require GitLab review or manual release approval.
+They also determine agent-context content and its revision/digest. Git history
+can be retained without becoming a synchronous business-editing gate.
 
 This is not a watcher for each chat message or file keystroke. Messages that do
 not modify the ontology and camera/layout interactions do not publish model
 versions. The Sudowork chat/document/comment adapter and accepted-revision event
-fanout still need integration. GitLab revision approval, business agreement,
-ShareOne comment resolution and source database writeback are distinct facts.
+fanout still need integration. Existing GitLab model-publishing code remains an
+optional checked delivery path. Production source writes require a separately
+reviewed executable plan and authorised executor, which are not deployed.
+Business agreement is established through discussion/chat, with provenance and
+scope retained; no additional formal confirmation role or flag is required.

@@ -95,13 +95,16 @@ Conversation text and supplied documents are additional knowledge inputs bound
 to their originating project/conversation. Retain evidence references and derive
 model proposals; the host must not require a graph comment as the only intake.
 Comment events and accepted semantic model revisions are different sources.
-The managed model publisher is authoritative for model/revision changes; the
+The checked canonical model writer is authoritative for model/revision changes; the
 bridge should extend/reuse the notification framework rather than parse DOM
 text to infer a business edit. Panning, zooming, dragging layout or opening
 fields must not wake the agent. Ignore self-generated comment replies as wakeup
 triggers while still delivering accepted model-revision notifications to other
 subscribed contexts. Comment resolution is not business confirmation or a source
-database write. No new mandatory per-edit approval UI is specified by this design.
+database write. Business agreement can be established by convergence in that
+thread or explicit agreement in the bound chat; preserve its actual scope and
+evidence. No separate confirmation role/flag or GitLab model-release approval is
+required. Production source effects follow a separately approved executable plan.
 
 ## Browser acceptance to share with its owner
 
@@ -110,7 +113,7 @@ The browser owner supplies session/viewer/input/transport behavior. The Sudowork
 adapter owns conversation/project/share binding and trusted event routing;
 Sudograph owns the model, renderer and canonical comment targets. Accept the
 combined journey together. This is not a request for the browser owner to build
-the compiler, business-confirmation service or ShareOne notification receiver.
+the compiler, model writer or ShareOne notification receiver.
 
 - Open the large review surface from a bound task and recover that same binding
   after refresh/reconnect on Desktop and WebUI.
@@ -130,3 +133,25 @@ These are concrete integration acceptance gaps/requirements, not proof that each
 upstream feature is defective. The adapter and semantic-change notification path
 remain implementation work. Do not start background consumers merely by reading
 this design; deployment must supply the explicit scope and bound inbox.
+
+## Browser-owner prototype verification, 2026-10-24
+
+Read-only inspection of the browser owner's session, local interaction
+prototype and acceptance sources confirms the proposed large review
+surface, same-browser observation and ordinary-chat continuation. Its displayed
+Northwind/project/view/revision and comment notification are simulated local
+state, not a working model/session binding or durable delivery adapter.
+
+The owner separately ran the actual deterministic Sudograph context compiler
+twice and recorded identical output; this verifies context generation, not host
+injection, refresh, exact binding or successful semantic edits. Its browser
+progress is independent of these remaining adapter tasks.
+
+[Sudowork PR 1294](https://github.com/sudoprivacy/sudowork/pull/1294), inspected
+while open on 2026-10-24, adds authenticated shared-window streaming. Its real
+component fixture covers CDP/extension input, reload and reconnect. The linked
+[acceptance scope](https://github.com/sudoprivacy/sudowork/blob/5a1c6e4b0/docs/browser-window-stream-acceptance.md)
+explicitly excludes proof of production routing, real graph and physical phone
+acceptance. Earlier production graph gestures reached the comment login popup;
+submitting/reopening a real authenticated thread and measuring graph feedback
+remain joint acceptance. An open PR or local UI mock is not a deployed feature.

@@ -17,12 +17,12 @@ not build another conversation system, tool transport or workbench event bus.
 | Workspace-scoped construction conversations | `packages/renderer/src/pages/ontology/studioConversation.ts`, `StudioConversationPanel.tsx` | Reuse creation, selection, duplicate-create coalescing and the existing ACP chat. Preserve explicit conversation binding for review events. |
 | Persistent session ownership and recovery | `apps/desktop/src/process/bridge/ontologyAiBuilderBridge.ts`, `OntologyAiSessionRegistry.ts` | Reuse conversation ownership, idempotent registration and reaper cleanup. Workspace existence must resolve a registered model authority rather than require an editable legacy snapshot. |
 | Per-session tool setup and restart | `OntologyMcpRegistration.ts`, `ontologyConversationRuntime.ts`, `AcpAgent.ts` | Reuse runtime preparation and fresh session tool configuration. Select tools/context from the server-owned project binding on creation and restore. |
-| Scoped agent writes | `OntologyWriteBridge.ts`, `resources/ontology-builder-mcp/src/index.ts` | Reuse the authenticated tool boundary and role separation. Route Sudograph projects to the checked model publisher; all legacy mutation routes must reject that authority. |
+| Scoped agent writes | `OntologyWriteBridge.ts`, `resources/ontology-builder-mcp/src/index.ts` | Reuse the authenticated tool boundary. Route Sudograph projects to the checked model writer; all legacy mutation routes must reject that authority. Ordinary model edits do not require GitLab approval. |
 | Manual save, compare-and-swap and idempotency | `OntologyService.saveStudioModel`, `OntologyStudioDatabase.saveSnapshot` | Reuse the contract and conflict UX. The current persistence implementation reconciles RDF; do not use it as a second writable store for Sudograph YAML. |
 | Changes refresh the UI | `workbenchChanged`, `OntologyStudio.onServerSnapshot` | Reuse host event transport and dirty-edit protection. Add an authority-aware revision/artifact event, rather than pretending a Sudograph model is a legacy RDF snapshot. |
 | Check, locate and ask AI to repair | `StudioChecksPage`, `requestStudioAiRepair`, `OntologyStudio.onRepair` | Reuse controls and the bound conversation path; adapt compiler issue IDs/recovery. The current helper rejects busy conversations and chooses a default session: durable review delivery needs explicit bindings and inbox handling. |
-| Version candidates and release UI | `StudioReleasePage`, `OntologyService.publishCurrentDraft` | Reuse status, inspection and history UX. GitLab remains the revision/release authority; preview, technical release and business agreement are distinct. |
-| Object/relation review | `OntologyEngine.reviewTarget` | Reuse the user interaction pattern. `reviewerId: local-user` and an unversioned target decision are insufficient for authenticated, version-specific business agreement. |
+| Version candidates and release UI | `StudioReleasePage`, `OntologyService.publishCurrentDraft` | Reuse useful history and inspection UX without a manual release gate on ordinary model editing. GitLab gates production source-change plans; the old model-publishing prototype remains optional. |
+| Object/relation review | `OntologyEngine.reviewTarget` | A dedicated confirmation action is not required. Preserve real chat/comment agreement and target/revision/evidence; the legacy `local-user` label is not authenticated authorship. |
 | Published-version agent registration | `getRegisteredAgentRuntime`, `OntologyAgentRegistry` | Reuse optional agent/skill registration and context injection hooks. Loading compiler knowledge into an arbitrary authorised agent must not require creating a new skill and registered assistant. |
 | WebUI conversation/browser transport | `apps/webui/src/client/bridgeAdapter/mossAdapter.ts`, `ConversationCoordinator.ts` | Reuse authenticated sessions, locking, stream and browser lifecycle. Ontology channels have no WebUI mapping at this revision; they return `not-supported-on-web`. |
 
@@ -51,8 +51,9 @@ Evidence links:
 ## Project authority is the integration switch
 
 Extend the existing host project/session registry with an operator-owned model
-authority reference. A Sudograph binding identifies the tenant/project, managed
-GitLab model, registered source handles and allowed operations. A legacy binding
+authority reference. A Sudograph binding identifies the tenant/project, canonical
+model, registered source handles and allowed operations. Git history is optional
+storage/delivery, not a per-edit approval workflow. A legacy binding
 retains its existing engine. Callers cannot change authority by supplying an
 extra flag, namespace, source path or another workspace ID.
 
@@ -88,50 +89,52 @@ must not become the enforcement mechanism. Legacy projects keep their current
 runtime until explicitly migrated. This is a scoped provider substitution,
 not global deletion of ontology functionality.
 
-## Defaults proposed before implementation
+## Agreed editing and production boundaries
 
-### Preview and release
+### Checked model edits update the review directly
 
-Every effective submitted model change should receive compiler checks and an
-automatically generated private review preview. Invalid proposals keep the last
-valid graph and return repair diagnostics. Reviewers must not wait for a manual
-GitLab release approval just to inspect a revised draft.
+Every effective model edit receives compiler checks and automatically regenerates
+the authorised review graph from the canonical revision. Invalid inputs retain
+the last usable graph and return repair diagnostics. Neither graph updates nor
+read-only phase-three context consumption requires a GitLab merge request,
+formal model release or human publication approval. Git may retain history in
+the background. Semantic graph edits write the same model; generated HTML is
+never an independent editing authority.
 
-GitLab CI already builds a `review.html` artifact through `infra/gitlab/worker.py`
-and `pipeline.yml`; reuse that build path and its checked renderer. Preview
-access/registration is the missing boundary, not another rendering engine.
+The existing `compiler.managed` GitLab model-publishing prototype is a tested,
+optional delivery path and keeps its existing approval checks. It is not the
+new default host writer. Reuse its pinned compiler/export verification where
+useful, not its synchronous model-approval workflow. The new host authoring
+adapter is still an implementation gap. Frozen acceptance baselines stay immutable.
 
-Retain the configured GitLab gate for a released baseline. The current managed
-service serves only approved release artifacts: it has no authenticated draft
-preview route. Add that route with the same source/identity/compiler checks;
-do not disable the release gate or serve unchecked caller HTML. A working revision
-and an immutable released revision are Git-managed lifecycle states, not two
-independently editable models. Existing phase-one baselines remain immutable.
-Preview can be generated by the trusted compiler without waiting for release
-approval; show its CI/release state explicitly. Bind review/context reads to
-the selected working or released revision, not an activity-based latest guess.
-
-Recommended context default: construction sessions follow their checked working
-revision; production phase-three sessions pin a released revision. Trial agents
-can explicitly read a permitted working revision. Pending meaning stays pending
-in every channel; release approval does not manufacture business confirmation.
-These lifecycle defaults need product alignment before changing the runtime.
+Production source effects require the exact SQL/API/file change plan, validation,
+GitLab review, operation authority and source preconditions at execution. The
+existing model publisher is not that executor; source write-back is undeployed.
 
 ### Business agreement
 
-Record agreement only for an explicit canonical definition ID and content
-version/digest, with the authenticated human, evidence reference and permission
-decision. A suggested first permission policy lets project maintainers and
-explicitly authorised business reviewers confirm; agents cannot self-confirm.
-An ordinary comment, thread resolution or GitLab approval does not confirm it.
+A business person's comment and the agent's eventual agreement can establish
+agreement about that discussed meaning. Explicit agreement in the bound chat is
+also sufficient; the LLM interprets normal input without a new workflow prompt.
+Disagreement continues in the same discussion. No separate confirmer role,
+confirmation button or mandatory structured `confirmed` flag is required.
 
-Reuse a graph action or a version-bound confirmation interaction in the existing
-conversation. No new approval screen or mandatory confirmation for every edit is
-required. Unrelated proposals can continue while definitions remain unconfirmed.
-Content changes expire the previous agreement; layout/language changes do not.
-Conflicting human decisions remain visible for resolution instead of silently
-using the newest message. This is a proposed review policy, not implemented
-business-confirmation state in the current compiler.
+Preserve actual authorship, conversation/thread evidence, canonical targets,
+revision and unresolved scope for traceability and context refresh. This is
+derived provenance, not another authority or acceptance gate. A resolved thread
+does not confirm unrelated definitions or authorise production execution. The
+compiler's current blanket `unreviewed` presentation must be adapted during
+integration rather than mistaken for a required product approval workflow.
+
+### Phase-three context
+
+Compile exact knowledge, stable references and authorised read pointers first.
+The main conversation's LLM may then organise/compress this versioned packet.
+Do not add an LLM compression call to every phase-one/two convergence step.
+Retain exact critical definitions alongside the summary, validate references and
+evaluate summary answers against the original packet. The summary is derived;
+it cannot become another writable model or grant access. Only deterministic
+context generation exists today; summary and runtime-refresh wiring remain work.
 
 ### Concurrency and delivery
 
@@ -200,14 +203,15 @@ separate acceptance item. GitLab remote fetching alone does not close this gap.
   event/inbox routing and review entry UX.
 - Sudograph owns scanner coordination, source-catalogue pin/history handling,
   canonical YAML/registry checks, merge validation, compiler diagnostics,
-  authenticated draft/release artifacts, native renderer and context compilation.
+  checked review artifacts, native renderer and context compilation.
 - ShareOne retains hosted review/comments and durable events. The GitLab remote
   source request is separate from authenticated live-source reads.
 
 The first complete adapter acceptance includes two users/conversations and
 multiple review bindings, an invalid edit and repair, a compatible concurrent
 merge and a same-definition conflict, a busy recipient/retry, session restore,
-an unbound concept then a source connection/rescan, draft preview then exact
-release, scoped records/context and the actual Desktop/WebUI comment journey.
+an unbound concept then a source connection/rescan, automatic review updates
+without GitLab approval, scoped records/context and the actual Desktop/WebUI
+comment journey. Accept the production source-change executor separately.
 One-session or local native-browser checks are useful smoke tests, not that
 complete acceptance. RDF conversion remains a low-priority interchange task.
