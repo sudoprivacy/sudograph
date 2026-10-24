@@ -1,9 +1,11 @@
 # ShareOne FR: measurable iframe startup and layout lifecycle regression coverage
 
-Status: proposed host compatibility improvement. The application defect is
-fixed in Sudograph. The exact ShareOne production transition that caused the
-original zero-size observation has not been traced. This is not a confirmed
-claim that current ShareOne applies `display: none` to its content frame.
+Status: resolved. [ShareOne PR #318](https://github.com/sudoprivacy/shareone/pull/318)
+is deployed to production. Browser acceptance passed on 2026-10-20 and was
+repeated on the current production revision on 2026-10-24. The application
+defect is fixed in Sudograph. The exact transition behind the original
+Northwind observation remains untraced; current ShareOne does not need a
+`display: none` change.
 
 ## User impact and observed evidence
 
@@ -30,7 +32,7 @@ and [browser receipt](trials/hidden-frame-labels-2026-10-19.json) record:
 These observations establish the failing application mechanism and recovery.
 They do not identify a particular ShareOne host operation as the production cause.
 
-## Current host code inspection
+## Host code inspection before the change
 
 Read-only inspection of ShareOne main at
 [`1212d2ccddd8fa9d786203b034159a7bcf752be3`](https://github.com/sudoprivacy/shareone/blob/1212d2ccddd8fa9d786203b034159a7bcf752be3/frontend/src/pages/share-shell/main.tsx#L851)
@@ -123,3 +125,82 @@ event. An intentionally hidden document must receive a usable restoration path;
 do not assert that browser-standard hidden measurements should become nonzero.
 Keep the application's regression, comment/selection behavior and pan/zoom cost
 checked. Include a production deployment/source revision in the host receipt.
+
+## Host investigation and implemented change
+
+A new library-independent fixture reproduced a separate startup defect on the
+inspected ShareOne frontend: a normally visible frame's first inline script
+observed a `0 x 0` viewport and zero text height. The same document measured
+60-pixel text when loaded directly; the hosted document eventually measured
+60 pixels in a `1440 x 962` viewport. The visible startup failure reproduced
+twice without injecting a hidden ancestor. This establishes a host cold-start
+defect, but does not trace the original Northwind production transition.
+
+The content iframe now mounts blank before its application source is assigned.
+A startup-only observer requires the actual frame to have the same positive
+width and height on two consecutive animation frames. A zero-size frame waits
+for native resize observation without timer polling. The observer stops after
+startup; opening comments, resizing or hiding an already running application
+preserves its document and input state. Document load remains a separate state
+associated with the current document identity.
+
+This changes the common HTML/Markdown/text shell, without adding an SDK method,
+bridge message, persistent readiness field or application-specific cache fix.
+PDF, PowerPoint and Word use other embedding paths and remain unchanged.
+Sandbox attributes and existing storage/comment/access contracts remain intact.
+
+Local validation passed 173 frontend unit tests, 13 new lifecycle browser cases,
+36 source-attribution cases, the passive object-anchor regression and the
+existing long-thread scroll regression. The independent fixture checks cold
+and cached startup, sidebar transitions, narrow viewports, delayed real fonts,
+initially hidden startup, private/shared data bridges and exact source bytes.
+Twenty camera transforms produce no native layout events. Hidden restoration
+is checked against an actual viewport change and a trusted native resize;
+browsers may pause child `ResizeObserver` delivery while hidden. This does not
+promise an event for a hide/reveal that leaves viewport dimensions unchanged.
+
+Sudograph retains its own font and measurement-host guards. A positive outer
+iframe cannot establish readiness for an application's internal hidden tabs,
+fonts or private layout cache. The ShareOne Skill guidance explains this
+distinction without advertising a universal application-ready signal.
+
+## Production acceptance and release
+
+The initial production release is
+[`82de0655f99a92a7c867659117ca10eeaa263605`](https://github.com/sudoprivacy/shareone/commit/82de0655f99a92a7c867659117ca10eeaa263605),
+with [all seven PR checks green](https://github.com/sudoprivacy/shareone/actions/runs/39365314152),
+a [successful deployment](https://github.com/sudoprivacy/shareone/actions/runs/39367006543)
+and [public-host parity](https://github.com/sudoprivacy/shareone/actions/runs/39367300496).
+Acceptance on 2026-10-24 also covers the subsequent production revision
+[`a2408e622dcfdce79b949f6556ed54431544d8fb`](https://github.com/sudoprivacy/shareone/commit/a2408e622dcfdce79b949f6556ed54431544d8fb),
+which retains this startup guard and adds the separate share-link navigation
+change. Its [deployment](https://github.com/sudoprivacy/shareone/actions/runs/39937813080)
+and [host-parity check](https://github.com/sudoprivacy/shareone/actions/runs/40073578912)
+also passed.
+
+Owned ai-dev-browser sessions measured the real application and DOM geometry:
+
+| Check | Observed result |
+| --- | --- |
+| Independent production fixture | All 12 cases passed; the owned share was deleted afterwards. |
+| Desktop cold and cached startup | First script saw a `1440 x 962` viewport and 60-pixel text height, matching standalone text height. |
+| Narrow cold and cached startup | First script saw a `390 x 806` viewport and the same 60-pixel text height. |
+| Sidebar, hidden startup and restoration | Application identity and input state survived; hidden startup assigned no source until positive geometry returned. A viewport change while hidden produced a trusted native resize on restoration. |
+| Fonts, bridges and sandbox | Real font readiness, shared/private data operations and unchanged sandbox attributes passed. |
+| Original bytes and comments | The 40,584-byte fixture source downloaded exactly; its comment list remained unchanged. |
+| Northwind review | All nine states passed: three full loads plus desktop/narrow views with comments open and closed. Actual text rectangles had no intersections, node overflow or header/child intersections. |
+| Existing discussions | All 48 threads remained unchanged, with zero comment mutations. All are currently resolved; the check explicitly expanded that group. |
+| Camera cost | Twenty fixture transforms produced zero native layout events; 20 Northwind camera updates produced zero graph redraws. |
+
+Sidebar assertions wait for the actual target viewport and sidebar bounds before
+checking settled geometry. Screenshots cover the desktop and touch-width views.
+Both public hosts are healthy, and the existing paused content-review mode is
+unchanged.
+
+[ShareOne Skill 1.11.1](https://github.com/sudoprivacy/shareone-skill/tree/v1.11.1)
+contains the measurement guidance and passed its independent tests. Publication
+completed on [ClawHub](https://github.com/sudoprivacy/shareone-skill/actions/runs/39367153156),
+[SkillHub](https://github.com/sudoprivacy/shareone-skill/actions/runs/39367153095)
+and [Sudohub](https://github.com/sudoprivacy/shareone-skill/actions/runs/39367153128).
+The live ShareOne download was checked against the released Skill metadata and
+workflow text.
