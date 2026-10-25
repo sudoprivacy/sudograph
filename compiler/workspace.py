@@ -300,6 +300,23 @@ class Workspace:
             )
             return settings.get("registration")
 
+    def overview(self):
+        """Private host metadata: no model/HTML decoding or record transport.
+
+        Registration describes the immutable source baseline, not current source
+        reachability. A store predating receipts returns no coverage claim.
+        """
+        with self._db() as db:
+            row = db.execute(
+                "SELECT r.id AS revision, json_extract(r.context, '$.context_digest') "
+                "AS context_digest, json_extract(s.payload, '$.registration') "
+                "AS source_registration "
+                "FROM revisions r JOIN head h ON r.id = h.revision JOIN settings s ON s.id = 1"
+            ).fetchone()
+            return {**dict(row), "source_registration": (
+                json.loads(row["source_registration"]) if row["source_registration"] else None
+            )}
+
     def review(self, transport, *, revision=None):
         """Host-owned presentation of an immutable committed model revision."""
         with self._db() as db:
@@ -501,6 +518,8 @@ def main():
             operation = request.get("operation")
             if operation == "contract" and set(request) == {"operation"}:
                 result = store.contract()
+            elif operation == "overview" and set(request) == {"operation"}:
+                result = store.overview()
             elif operation == "apply" and set(request) == {"operation", "request"}:
                 result = store.apply(request["request"], actor=args.actor)
             elif operation == "context_read" and set(request) == {"operation", "request"}:

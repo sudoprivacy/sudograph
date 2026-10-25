@@ -147,6 +147,8 @@ def test_protocol_restores_persisted_store_and_refuses_caller_paths(registered):
         {"operation": "contract"},
         {"operation": "apply", "request": {"path": "other.yaml"}},
         {"operation": "read", "product": "context"},
+        {"operation": "overview"},
+        {"operation": "overview", "path": "other.db"},
     ]
     result = subprocess.run(
         [
@@ -165,9 +167,11 @@ def test_protocol_restores_persisted_store_and_refuses_caller_paths(registered):
         check=True,
     )
     replies = [json.loads(line) for line in result.stdout.splitlines()]
-    assert [r["ok"] for r in replies] == [True, False, True]
+    assert [r["ok"] for r in replies] == [True, False, True, True, False]
     assert replies[0]["result"]["revision"] == replies[2]["result"]["revision"]
     assert replies[1]["error"]["code"] == "WRITE_CONTRACT"
+    assert replies[3]["result"] == {**store.head(), "source_registration": None}
+    assert replies[4]["error"]["code"] == "WRITE_CONTRACT"
 
 
 def test_registration_never_rebinds_existing_store(registered):

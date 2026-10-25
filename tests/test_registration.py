@@ -136,6 +136,25 @@ def test_retry_returns_original_receipt_without_rescanning_or_changing_source(so
         assert target.stat().st_mode & 0o077 == 0
 
 
+@pytest.mark.parametrize("snapshot_records", [False, True])
+def test_native_overview_does_not_transport_model_rows(source, monkeypatch, snapshot_records):
+    store = create(source, snapshot_records=snapshot_records)
+    receipt, head = store.registration(), store.head()
+
+    def unexpected(*_args, **_kwargs):
+        raise AssertionError("metadata must not read a complete model revision or rescan")
+
+    monkeypatch.setattr(store, "_row", unexpected)
+    monkeypatch.setattr(project, "draft", unexpected)
+    overview = store.overview()
+    assert overview == {**head, "source_registration": receipt}
+    assert overview["source_registration"]["records"]["rows_embedded"] == (
+        16 if snapshot_records else 0
+    )
+    assert str(source[0]) not in json.dumps(overview)
+    assert len(json.dumps(overview)) < 4096
+
+
 @pytest.mark.parametrize(
     "changes",
     [

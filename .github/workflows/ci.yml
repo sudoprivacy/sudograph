@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: sudoprivacy/sudowork
-          ref: c27bbdb4789d1c9fb055938fb3bbb95bdf6adeb8
+          ref: 81ea5fedf5e735b39d584f086c9179676f0541f5
           path: .host-acceptance/sudowork
           sparse-checkout: apps/desktop/src/process/services/ontology
           persist-credentials: false

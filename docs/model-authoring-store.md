@@ -67,6 +67,9 @@ python -m compiler.workspace --store models/customer.db --actor <authenticated-h
 ```
 
 It exposes `contract`, `apply`, `read` and version-bound `context_read` operations.
+The host-only `overview` operation reads the current revision/digest and source
+registration receipt without transferring compiled model rows or HTML. It
+reports recorded scan evidence, not current connection availability.
 The context compiler emits MCP tool names and exact argument objects for this
 host path; agents do not translate generic HTTP pointers themselves. The shared
 renderer previews the same transport and registered pointers. Existing HTTP
@@ -86,8 +89,9 @@ Successful MCP edits emit a versioned `ontology.model-changed` event.
 This is the first host adapter slice. It is not deployed product acceptance.
 The [canonical review transport](canonical-review-transport.md) now serves the
 same committed model and on-demand source pages through the existing authority
-interface. Reload reads the latest successful revision. Connector UI registration,
-automatic standalone review-page refresh, active-session
+interface. Reload reads the latest successful revision. Native SQLite form
+registration and project metadata are wired; authenticated standalone launch,
+cloud connector registration, automatic review-page refresh, active-session
 context refresh, durable ShareOne comment delivery, account revocation and the
 Moss/WebUI provider still require implementation and joint acceptance. The
 native local-profile transport does not establish multi-tenant authorization.

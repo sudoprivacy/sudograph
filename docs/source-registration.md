@@ -34,6 +34,15 @@ The receipt records three distinct axes:
 | `scan` | The supported source inventory was exhausted and structure passed checks, with object/field counts and an observation ID, timestamps and schema version. |
 | `records` | The host chose live delivery or a snapshot. Complete structure does not imply that every record was exported. |
 
+The private model worker's `{"operation":"overview"}` returns the current model
+revision/context digest and this source-registration receipt in one query. It
+does not decode or transport compiled model rows, HTML or private source
+bindings. A native project list/detail page must use this metadata path rather
+than loading an entire frozen model to obtain counts. Older stores without a
+receipt return `source_registration: null`, not an invented coverage claim.
+This operation does not scan or test current source reachability, and is absent
+from the agent-facing builder tools and the public review transport.
+
 The default uses live record delivery and embeds zero rows. Version-bound reads
 use the existing bounded source reader. Its drift checks still apply: a read
 does not silently turn the registered baseline into the current database schema.
@@ -74,7 +83,9 @@ or rename mappings are still required for the full connector design.
 
 The native host binds the project authority only after checking a complete
 compiler receipt. It does not create an empty RDF snapshot or fall back to RDF
-on failure. This is a host service API, not yet the connection-form/IPC adapter.
+on failure. The native form/IPC adapter now calls this same registrar and uses
+the private overview for project details. Its existing conversation component
+receives the registered project identity; it does not open an RDF editor.
 Cloud tenant authorization, scoped source handles, durable scan progress,
 PostgreSQL/MySQL complete providers and automatic rescan remain separate work.
 The deployment must provide a filesystem supporting atomic same-volume hard
