@@ -7,6 +7,9 @@ below are proposed work, not deployed capabilities.
 The first integration preserves all existing Sudograph features and human/agent
 workflows. In particular, its full SQLite projection is the reference baseline,
 not functionality to replace with a host's bounded discovery sample.
+The private model worker now supports [bounded live SQLite record reads](source-records.md)
+without embedding rows. Host connector UI, browser transport and scoped gateway
+acceptance remain separate work; this does not establish cloud permissions.
 
 ## Repository boundary
 

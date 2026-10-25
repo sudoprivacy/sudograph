@@ -21,10 +21,14 @@ Register a complete read-only SQLite projection before exposing model tools:
 python -m tools.model_workspace --source sqlite:///customer.sqlite --store models/customer.db --namespace customer --lang en
 ```
 
-The default registers complete source structure without embedding record rows.
-`--snapshot-records` explicitly chooses a frozen record export. Neither mode
-turns this adapter into a live record gateway. The existing permission-aware
-gateway must still be connected to source catalogue paging in the host.
+The default registers complete source structure without embedding record rows,
+plus a private source binding in the host store. Version-bound MCP record reads
+use the [bounded live source reader](source-records.md). The path is absent from
+the canonical YAML, graph, context and contract. `--snapshot-records` explicitly
+chooses a frozen record export instead. This private reader does not establish
+row/field authorization: the host must authorize the complete registered source
+on every call. The existing permission-aware gateway still needs a catalogue
+adapter for customer scopes.
 
 Registration is a deployment operation. Paths, namespace, locale, pointers and
 the source baseline belong to the host. An existing store cannot be rebound by

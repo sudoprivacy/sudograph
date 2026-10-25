@@ -19,20 +19,24 @@ def inventory(conn):
         "SELECT name,type,sql FROM sqlite_master WHERE type IN "
         "('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY name"
     ):
-        name = obj["name"]
-        columns = [dict(r) for r in conn.execute(f"PRAGMA table_xinfo({quote(name)})")]
-        fks = [dict(r) for r in conn.execute(f"PRAGMA foreign_key_list({quote(name)})")]
-        result.append(
-            {
-                "name": name,
-                "kind": obj["type"],
-                "definition": obj["sql"],
-                "columns": columns,
-                "foreign_keys": fks,
-                "count": conn.execute(f"SELECT count(*) FROM {quote(name)}").fetchone()[0],
-            }
-        )
+        described = describe(conn, obj)
+        described["count"] = conn.execute(f"SELECT count(*) FROM {quote(obj['name'])}").fetchone()[
+            0
+        ]
+        result.append(described)
     return result
+
+
+def describe(conn, obj):
+    """Read one known SQLite catalogue row without scanning unrelated records."""
+    name = obj["name"]
+    return {
+        "name": name,
+        "kind": obj["type"],
+        "definition": obj["sql"],
+        "columns": [dict(r) for r in conn.execute(f"PRAGMA table_xinfo({quote(name)})")],
+        "foreign_keys": [dict(r) for r in conn.execute(f"PRAGMA foreign_key_list({quote(name)})")],
+    }
 
 
 def coverage(s):
@@ -132,9 +136,8 @@ def coverage(s):
                 "objects": objects,
                 "missing": missing,
                 "complete": not missing,
-                "record_complete": not missing and not any(
-                    o["excluded"] or o["excluded_columns"] for o in objects
-                ),
+                "record_complete": not missing
+                and not any(o["excluded"] or o["excluded_columns"] for o in objects),
                 "required": raw.get("coverage") == "complete",
             }
         )
