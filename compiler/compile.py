@@ -14,6 +14,7 @@ reshape the truth.
 from __future__ import annotations
 
 import json
+from contextlib import closing
 from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from typing import Any
@@ -199,7 +200,7 @@ def _absent_in_source(s: Spec, tname: str, col: str) -> tuple[int, list]:
     column = s.column_of(tname, col)
     ident = s.column_of(tname, s.id_props(tname)[0])
     where = f"({b['where']}) and " if b.get("where") else ""
-    with bind_mod.connect(raw["dsn"], s.source_base) as conn:
+    with closing(bind_mod.connect(raw["dsn"], s.source_base)) as conn:
         n = conn.execute(
             f'select count(*) from "{b["table"]}" where {where}"{column}" is null'
         ).fetchone()[0]

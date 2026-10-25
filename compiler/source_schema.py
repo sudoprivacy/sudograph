@@ -192,7 +192,8 @@ def build(s, *, records=False):
         done.add(sid)
         # One transaction covers catalogue, counts and portable source records.
         with closing(bind.connect(raw["dsn"], s.source_base)) as conn:
-            conn.execute("BEGIN")
+            if not conn.in_transaction:
+                conn.execute("BEGIN")
             inventory = catalog.inventory(conn)
             names = {obj["name"] for obj in inventory}
             objects, pool, codes = [], [], {}

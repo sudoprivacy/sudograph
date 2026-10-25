@@ -72,7 +72,8 @@ def _plan(objects, *, include_views=False):
 
 def generate(dsn, base="."):
     with closing(bind.connect(dsn, base)) as conn:
-        conn.execute("BEGIN")
+        if not conn.in_transaction:
+            conn.execute("BEGIN")
         public, queries = _plan(catalog.inventory(conn))
         oracle = {qid: {"answer": conn.execute(sql).fetchone()[0], "sql": sql}
                   for qid, sql in queries.items()}
@@ -142,7 +143,8 @@ def oracle_for_schema(schema, registrations, *, question_ids=None):
             raise ValueError("judge source identity differs from the registered projection")
         unchanged()
         with closing(bind.connect(dsn, base)) as conn:
-            conn.execute("BEGIN")
+            if not conn.in_transaction:
+                conn.execute("BEGIN")
             unchanged()
             inventory = catalog.inventory(conn)
             expected = next(s for s in schema["sources"] if s["id"] == sid)

@@ -125,11 +125,14 @@ class Workspace:
 
     @classmethod
     def create(
-        cls, path, baseline, *, namespace, language="zh", pointers=None, record_sources=None
+        cls, path, baseline, *, namespace, language="zh", pointers=None, record_sources=None,
+        registration=None, actor="operator",
     ):
         """Operator registration. Existing stores and source rebinding are refused."""
         if not isinstance(namespace, str) or not namespace.strip():
             raise ValueError("a registered identity namespace is required")
+        if not isinstance(actor, str) or not actor.strip():
+            raise ValueError("a host actor is required")
         # Pin exactly the representation retained by the store. Compiler views
         # can contain integer-keyed maps; JSON object keys become strings, whose
         # sorted order differs from integer order once there are ten entries.
@@ -156,6 +159,10 @@ class Workspace:
             "record_sources": dict(record_sources),
         }
         revision, products = cls._compile(content, model, registry, settings, parent=None)
+        if registration is not None:
+            settings["registration"] = {
+                **copy.deepcopy(registration), "initial_revision": revision,
+            }
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         # Exclusive creation prevents accidentally attaching another source to
@@ -185,7 +192,7 @@ class Workspace:
                 content=content,
                 registry=registry,
                 products=products,
-                actor="operator",
+                actor=actor,
             )
             db.execute("INSERT INTO head VALUES (1, ?)", (revision,))
         return store
@@ -284,6 +291,14 @@ class Workspace:
                 "AS context_digest FROM revisions r JOIN head h ON r.id = h.revision"
             ).fetchone()
             return dict(row)
+
+    def registration(self):
+        """Private operator receipt; never a model tool's source registration API."""
+        with self._db() as db:
+            settings = json.loads(
+                db.execute("SELECT payload FROM settings WHERE id = 1").fetchone()[0]
+            )
+            return settings.get("registration")
 
     def review(self, transport, *, revision=None):
         """Host-owned presentation of an immutable committed model revision."""

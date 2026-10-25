@@ -43,31 +43,9 @@ def main():
             """)
         db.close()
         source_hash = hashlib.sha256(database.read_bytes()).hexdigest()
-        registration = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "tools.model_workspace",
-                "--source",
-                "sqlite:///" + database.as_posix(),
-                "--store",
-                str(directory / "registered.db"),
-                "--namespace",
-                "support",
-                "--lang",
-                "en",
-            ],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            encoding="utf8",
-            check=True,
-        )
-        contract = json.loads(registration.stdout)
         doc = {
             "format": business.FORMAT,
             "namespace": "support",
-            "baseline": contract["baseline"],
             "definitions": {},
         }
         runtime = {
@@ -81,7 +59,20 @@ def main():
             f"import {{ SudographModelClient }} from {json.dumps(client.as_posix())};\n"
             f"const client = new SudographModelClient({json.dumps(runtime)});\n"
             f"const doc = {json.dumps(doc)};\n"
+            f"const source = {json.dumps('sqlite:///' + database.as_posix())};\n"
             """
+            const intake = {source,namespace:'support',operationId:'connect-1',language:'en'};
+            const registered = await client.registerSource('registered','host-registrar',intake);
+            assert.equal(registered.registration.scan.structure_complete,true);
+            assert.equal(registered.registration.scan.objects,2);
+            assert.equal(registered.registration.scan.fields,3);
+            assert.deepEqual(registered.registration.records,
+              {delivery:'live',export_complete:false,rows_embedded:0});
+            const again = await client.registerSource('registered','host-registrar',intake);
+            assert.deepEqual(again.registration,registered.registration);
+            await assert.rejects(client.registerSource('registered','another-registrar',intake),
+              error=>error.code==='REGISTRATION_CONFLICT');
+            doc.baseline = registered.contract.baseline;
             const invoke = (actor, operation) => client.invoke('registered', actor, operation);
             const contract = await invoke('alice', {operation: 'contract'});
             const yaml = (value) => JSON.stringify(value); // JSON is checked YAML, too.
@@ -146,9 +137,17 @@ def main():
         )
         receipt = json.loads(result.stdout)
         assert hashlib.sha256(database.read_bytes()).hexdigest() == source_hash
-        model = Workspace(directory / "registered.db").read(product="model")
+        store = Workspace(directory / "registered.db")
+        model = store.read(product="model")
         assert not model["records"]
+        observation = model["projection"]["source_observation"]
+        assert observation == store.registration()["scan"]["observation"]
+        assert observation["consistency"] == "one SQLite read transaction"
+        assert observation["id"] and observation["started_at"] and observation["completed_at"]
         receipt.update(
+            source_registration=True,
+            registration_retry_verified=True,
+            whole_scan_one_read_transaction=True,
             source_unchanged=True,
             record_delivery="live_on_demand",
             compiler_root=str(ROOT),
