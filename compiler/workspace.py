@@ -190,10 +190,21 @@ class Workspace:
                 "registry": registry,
                 "language": settings["language"],
                 "pointers": settings["pointers"],
+                "context_transport": "mcp",
             }
         )
-        model = {**model, "projection": {**model["projection"], "model_revision": revision}}
-        packet = Reader(model, revision=revision, pointers=settings["pointers"]).pack()
+        model = {
+            **model,
+            "projection": {
+                **model["projection"],
+                "model_revision": revision,
+                "context_transport": "mcp",
+                "knowledge_pointers": settings["pointers"],
+            },
+        }
+        packet = Reader(
+            model, revision=revision, pointers=settings["pointers"], transport="mcp"
+        ).pack()
         html = app.render(model, language=settings["language"])
         return revision, {"model": model, "context": packet, "html": html}
 
@@ -216,6 +227,13 @@ class Workspace:
     def _row(self, db, revision=None):
         if revision is None:
             revision = db.execute("SELECT revision FROM head WHERE id = 1").fetchone()[0]
+        if not isinstance(revision, str) or not revision:
+            raise Refused(
+                "REVISION_UNKNOWN",
+                "Revision must be an opaque string identity",
+                "Use the revision returned by this model's contract",
+                409,
+            )
         row = db.execute("SELECT * FROM revisions WHERE id = ?", (revision,)).fetchone()
         if row is None:
             raise Refused(
@@ -246,7 +264,13 @@ class Workspace:
             }
 
     def read(self, *, revision=None, product="context"):
-        if product not in {"context", "html", "model", "content", "registry"}:
+        if not isinstance(product, str) or product not in {
+            "context",
+            "html",
+            "model",
+            "content",
+            "registry",
+        }:
             raise Refused(
                 "PRODUCT_UNKNOWN", "Unknown model product", "Use context, html, model or content"
             )
@@ -266,6 +290,18 @@ class Workspace:
                 "Exact reads require revision, context_digest and id",
                 "Use the pointers in the current context packet",
             )
+        if (
+            not isinstance(request["id"], str)
+            or not request["id"]
+            or not isinstance(request["context_digest"], str)
+            or ("records" in request and not isinstance(request["records"], bool))
+            or any(key in request and type(request[key]) is not int for key in ("offset", "limit"))
+        ):
+            raise Refused(
+                "READ_CONTRACT",
+                "Invalid identity, digest or pagination types",
+                "Use the typed exact-read pointer in the context packet",
+            )
         model = self.read(revision=request["revision"], product="model")
         packet = self.read(revision=request["revision"], product="context")
         if request["context_digest"] != packet["context_digest"]:
@@ -279,7 +315,9 @@ class Workspace:
             settings = json.loads(
                 db.execute("SELECT payload FROM settings WHERE id = 1").fetchone()[0]
             )
-        return Reader(model, revision=request["revision"], pointers=settings["pointers"]).read(
+        return Reader(
+            model, revision=request["revision"], pointers=settings["pointers"], transport="mcp"
+        ).read(
             request["id"],
             **{k: v for k, v in request.items() if k not in {"id", "revision", "context_digest"}},
         )

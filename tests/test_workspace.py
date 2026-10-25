@@ -225,3 +225,40 @@ Workspace(sys.argv[1]).apply(json.loads(sys.argv[2]), actor="alice")
         assert db.execute("SELECT COUNT(*) FROM operations").fetchone()[0] == 0
     receipt = workspace.Workspace(store.path).apply(edit, actor="alice")
     assert store.contract()["revision"] == receipt["revision"]
+
+
+def test_malformed_exact_reads_return_contract_errors_without_changing_head(registered):
+    store, _baseline = registered
+    packet = store.read()
+    read = {
+        "revision": packet["revision"],
+        "context_digest": packet["context_digest"],
+        "id": "catalog",
+    }
+    for bad in (
+        {"id": []},
+        {"revision": {}},
+        {"context_digest": {}},
+        {"offset": True},
+        {"limit": []},
+        {"records": "yes"},
+    ):
+        with pytest.raises(Refused):
+            store.context_read({**read, **bad})
+    with pytest.raises(Refused, match="product"):
+        store.read(product=[])
+    assert store.contract()["revision"] == packet["revision"]
+
+
+def test_context_compiles_pointers_for_the_actual_mcp_tool_contract(registered):
+    store, _baseline = registered
+    packet = store.read()
+    block = next(block for block in packet["blocks"] if block["id"] == "pointers")
+    pointers = yaml.safe_load(block["text"].split("\n", 1)[1])
+    assert pointers["transport"]["protocol"] == "mcp"
+    request = pointers["requests"]["catalog"]
+    assert request["tool"] == "sudograph_context_read"
+    assert "operation" not in request["arguments"]
+    assert store.context_read(request["arguments"])["sources"]
+    assert pointers["requests"]["refresh"] == {"tool": "sudograph_context", "arguments": {}}
+    assert packet["context_digest"] in store.read(product="html")

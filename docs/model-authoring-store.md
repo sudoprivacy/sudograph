@@ -58,6 +58,10 @@ python -m compiler.workspace --store models/customer.db --actor <authenticated-h
 ```
 
 It exposes `contract`, `apply`, `read` and version-bound `context_read` operations.
+The context compiler emits MCP tool names and exact argument objects for this
+host path; agents do not translate generic HTTP pointers themselves. The shared
+renderer previews the same transport and registered pointers. Existing HTTP
+context exports retain their original contract.
 Only the host launches this process. It is not an authenticated public server.
 The embedding service must authorize the project before every call and retain
 its tenant/session binding. The subprocess cannot authorize a caller from YAML.

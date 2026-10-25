@@ -62,7 +62,10 @@ class Reader:
     cannot be revoked, and must not be used to implement per-user visibility.
     """
 
-    def __init__(self, model, *, revision=None, pointers=None):
+    def __init__(self, model, *, revision=None, pointers=None, transport="http"):
+        if transport not in {"http", "mcp"}:
+            raise ValueError("context transport must be http or mcp")
+        self.transport = transport
         self.model = model
         schema = model["source_schema"]
         source_schema.validate(schema)
@@ -85,10 +88,13 @@ class Reader:
         }
         self.pointers = registered_pointers([] if pointers is None else pointers)
         self.source_digest = business.digest(schema)
-        self.digest = business.digest({
+        identity = {
             "format": FORMAT, "source_digest": self.source_digest,
             "knowledge": self.payload, "pointers": self.pointers,
-        })
+        }
+        if transport != "http":
+            identity["transport"] = transport
+        self.digest = business.digest(identity)
         self.revision = revision or self.digest
 
     def pack(self):
@@ -136,13 +142,20 @@ class Reader:
                         "context_digest": self.digest, "id": "<source object ID>",
                         "records": True, "offset": 0, "limit": 20},
         }
+        transport = {"method": "POST", "path": "/v1"}
+        if self.transport == "mcp":
+            transport = {"protocol": "mcp", "scope": "host-bound registered model"}
+            requests = {name: {
+                "tool": "sudograph_context" if name == "refresh" else "sudograph_context_read",
+                "arguments": {key: value for key, value in request.items() if key != "operation"},
+            } for name, request in requests.items()}
         blocks = [
             ("source_catalog", "# Recorded source structure\n" + "".join(source_text)),
             ("business_definitions", "# Versioned business knowledge\n" + text(definitions)),
             ("source_review", "# Unconfirmed source questions\n" + text(review)),
             ("evidence", "# Supplied document evidence\n" + text(self.documents)),
             ("pointers", "# Exact reads and data pointers\n" + text({
-                "transport": {"method": "POST", "path": "/v1"}, "requests": requests,
+                "transport": transport, "requests": requests,
                 "registered_pointers": self.pointers,
                 "record_data": "Read paginated source snapshots; no record rows are preloaded.",
                 "business_execution": "Definitions retain their recorded review state. "
