@@ -164,7 +164,9 @@ def reader_policy() -> dict[str, str]:
 def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 'zh',
            packed: bool = False, review: dict | None = None) -> str:
     if review is not None and (
-        set(review) != {'endpoint', 'resource'} or review['endpoint'] != '/v1'
+        set(review) != {'endpoint', 'resource'}
+        or not isinstance(review['endpoint'], str)
+        or not re.fullmatch(r'(?:/review/[A-Za-z0-9_-]{1,128})?/v1', review['endpoint'])
         or not isinstance(review['resource'], str) or not review['resource']
         or not b.get('projection', {}).get('model_revision')
     ):

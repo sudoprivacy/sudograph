@@ -54,9 +54,11 @@ def main():
             "modelDirectory": str(directory),
         }
         script = directory / "accept.ts"
+        review_host = client.parent / "SudographReviewHost.ts"
         script.write_text(
             "import assert from 'node:assert/strict';\n"
             f"import {{ SudographModelClient }} from {json.dumps(client.as_posix())};\n"
+            f"import {{ SudographReviewHost }} from {json.dumps(review_host.as_posix())};\n"
             f"const client = new SudographModelClient({json.dumps(runtime)});\n"
             f"const doc = {json.dumps(doc)};\n"
             f"const source = {json.dumps('sqlite:///' + database.as_posix())};\n"
@@ -128,10 +130,46 @@ def main():
             assert.equal(overview.source_registration.records.rows_embedded,0);
             assert.ok(!JSON.stringify(overview).includes(source));
             await assert.rejects(client.invoke('../other','alice',{operation:'contract'}));
+            let allowed = true;
+            const host = new SudographReviewHost({
+              authorize: binding => {
+                assert.ok(allowed);
+                assert.equal(binding.workspaceId,'registered');
+                assert.equal(binding.conversationId,'review-chat');
+              },
+              read: (resource,request) => client.review(resource,'host-alice',resource,request),
+            });
+            try {
+              const launch = await host.createSession({workspaceId:'registered',
+                conversationId:'review-chat'});
+              assert.ok(!launch.url.includes(launch.cookie.value));
+              assert.equal(launch.cookie.httpOnly,true);
+              const headers = {Cookie:launch.cookie.name+'='+launch.cookie.value};
+              assert.equal((await fetch(launch.url)).status,403);
+              const review = await fetch(launch.url,{headers});
+              assert.equal(review.status,200);
+              const reviewHtml = await review.text();
+              assert.ok(reviewHtml.includes(receipt.revision));
+              assert.ok(reviewHtml.includes(new URL(launch.url).pathname+'v1'));
+              assert.ok(!reviewHtml.includes(launch.cookie.value));
+              assert.ok(!reviewHtml.includes(source));
+              const request = body => fetch(launch.url+'v1',{method:'POST',
+                headers:{...headers,'Content-Type':'application/json'},
+                body:JSON.stringify({view:'registered',...body})});
+              const live = await request({operation:'page',params:{revision:context.revision,
+                context_digest:context.context_digest,id:object.id,limit:1}});
+              assert.equal(live.status,200);
+              assert.deepEqual((await live.json()).result.rows[0],[1,7]);
+              assert.equal((await request({operation:'export'})).status,403);
+              assert.equal((await request({operation:'head',view:'other'})).status,400);
+              allowed = false;
+              assert.equal((await fetch(launch.url,{headers})).status,403);
+            } finally { await host.close(); }
             console.log(JSON.stringify({status:'passed',actors:2,compatible_merge:true,
               incompatible_edit_refused:true,idempotent_retry:true,definitions:2,
               same_graph_context_revision:true,rows_preloaded:0,live_page_verified:true,
-              revision:receipt.revision}));
+              authenticated_host_review_verified:true,host_review_revocation_verified:true,
+              standalone_browser_launch_verified:false,revision:receipt.revision}));
             """,
             encoding="utf8",
         )
