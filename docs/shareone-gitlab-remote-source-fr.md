@@ -62,7 +62,7 @@ bytes are staged before source/digest/access facts are conditionally published.
 GitLab remains the content version authority. Operator setup and permission
 details are in [the ShareOne deployment contract](https://github.com/sudoprivacy/shareone/blob/main/docs/gitlab-remote-sources.md).
 
-Local validation: 685 backend tests passed, with 17 environment-dependent skips;
+Local validation: 686 backend tests passed, with 17 environment-dependent skips;
 the separate real PostgreSQL transaction suite passed all 9 cases, and all 25
 standalone Skill API/steering checks passed. Unknown viewer scopes remain restricted;
 access gates are rechecked when source or permission changes commit during fetch.
@@ -73,7 +73,7 @@ is a controlled fixture in that browser suite. A separate real public GitLab raw
 API probe verified two different immutable commits and complete response hashes.
 
 The API steering audit also covers credential origin confinement, safe redirect
-handling, authoritative source errors, rejected misspelled mutations without
+handling, authoritative source errors, rejected misspelled or empty-scope mutations without
 partial writes, unconfirmed publication responses, offline command help, and
 runtime-derived creation/scope/error discovery. The service and Skill retain the
 existing account identity when a GitLab credential or network route fails.
