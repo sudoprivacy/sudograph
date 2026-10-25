@@ -303,6 +303,9 @@ business confirmation and the format-comparison evaluation remain separate work.
 The [Sudowork integration review](docs/sudowork-integration-review.md) records
 proposed feature ownership and human/agent experiences. Existing connection and
 browser-session UI can be reused, but the host adapter is not yet deployed.
+The [transactional authoring store](docs/model-authoring-store.md) implements
+ordinary edits, compatible concurrent merges and atomic graph/context products.
+Its first Sudowork adapter slice is under test; it is not cloud/browser acceptance.
 The [review navigation contract](docs/review-navigation-contract.md) explains
 which entries a new source project produces and which business-view choices
 remain author decisions. Views organise review tasks; the catalogue locates

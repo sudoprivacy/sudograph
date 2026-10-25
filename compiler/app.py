@@ -187,7 +187,10 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
     if b.get('source_schema'):
         from .context import Reader  # noqa: PLC0415 — one model-to-agent compiler
 
-        packet = Reader(b).pack()
+        projection = b.get('projection', {})
+        packet = Reader(b, revision=projection.get('model_revision'),
+                        pointers=projection.get('knowledge_pointers'),
+                        transport=projection.get('context_transport', 'http')).pack()
         context_preview = {key: value for key, value in packet.items()
                            if key not in {'text', 'sudocode'}}
     b = {**b, 'ui': {'language': language, 'messages': messages, 'catalogs': catalogs,
