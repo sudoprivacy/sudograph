@@ -130,6 +130,10 @@ class Workspace:
         """Operator registration. Existing stores and source rebinding are refused."""
         if not isinstance(namespace, str) or not namespace.strip():
             raise ValueError("a registered identity namespace is required")
+        # Pin exactly the representation retained by the store. Compiler views
+        # can contain integer-keyed maps; JSON object keys become strings, whose
+        # sorted order differs from integer order once there are ten entries.
+        baseline = json.loads(_json(baseline))
         pointers = registered_pointers([] if pointers is None else pointers)
         record_sources = {} if record_sources is None else record_sources
         SourceRecords(baseline, record_sources)
@@ -271,6 +275,25 @@ class Workspace:
                     "effects": "model, graph and context only; source is read-only",
                 },
             }
+
+    def head(self):
+        """Version discovery without returning YAML, records or generated HTML."""
+        with self._db() as db:
+            row = db.execute(
+                "SELECT r.id AS revision, json_extract(r.context, '$.context_digest') "
+                "AS context_digest FROM revisions r JOIN head h ON r.id = h.revision"
+            ).fetchone()
+            return dict(row)
+
+    def review(self, transport, *, revision=None):
+        """Host-owned presentation of an immutable committed model revision."""
+        with self._db() as db:
+            row = self._row(db, revision)
+            settings = json.loads(
+                db.execute("SELECT payload FROM settings WHERE id = 1").fetchone()[0]
+            )
+            model = json.loads(row["model"])
+        return app.render(model, language=settings["language"], review=transport)
 
     def read(self, *, revision=None, product="context"):
         if not isinstance(product, str) or product not in {

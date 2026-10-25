@@ -305,9 +305,13 @@ proposed feature ownership and human/agent experiences. Existing connection and
 browser-session UI can be reused, but the host adapter is not yet deployed.
 The [transactional authoring store](docs/model-authoring-store.md) implements
 ordinary edits, compatible concurrent merges and atomic graph/context products.
-Its first Sudowork adapter slice is under test; it is not cloud/browser acceptance.
+Its first Sudowork adapter slice passes the paired native host acceptance;
+cloud identity and complete host UI integration remain outstanding.
 The [registered source reader](docs/source-records.md) supplies bounded live SQLite
-pages through the native agent tool; the standalone browser transport is pending.
+pages through the native agent tool and the
+[canonical review transport](docs/canonical-review-transport.md). Browser paging
+uses the same committed model and authorizes every read. Host login, automatic
+refresh and customer row/field policy adaptation remain integration work.
 The [review navigation contract](docs/review-navigation-contract.md) explains
 which entries a new source project produces and which business-view choices
 remain author decisions. Views organise review tasks; the catalogue locates
@@ -823,6 +827,10 @@ python -m tools.verify                                            # everything C
 listing them again. Two lists of the same steps drift, and they drift by the
 local one getting shorter: this build was red for five commits on a lint gate
 while every local run — the test suite alone — came back green.
+Full verification also requires Playwright 1.61.0 and its Chromium runtime;
+[browser acceptance setup](docs/canonical-review-transport.md#acceptance) is
+shared by local verification and CI. Screenshots and its receipt are written to
+the worktree's ignored `.acceptance/browser-review/` directory.
 
 One of those gates runs every `python -m` line on this page. That is the only
 reason to trust it: the front page is what a model reads before writing its

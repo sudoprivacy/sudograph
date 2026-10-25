@@ -147,8 +147,10 @@ async function drawCanvas(v, shown, edges, mine) {
   const {layout:laid,direction}=geometry;
   state.resolvedDirection=direction;state.layoutCandidates=geometry.candidates;
   $('direction').options[0].textContent=t('适应画布')+' · '+t(direction==='RIGHT'?'从左到右':'从上到下');
-  if(labelFrame!==null){cancelAnimationFrame(labelFrame);labelFrame=null;}
   cy?.destroy();
+  // Destroy can emit a final bounds event. Cancel its frame after destruction,
+  // so old labels never look up their IDs in the replacement graph.
+  if(labelFrame!==null){cancelAnimationFrame(labelFrame);labelFrame=null;}
   canvasLayoutKey=key;
   $('cy').replaceChildren();
   const host = document.createElement('div');
@@ -244,6 +246,7 @@ async function drawCanvas(v, shown, edges, mine) {
   layer.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden';
   $('cy').appendChild(layer);
   scene = layer;
+  const ownedCanvas=cy;
   if (nodes.length <= 500) for (const n of nodes) {
     const label = document.createElement('div');
     label.className='canvas-label'; label.dataset.nodeId=n.id;label.id='node-label-'+n.id;
@@ -279,6 +282,7 @@ async function drawCanvas(v, shown, edges, mine) {
   let edgePositionsDirty=false;
   const intersects=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
   refreshCanvasEdgeLabels=()=>{
+    if(cy!==ownedCanvas||ownedCanvas.destroyed()||!layer.isConnected)return;
     if(nodes.length>500){$('edgeLabelNotice').textContent=state.edgeLabels?
       t('关系名称见详情；可只看相邻关系缩小范围。'):'';return;}
     const obstacles=cy.nodes().map(n=>{
@@ -341,6 +345,7 @@ async function drawCanvas(v, shown, edges, mine) {
       renderedPosition:{x:e.clientX-hostBox.x,y:e.clientY-hostBox.y}});
   },{passive:false});
   function labels() {
+    if(cy!==ownedCanvas||ownedCanvas.destroyed()||!layer.isConnected)return;
     if(edgePositionsDirty)refreshCanvasEdgeLabels();
     for (const label of layer.querySelectorAll('.canvas-label')) {
       const n=cy.getElementById(label.dataset.nodeId),p=n.renderedPosition();
@@ -359,6 +364,7 @@ async function drawCanvas(v, shown, edges, mine) {
     anchors.report();
   }
   const scheduleLabels=()=>{
+    if(cy!==ownedCanvas||ownedCanvas.destroyed()||!layer.isConnected)return;
     if(labelFrame===null)labelFrame=requestAnimationFrame(()=>{labelFrame=null;labels();});
   };
   cy.on('pan zoom resize bounds',scheduleLabels);

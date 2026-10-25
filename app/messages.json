@@ -358,6 +358,12 @@
     "核对方法": "Verification plan",
     "橙色是待核对的问题，不表示源数据已经出错；不会改写源值。": "Orange marks questions to check, not confirmed source defects. Source values stay unchanged.",
     "数据问题：{visible}/{total}": "Source questions: {visible}/{total}",
-    "评论数据问题": "Comment on source question"
+    "评论数据问题": "Comment on source question",
+    "受控在线审阅": "Authorized live review",
+    "源结构来自已编译版本；记录按需从源库读取。": "Structure comes from the compiled model. Records are read from the source on demand.",
+    "正在读取源记录…": "Loading source records…",
+    "无法读取源记录；请检查访问权限或刷新审阅页。": "Unable to read source records. Check access or reload this review page.",
+    "实时记录；不同分页可能来自不同的读取时刻。": "Live records. Separate pages may observe source changes.",
+    "未声明主键；序号仅在本次读取中定位，不是业务身份。": "No primary key is declared. Positions identify rows within this read only, not business identities."
   }
 }

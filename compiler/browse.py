@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import gzip
 import json
+from contextlib import closing
 
 from . import bind
 from .query import Builder
@@ -36,7 +37,7 @@ def page(s, tname, *, offset=0, limit=PAGE_SIZE, where=None, basis=None, at=None
     tail = " WHERE " + " AND ".join(filters) if filters else ""
     order = ",".join(row.property(p) for p in s.id_props(tname))
     source = f"FROM {row.source()} {' '.join(joins)}{tail}"
-    with bind.connect(b.dsn, s.source_base) as conn:
+    with closing(bind.connect(b.dsn, s.source_base)) as conn:
         total = conn.execute("SELECT count(*) " + source, b.params).fetchone()[0]
         data = conn.execute(
             f"SELECT {select} {source} ORDER BY {order} LIMIT :limit OFFSET :offset",
@@ -81,7 +82,7 @@ def snapshot(s, *, chunk_size=1000, only=None):
             filters = row.filters()
             tail = " WHERE " + " AND ".join(filters) if filters else ""
             sql = f"SELECT {select} FROM {row.source()} {' '.join(joins)}{tail} ORDER BY {order}"
-            with bind.connect(b.dsn, s.source_base) as conn:
+            with closing(bind.connect(b.dsn, s.source_base)) as conn:
                 cur = conn.execute(sql, b.params)
                 while rows := cur.fetchmany(chunk_size):
                     add(rows)

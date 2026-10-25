@@ -79,7 +79,10 @@ authority. Creation and restoration read the current deterministic context.
 Successful MCP edits emit a versioned `ontology.model-changed` event.
 
 This is the first host adapter slice. It is not deployed product acceptance.
-Connector UI registration, standalone review-page refresh, active-session
+The [canonical review transport](canonical-review-transport.md) now serves the
+same committed model and on-demand source pages through the existing authority
+interface. Reload reads the latest successful revision. Connector UI registration,
+automatic standalone review-page refresh, active-session
 context refresh, durable ShareOne comment delivery, account revocation and the
 Moss/WebUI provider still require implementation and joint acceptance. The
 native local-profile transport does not establish multi-tenant authorization.

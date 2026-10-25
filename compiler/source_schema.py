@@ -15,6 +15,7 @@ import os
 import struct
 import sys
 from array import array
+from contextlib import closing
 from urllib.parse import quote
 
 import sqlglot
@@ -190,7 +191,7 @@ def build(s, *, records=False):
             continue
         done.add(sid)
         # One transaction covers catalogue, counts and portable source records.
-        with bind.connect(raw["dsn"], s.source_base) as conn:
+        with closing(bind.connect(raw["dsn"], s.source_base)) as conn:
             conn.execute("BEGIN")
             inventory = catalog.inventory(conn)
             names = {obj["name"] for obj in inventory}
