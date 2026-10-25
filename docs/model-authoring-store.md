@@ -98,4 +98,7 @@ is a PowerShell wrapper. The test uses the real TypeScript client and Python
 compiler against an unrelated SQLite fixture: two actors, separate worker
 processes, compatible merge, incompatible edit, durable retry, one graph/context
 revision and an unchanged source database. The context preloads zero rows.
+The live source page is verified against that same fixture. CI runs this
+cross-repository acceptance against an immutable paired Sudowork adapter revision
+and retains the receipt; it does not rely on an author remembering to run it.
 This receipt proves the subprocess boundary, not browser or cloud deployment.
