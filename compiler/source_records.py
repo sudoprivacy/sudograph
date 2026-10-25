@@ -117,10 +117,15 @@ class SourceRecords:
                 order = ",".join(map(quote, keys or columns))
                 selected = ",".join(map(quote, columns))
                 rows, size = [], 0
-                for row in conn.execute(
-                    f"SELECT {selected} FROM {table} ORDER BY {order} LIMIT ? OFFSET ?",
-                    (limit, offset),
-                ):
+                # Beyond the current count is an empty page, including offsets
+                # larger than SQLite can bind. Do not sort the entire source.
+                source_rows = ()
+                if offset < total:
+                    source_rows = conn.execute(
+                        f"SELECT {selected} FROM {table} ORDER BY {order} LIMIT ? OFFSET ?",
+                        (limit, offset),
+                    )
+                for row in source_rows:
                     values = [source_schema.wire(value) for value in row]
                     size += len(json.dumps(values, ensure_ascii=False).encode("utf8"))
                     if size > MAX_BYTES:

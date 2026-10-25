@@ -124,6 +124,7 @@ def test_bounded_ranges_and_registered_binding_are_enforced(live):
     with pytest.raises(Refused, match="not registered"):
         SourceRecords(model, {}).page(objects["Tickets"])
     assert reader.page(objects["Tickets"], offset=100)["rows"] == []
+    assert reader.page(objects["Tickets"], offset=10**80)["rows"] == []
 
 
 def test_page_byte_budget_never_silently_truncates_values(live):
