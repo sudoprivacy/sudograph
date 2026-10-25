@@ -10,7 +10,7 @@ from contextlib import closing
 import pytest
 import yaml
 
-from compiler import app, bind, project, spec, workspace
+from compiler import app, bind, catalog, project, spec, workspace
 from compiler.model_contract import Refused
 from compiler.source_records import MAX_BYTES, SourceRecords
 
@@ -59,6 +59,42 @@ def test_pages_keep_row_correspondence_keys_binary_null_and_duplicate_view_resul
     assert reader.page(objects['Quoted;"Object'])["rows"] == [[1, "literal"]]
     assert hashlib.sha256(database.read_bytes()).hexdigest() == before
     assert not model["records"] and not model["source_schema"]["snapshots"]
+
+
+@pytest.mark.parametrize("records", [False, True])
+def test_projection_releases_every_source_connection(live, tmp_path, monkeypatch, records):
+    database, _, _, _ = live
+    connect, opened = bind.connect, []
+
+    def track(*args, **kwargs):
+        conn = connect(*args, **kwargs)
+        opened.append(conn)  # Strong references make GC an invalid substitute for close.
+        return conn
+
+    monkeypatch.setattr(bind, "connect", track)
+    config = tmp_path / "rescan.yaml"
+    config.write_text(yaml.safe_dump(project.draft("sqlite:///" + database.as_posix())),
+                      encoding="utf8")
+    app.bundle(spec.load(str(config)), records=records)
+    assert opened
+    for conn in opened:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+            conn.execute("SELECT 1")
+
+
+def test_failed_catalogue_read_releases_its_connection(live, monkeypatch):
+    _, _, bindings, _ = live
+    conn = bind.connect(next(iter(bindings.values())))
+    monkeypatch.setattr(bind, "connect", lambda *_args: conn)
+
+    def failed(_conn):
+        raise ValueError("source observation interrupted")
+
+    monkeypatch.setattr(catalog, "inventory", failed)
+    with pytest.raises(ValueError, match="interrupted"):
+        catalog.scan(next(iter(bindings.values())))
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        conn.execute("SELECT 1")
 
 
 def test_each_page_observes_live_data_without_rewriting_the_registered_catalogue(live):

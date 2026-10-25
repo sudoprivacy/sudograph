@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.edits.yaml
 node_modules/
+.acceptance/
 .shareone_history.json
 
 # Generated apps are build artifacts; the template and the vendored libraries

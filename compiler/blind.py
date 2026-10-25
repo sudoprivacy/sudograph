@@ -12,6 +12,7 @@ import hashlib
 import json
 import random
 import secrets
+from contextlib import closing
 from pathlib import Path
 
 from . import bind, catalog, source_schema
@@ -70,7 +71,7 @@ def _plan(objects, *, include_views=False):
 
 
 def generate(dsn, base="."):
-    with bind.connect(dsn, base) as conn:
+    with closing(bind.connect(dsn, base)) as conn:
         conn.execute("BEGIN")
         public, queries = _plan(catalog.inventory(conn))
         oracle = {qid: {"answer": conn.execute(sql).fetchone()[0], "sql": sql}
@@ -140,7 +141,7 @@ def oracle_for_schema(schema, registrations, *, question_ids=None):
         if sid != registration["source"]:
             raise ValueError("judge source identity differs from the registered projection")
         unchanged()
-        with bind.connect(dsn, base) as conn:
+        with closing(bind.connect(dsn, base)) as conn:
             conn.execute("BEGIN")
             unchanged()
             inventory = catalog.inventory(conn)

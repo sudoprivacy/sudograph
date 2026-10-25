@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from contextlib import closing
+
 from . import bind
 from .query import quote
 
 
 def scan(dsn, base="."):
     """Enumerate empty tables, views, columns, keys and foreign keys as well as rows."""
-    with bind.connect(dsn, base) as conn:
+    with closing(bind.connect(dsn, base)) as conn:
         return inventory(conn)
 
 
@@ -122,7 +124,7 @@ def coverage(s):
                     if any(not p for p in predicates):
                         continue
                     union = " OR ".join(f"({p})" for p in predicates)
-                    with bind.connect(raw["dsn"], s.source_base) as conn:
+                    with closing(bind.connect(raw["dsn"], s.source_base)) as conn:
                         uncovered = conn.execute(
                             f"SELECT count(*) FROM {quote(table)} WHERE NOT COALESCE(({union}),0)"
                         ).fetchone()[0]

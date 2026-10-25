@@ -53,10 +53,17 @@ invoking the worker. Cloud tenant grants, row/field projections and their
 reauthorization must still be connected through the data owner's gateway.
 Changing a graph view or adding YAML never grants database access.
 
-The agent record-read path is implemented; standalone browser record-panel
-transport and its browser acceptance are separate integration work. Portable
+The agent record-read path and canonical browser record-panel transport are
+implemented. Host login and cloud permission integration remain separate work. Portable
 frozen exports retain their existing reader and are not revocable access control.
 
 The shared SQLite connector percent-encodes file URIs, including `#` and spaces,
 and always opens in read-only mode. Identifier quoting is shared across source
 verification, uniqueness checks, loading and paging, including names with quotes.
+## Browser review
+
+The [canonical review transport](canonical-review-transport.md) delegates browser
+record buttons to this same reader. It does not introduce a second scanner or
+record authority. Every page requires the displayed model revision, context
+digest and current resource authorization. Customer row/field policy adaptation
+and host login remain separate integration requirements.
