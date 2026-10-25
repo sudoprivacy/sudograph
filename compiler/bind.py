@@ -23,8 +23,11 @@ from __future__ import annotations
 import copy
 import os
 import sqlite3
-from contextlib import closing
+import uuid
+from contextlib import closing, contextmanager
+from contextvars import ContextVar
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -84,7 +87,72 @@ def _path_of(dsn: str, base: str) -> str:
     return raw if os.path.isabs(raw) else os.path.normpath(os.path.join(base, raw))
 
 
-def connect(dsn: str, base: str = ".") -> sqlite3.Connection:
+_observation = ContextVar("sudograph_source_observation", default=None)
+
+
+class _ReadLease:
+    """Borrow one observation's connection without owning its transaction."""
+
+    def __init__(self, connection):
+        self._connection = connection
+        self._closed = False
+
+    def __getattr__(self, name):
+        if self._closed:
+            raise sqlite3.ProgrammingError("Cannot operate on a closed source lease")
+        return getattr(self._connection, name)
+
+    def close(self):
+        self._closed = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_error):
+        self.close()
+
+
+def _source_address(dsn, base):
+    return os.path.normcase(os.path.realpath(_path_of(dsn, base)))
+
+
+@contextmanager
+def observation(dsn, base="."):
+    """Keep discovery, validation and compilation on one read transaction.
+
+    This copies no database and changes no source identity. Context-local leases
+    let the existing scanner/SQL checks share this observation; they cannot
+    commit it, close its connection or introduce a second source by accident.
+    """
+    if _observation.get() is not None:
+        raise BindingError("source observations cannot be nested")
+    with closing(_open(dsn, base)) as connection:
+        connection.execute("BEGIN")
+        version = connection.execute("PRAGMA schema_version").fetchone()[0]
+        proof = {"id": str(uuid.uuid4()), "provider": "sqlite",
+                 "provider_version": sqlite3.sqlite_version,
+                 "consistency": "one SQLite read transaction",
+                 "schema_version": version, "started_at": datetime.now(UTC).isoformat()}
+        token = _observation.set((_source_address(dsn, base), connection))
+        try:
+            yield proof
+            if not connection.in_transaction:
+                raise BindingError("source observation transaction ended before compilation")
+            proof["completed_at"] = datetime.now(UTC).isoformat()
+        finally:
+            _observation.reset(token)
+
+
+def connect(dsn: str, base: str = ".") -> sqlite3.Connection | _ReadLease:
+    if current := _observation.get():
+        address, connection = current
+        if _source_address(dsn, base) != address:
+            raise BindingError("source does not belong to the active observation")
+        return _ReadLease(connection)
+    return _open(dsn, base)
+
+
+def _open(dsn: str, base: str = ".") -> sqlite3.Connection:
     """Open the source read-only, so a mistake cannot become a write."""
     path = _path_of(dsn, base)
     if not os.path.exists(path):

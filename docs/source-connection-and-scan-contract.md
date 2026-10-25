@@ -1,9 +1,11 @@
 # Registered sources, checked scans and review navigation
 
 This is the integration design agreed for detailed review on 2026-10-18.
-The Sudograph reader implements bounded source navigation. The Sudowork
-connector bridge, PostgreSQL/MySQL projection ports and automatic FDE onboarding
-below are proposed work, not deployed capabilities.
+The Sudograph reader implements bounded source navigation. A first
+[host registration bridge](source-registration.md) now creates complete SQLite
+models with a consistent observation and durable receipt. Connection-form
+wiring, PostgreSQL/MySQL projection ports and automatic FDE onboarding below
+remain proposed work, not deployed capabilities.
 The first integration preserves all existing Sudograph features and human/agent
 workflows. In particular, its full SQLite projection is the reference baseline,
 not functionality to replace with a host's bounded discovery sample.

@@ -31,9 +31,14 @@ on every call. The existing permission-aware gateway still needs a catalogue
 adapter for customer scopes.
 
 Registration is a deployment operation. Paths, namespace, locale, pointers and
-the source baseline belong to the host. An existing store cannot be rebound by
-running registration again. Source relocation and rename mappings are separate
-work; this change does not replace the source scanner's current path identity.
+the source baseline belong to the host. The command uses the same
+[retryable registration boundary](source-registration.md) as the native host:
+discovery, validation and projection compilation share one SQLite read
+transaction. The canonical store owns the connection/coverage receipt. Retrying
+the same operation and settings returns it without scanning again; a different
+registration cannot rebind an existing store. Source relocation and rename
+mappings are separate work; this does not replace the scanner's current path
+identity or merge copied databases by their contents.
 
 ## Checked writes and concurrent sessions
 
@@ -104,4 +109,6 @@ revision and an unchanged source database. The context preloads zero rows.
 The live source page is verified against that same fixture. CI runs this
 cross-repository acceptance against an immutable paired Sudowork adapter revision
 and retains the receipt; it does not rely on an author remembering to run it.
+It also registers the source through the actual TypeScript client, verifies a
+durable registration retry and checks the shared source-observation receipt.
 This receipt proves the subprocess boundary, not browser or cloud deployment.
