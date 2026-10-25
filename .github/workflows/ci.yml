@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -25,3 +29,36 @@ jobs:
       # drifts, and it drifts by the local copy getting shorter — which is how
       # this build stayed red for five commits while every local run was green.
       - run: python -m tools.verify
+
+  native-host:
+    name: native host contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+      # Pair the real host adapter with this compiler. An immutable revision
+      # makes this gate reproducible instead of following unrelated host edits.
+      - uses: actions/checkout@v4
+        with:
+          repository: sudoprivacy/sudowork
+          ref: 71ea82727ec2948d0dae92d849d9b99a18f9dff9
+          path: .host-acceptance/sudowork
+          sparse-checkout: apps/desktop/src/process/services/ontology
+          persist-credentials: false
+      - run: pip install -r requirements.txt
+      - name: Accept the real host worker and live source reads
+        run: python -m tools.accept_workspace_adapter --sudowork .host-acceptance/sudowork --receipt "${{ runner.temp }}/native-host-receipt.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-host-acceptance
+          path: ${{ runner.temp }}/native-host-receipt.json

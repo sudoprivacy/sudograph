@@ -28,7 +28,11 @@ def main():
         source = Path(folder) / "source.yaml"
         source.write_text(yaml.safe_dump(project.draft(dsn)), encoding="utf8")
         baseline = app.bundle(spec.load(str(source)), records=args.snapshot_records)
-    store = Workspace.create(args.store, baseline, namespace=args.namespace, language=args.lang)
+    sources = ({} if args.snapshot_records else {
+        source["id"]: dsn for source in baseline["source_schema"]["sources"]
+    })
+    store = Workspace.create(args.store, baseline, namespace=args.namespace, language=args.lang,
+                             record_sources=sources)
     print(json.dumps(store.contract(), ensure_ascii=False))
 
 

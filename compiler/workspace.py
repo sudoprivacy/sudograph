@@ -22,6 +22,7 @@ import yaml
 from . import app, business
 from .context import Reader, registered_pointers
 from .model_contract import SOURCE_REQUEST, Refused, compile_model, parse_document
+from .source_records import SourceRecords
 
 FORMAT = "sudograph-workspace/v1"
 _MISSING = object()
@@ -123,11 +124,15 @@ class Workspace:
             db.close()
 
     @classmethod
-    def create(cls, path, baseline, *, namespace, language="zh", pointers=None):
+    def create(
+        cls, path, baseline, *, namespace, language="zh", pointers=None, record_sources=None
+    ):
         """Operator registration. Existing stores and source rebinding are refused."""
         if not isinstance(namespace, str) or not namespace.strip():
             raise ValueError("a registered identity namespace is required")
         pointers = registered_pointers([] if pointers is None else pointers)
+        record_sources = {} if record_sources is None else record_sources
+        SourceRecords(baseline, record_sources)
         content = _dump(
             {
                 "format": SOURCE_REQUEST,
@@ -144,6 +149,7 @@ class Workspace:
             "namespace": namespace,
             "language": language,
             "pointers": pointers,
+            "record_sources": dict(record_sources),
         }
         revision, products = cls._compile(content, model, registry, settings, parent=None)
         path = Path(path)
@@ -182,17 +188,19 @@ class Workspace:
 
     @staticmethod
     def _compile(content, model, registry, settings, *, parent):
-        revision = business.digest(
-            {
-                "parent": parent,
-                "content": content,
-                "model": model,
-                "registry": registry,
-                "language": settings["language"],
-                "pointers": settings["pointers"],
-                "context_transport": "mcp",
-            }
-        )
+        identity = {
+            "parent": parent,
+            "content": content,
+            "model": model,
+            "registry": registry,
+            "language": settings["language"],
+            "pointers": settings["pointers"],
+            "context_transport": "mcp",
+        }
+        is_live = bool(settings.get("record_sources"))
+        if is_live:
+            identity["record_delivery"] = "live"
+        revision = business.digest(identity)
         model = {
             **model,
             "projection": {
@@ -200,6 +208,7 @@ class Workspace:
                 "model_revision": revision,
                 "context_transport": "mcp",
                 "knowledge_pointers": settings["pointers"],
+                **({"record_delivery": "live"} if is_live else {}),
             },
         }
         packet = Reader(
@@ -316,7 +325,15 @@ class Workspace:
                 db.execute("SELECT payload FROM settings WHERE id = 1").fetchone()[0]
             )
         return Reader(
-            model, revision=request["revision"], pointers=settings["pointers"], transport="mcp"
+            model,
+            revision=request["revision"],
+            pointers=settings["pointers"],
+            transport="mcp",
+            record_reader=(
+                SourceRecords(model, settings["record_sources"])
+                if request.get("records") and settings.get("record_sources")
+                else None
+            ),
         ).read(
             request["id"],
             **{k: v for k, v in request.items() if k not in {"id", "revision", "context_digest"}},

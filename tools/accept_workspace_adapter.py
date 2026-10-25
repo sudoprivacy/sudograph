@@ -118,11 +118,21 @@ def main():
             assert.equal(context.inventory.record_rows_preloaded,0);
             assert.ok(html.includes(receipt.revision));
             assert.ok(html.includes('Exclude refunds'));
+            const object = compiled.source_schema.sources[0].objects
+              .find(o => o.name === 'Tickets');
+            const page = await invoke('alice',{operation:'context_read',request:{
+              revision:context.revision,context_digest:context.context_digest,
+              id:object.id,records:true,limit:1}});
+            assert.equal(page.data_kind,'live_source_page');
+            assert.equal(page.rows.length,1);
+            assert.equal(page.total,2);
+            assert.deepEqual(page.rows[0],[1,7]);
             assert.equal((await invoke('bob',{operation:'contract'})).revision,receipt.revision);
             await assert.rejects(client.invoke('../other','alice',{operation:'contract'}));
             console.log(JSON.stringify({status:'passed',actors:2,compatible_merge:true,
               incompatible_edit_refused:true,idempotent_retry:true,definitions:2,
-              same_graph_context_revision:true,rows_preloaded:0,revision:receipt.revision}));
+              same_graph_context_revision:true,rows_preloaded:0,live_page_verified:true,
+              revision:receipt.revision}));
             """,
             encoding="utf8",
         )
@@ -140,7 +150,7 @@ def main():
         assert not model["records"]
         receipt.update(
             source_unchanged=True,
-            record_delivery="structure_only",
+            record_delivery="live_on_demand",
             compiler_root=str(ROOT),
             adapter=str(client),
         )

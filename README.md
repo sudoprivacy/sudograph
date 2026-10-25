@@ -306,6 +306,8 @@ browser-session UI can be reused, but the host adapter is not yet deployed.
 The [transactional authoring store](docs/model-authoring-store.md) implements
 ordinary edits, compatible concurrent merges and atomic graph/context products.
 Its first Sudowork adapter slice is under test; it is not cloud/browser acceptance.
+The [registered source reader](docs/source-records.md) supplies bounded live SQLite
+pages through the native agent tool; the standalone browser transport is pending.
 The [review navigation contract](docs/review-navigation-contract.md) explains
 which entries a new source project produces and which business-view choices
 remain author decisions. Views organise review tasks; the catalogue locates
