@@ -162,7 +162,13 @@ def reader_policy() -> dict[str, str]:
 
 
 def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 'zh',
-           packed: bool = False) -> str:
+           packed: bool = False, review: dict | None = None) -> str:
+    if review is not None and (
+        set(review) != {'endpoint', 'resource'} or review['endpoint'] != '/v1'
+        or not isinstance(review['resource'], str) or not review['resource']
+        or not b.get('projection', {}).get('model_revision')
+    ):
+        raise ValueError('review transport requires a committed model and a registered resource')
     if b.get('business'):
         from . import business  # noqa: PLC0415 — overlay shares the native renderer
         business.validate(b)
@@ -187,12 +193,16 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
     if b.get('source_schema'):
         from .context import Reader  # noqa: PLC0415 — one model-to-agent compiler
 
-        packet = Reader(b).pack()
+        projection = b.get('projection', {})
+        packet = Reader(b, revision=projection.get('model_revision'),
+                        pointers=projection.get('knowledge_pointers'),
+                        transport=projection.get('context_transport', 'http')).pack()
         context_preview = {key: value for key, value in packet.items()
                            if key not in {'text', 'sudocode'}}
     b = {**b, 'ui': {'language': language, 'messages': messages, 'catalogs': catalogs,
                     'reader_policy': reader_policy(),
                     'agent_context': context_preview,
+                    **({'review_transport': review} if review is not None else {}),
                     'subgraph_contract': subgraph_select.contract()}}
     with open(template_path, encoding="utf-8") as fh:
         html = fh.read()

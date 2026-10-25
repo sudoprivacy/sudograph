@@ -39,6 +39,33 @@ the definition and its references; it does not update either source column.
 Semantic review state records agreement about a definition. It neither implies
 a source write-back nor introduces a mandatory new approval click for every edit.
 
+Business agreement may be established in a ShareOne thread when the business
+person and agent converge, or explicitly in the bound chat. Keep the actual
+human input, response stance, affected identities/revision and unresolved scope
+as provenance. No separate confirmer role, confirmation button or mandatory
+`confirmed` flag is required. Resolving one thread does not confirm the whole
+model. The current compiler's blanket `unreviewed` presentation is a prototype
+limitation to adapt at host integration, not a new product approval requirement.
+
+## Deterministic extraction and main-conversation compression
+
+`compiler.context` already derives exact ordered knowledge and read pointers
+without an LLM. Phase three may then let the main conversation's LLM organise
+and compress that packet. Do this when preparing or refreshing phase-three
+knowledge, not as an extra LLM call after every phase-one/two model edit.
+
+The summary is a derived artifact tied to the input model revision/digest and
+authorised projection. Retain critical metric scope, grain, rules, unresolved
+qualifications and stable references, with exact definitions and complete read
+pointers available alongside it. Infrastructure can validate versions/references;
+it cannot prove that a natural-language summary preserves every meaning. Compare
+answers against the exact packet and retrieve originals when needed. Neither
+the LLM summary stage nor its host refresh wiring is implemented yet.
+
+Read-only context consumption needs an explicit authorised checked revision and
+refresh policy, not a mandatory GitLab formal-release approval. Production source
+effects use their separate reviewed executable plan and operation authority.
+
 ## Where information belongs
 
 | Information | Where it exists today | Default destination | Authority and lifetime |

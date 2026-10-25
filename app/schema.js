@@ -259,25 +259,56 @@ function showSchemaRelation(e) {
     `<div class="op">${esc(e.definition||JSON.stringify(e.declaration,null,2))}</div>`;$('panel').appendChild(definition);
 }
 let sourceBrowseSeq=0;
+async function reviewSourcePage(id,offset,limit) {
+  const transport=BUNDLE.ui.review_transport,packet=BUNDLE.ui.agent_context;
+  const response=await fetch(transport.endpoint,{method:'POST',credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},cache:'no-store',
+    body:JSON.stringify({view:transport.resource,operation:'page',params:{
+      revision:packet.revision,context_digest:packet.context_digest,id,offset,limit}})});
+  if(!response.ok)throw new Error('Source page unavailable');
+  const {result}=await response.json();
+  if(result?.revision!==packet.revision||result.context_digest!==packet.context_digest||
+    result.source_object!==id||result.offset!==offset||!Array.isArray(result.rows))
+    throw new Error('Source page does not match the displayed model');
+  return result;
+}
 async function showSourceRecords(id,offset=0,column=null) {
   state.panel='source_records';state.sourceRecordArgs=[id,offset,column];
-  const mine=++sourceBrowseSeq,obj=schemaObject(id),r=BUNDLE.source_schema.snapshots[id];
-  if(!r){$('panel').textContent=t('此导出未包含记录页；请在受控服务中打开，或由有权限的发布者导出记录。');return;}
-  const limit=50,first=Math.floor(offset/r.chunk_size),last=Math.floor((offset+limit-1)/r.chunk_size);
-  let rows=[];
-  for(let ix=first;ix<=last;ix++)if(r.chunks[ix])rows.push(...await sourceChunk(id,ix));
-  if(mine!==sourceBrowseSeq)return;
-  rows=rows.slice(offset%r.chunk_size,offset%r.chunk_size+limit);
+  const mine=++sourceBrowseSeq,obj=schemaObject(id),snapshot=BUNDLE.source_schema.snapshots[id];
+  const isLive=BUNDLE.projection?.record_delivery==='live'&&!!BUNDLE.ui.review_transport;
+  if(!snapshot&&!isLive){$('panel').textContent=t('此导出未包含记录页；请在受控服务中打开，或由有权限的发布者导出记录。');return;}
+  const limit=50;
+  let rows=[],r=snapshot;
+  $('panel').textContent=t('正在读取源记录…');
+  try {
+    if(isLive) {
+      const page=await reviewSourcePage(id,offset,limit);
+      if(page.columns.length!==obj.fields.length||page.columns.some((c,i)=>c!==obj.fields[i].column))
+        throw new Error('Source page columns do not match the displayed model');
+      rows=page.rows;r={...page,count:page.total};
+    } else {
+      const first=Math.floor(offset/r.chunk_size),last=Math.floor((offset+limit-1)/r.chunk_size);
+      for(let ix=first;ix<=last;ix++)if(r.chunks[ix])rows.push(...await sourceChunk(id,ix));
+      rows=rows.slice(offset%r.chunk_size,offset%r.chunk_size+limit);
+    }
+  } catch {
+    if(mine===sourceBrowseSeq&&state.panel==='source_records')
+      $('panel').textContent=t('无法读取源记录；请检查访问权限或刷新审阅页。');
+    return;
+  }
+  if(mine!==sourceBrowseSeq||state.panel!=='source_records')return;
   $('panel').innerHTML=`<h2>${esc(bt(obj.label))} · ${t('源记录')}</h2>`+
     `<p class="muted">${t('记录用于核对字段；业务定义不会改写源值。')}</p>`+
-    (r.identity==='snapshot_position'?`<p class="muted">${t('未声明主键；这里的序号只在本次快照内定位，不是业务身份。')}</p>`:'');
+    (isLive?`<p class="muted" data-live-records>${t('实时记录；不同分页可能来自不同的读取时刻。')}</p>`:'')+
+    (r.identity==='snapshot_position'?`<p class="muted">${t('未声明主键；这里的序号只在本次快照内定位，不是业务身份。')}</p>`:
+      r.identity==='request_position'?`<p class="muted">${t('未声明主键；序号仅在本次读取中定位，不是业务身份。')}</p>`:'');
   const bar=document.createElement('div');bar.className='schema-actions';
   for(const [text,next,disabled] of [['上一页',Math.max(0,offset-limit),offset===0],
     ['下一页',offset+limit,offset+limit>=r.count]]) {
     const b=document.createElement('button');b.textContent=t(text);b.disabled=disabled;
     b.onclick=()=>showSourceRecords(id,next,column);bar.appendChild(b);
   }
-  const range=document.createElement('span');range.textContent=`${r.count?offset+1:0}–${Math.min(offset+limit,r.count)} / ${fmt(r.count)}`;bar.appendChild(range);
+  const range=document.createElement('span');range.textContent=`${rows.length?offset+1:0}–${rows.length?offset+rows.length:0} / ${fmt(r.count)}`;bar.appendChild(range);
   const back=document.createElement('button');back.textContent=t('返回字段');back.onclick=()=>select(obj);bar.appendChild(back);$('panel').appendChild(bar);
   for(const [ix,row] of rows.entries()) {
     const item=document.createElement('details'),title=document.createElement('summary');

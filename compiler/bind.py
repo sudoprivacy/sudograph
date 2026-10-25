@@ -23,7 +23,9 @@ from __future__ import annotations
 import copy
 import os
 import sqlite3
+from contextlib import closing
 from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
@@ -87,7 +89,7 @@ def connect(dsn: str, base: str = ".") -> sqlite3.Connection:
     path = _path_of(dsn, base)
     if not os.path.exists(path):
         raise SourceUnavailable(f"no database at {path}")
-    uri = "file:" + path.replace("\\", "/") + "?mode=ro"
+    uri = Path(path).resolve().as_uri() + "?mode=ro"
     conn = sqlite3.connect(uri, uri=True)
     conn.row_factory = sqlite3.Row
     conn.create_function('sg_round', 2, expr.money_round, deterministic=True)
@@ -101,7 +103,7 @@ def connect(dsn: str, base: str = ".") -> sqlite3.Connection:
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> dict[str, str]:
-    rows = conn.execute(f'pragma table_xinfo("{table}")').fetchall()
+    rows = conn.execute(f"pragma table_xinfo({quote(table)})").fetchall()
     return {r["name"]: (r["type"] or "").upper() for r in rows}
 
 
@@ -121,10 +123,10 @@ def _not_unique(conn, table: str, columns: list[str], backing: dict) -> list[int
     A list rather than a count so callers read as "for each problem", and a
     claim about rows is settled by looking at rows.
     """
-    quoted = ", ".join(f'"{c}" ' for c in columns).replace(" ,", ",")
+    quoted = ", ".join(map(quote, columns))
     where = f" where {backing['where']}" if backing.get("where") else ""
     n = conn.execute(
-        f"select count(*) from (select {quoted} from \"{table}\"{where} "
+        f"select count(*) from (select {quoted} from {quote(table)}{where} "
         f"group by {quoted} having count(*) > 1)"
     ).fetchone()[0]
     return [n] if n else []
@@ -275,8 +277,8 @@ def count(s: Spec, tname: str, base: str = ".") -> int:
     b = s.backing_of(tname)
     raw = s.raw[b["from"]]
     where = f" where {b['where']}" if b.get("where") else ""
-    with connect(raw["dsn"], base) as conn:
-        return conn.execute(f'select count(*) from "{b["table"]}"{where}').fetchone()[0]
+    with closing(connect(raw["dsn"], base)) as conn:
+        return conn.execute(f'select count(*) from {quote(b["table"])}{where}').fetchone()[0]
 
 
 def load(s: Spec, tname: str, base: str = ".") -> list[dict]:
@@ -287,10 +289,10 @@ def load(s: Spec, tname: str, base: str = ".") -> list[dict]:
     raw = s.raw[b["from"]]
     props = [p for p, d in (s.types[tname].get("props") or {}).items() if "op" not in d]
     cols = {pn: s.column_of(tname, pn) for pn in props}
-    select = ", ".join(f'"{c}" as "{p}"' for p, c in cols.items())
+    select = ", ".join(f'{quote(c)} as {quote(p)}' for p, c in cols.items())
     where = f" where {b['where']}" if b.get("where") else ""
-    with connect(raw["dsn"], base) as conn:
-        rows = conn.execute(f'select {select} from "{b["table"]}"{where}').fetchall()
+    with closing(connect(raw["dsn"], base)) as conn:
+        rows = conn.execute(f'select {select} from {quote(b["table"])}{where}').fetchall()
     return [dict(r) for r in rows]
 
 
@@ -378,7 +380,7 @@ def aggregate(s: Spec, node: Any, base: str = ".", at: dict | None = None,
               *, basis: str | None = None, scope: dict | None = None) -> Any:
     """Execute a checked, parameterised aggregate without fetching its rows."""
     query = compile_query(s, node, at=at, basis=basis, scope=scope)
-    with connect(query.dsn, base) as conn:
+    with closing(connect(query.dsn, base)) as conn:
         try:
             return conn.execute(query.sql, query.params).fetchone()[0]
         except sqlite3.Error as e:
@@ -400,7 +402,7 @@ def link_evidence(s: Spec, tname: str, prop: str, at=None) -> dict:
     clauses = row.filters()
     base_sql = f"FROM {row.source()} {' '.join(joins)}"
     where = ' WHERE ' + ' AND '.join(clauses) if clauses else ''
-    with connect(builder.dsn, s.source_base) as conn:
+    with closing(connect(builder.dsn, s.source_base)) as conn:
         result = conn.execute(
             f"SELECT count(*), count({source_key}), COALESCE(sum({bad}), 0) {base_sql}{where}",
             builder.params,

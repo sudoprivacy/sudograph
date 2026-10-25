@@ -79,11 +79,11 @@ provide relational keys, original view SQL, query semantics or schema coverage.
 | Review graph | Large canvas, field drilldown, selected-object details and presentation views | Canonical model reads; browser used when visual inspection is necessary | Replace the corresponding review experience, not just add another independent model editor |
 | Comment | Stable object/field anchors, readable text selection, preserved threads | Read/reply with stance and workflow state; changes return to the checked model | Preserve Sudograph + ShareOne review behaviour |
 | Edit and repair | See proposed changes, provenance, unresolved questions and validation errors | Submit model changes; compiler refuses invalid structure and gives recovery | Sudograph compiler/publisher contract; host routes tools through it |
-| Version and approve | Authenticated reviewer, exact revision, source evidence and separate business confirmation | Cannot self-approve by setting a YAML/UI field | Choose one review authority per event; map existing host records explicitly |
+| Version and agree | Model history and business agreement through bound chat/comments | Preserve actual input, evidence, revision and unresolved scope; no extra confirmation workflow | Checked canonical writer; Git history optional; production source effects require separate exact-plan approval |
 | Launch business agent | Existing host conversation and agent lifecycle | Version-pinned compiled context plus authorised pointers/tools | Reuse Sudowork runtime and registration; add the Sudograph model adapter |
 | Evaluate | One evaluation entry separates calculation self-checks from source questions; coverage is an inventory | Source questions and private, pinned judge; business-meaning tests added separately | Preserve Sudograph question generation and independent grading |
 | Permissions and views | Existing named views, source/business separation and authorised record visibility | Scoped reads, counts, queries and separate export grants | Preserve Sudograph's server enforcement; subgraph/menu selection never grants access |
-| Managed delivery | Traceable regeneration, review and publication of an exact revision | Compiler recovery, generated-export guard and managed GitLab checks | Preserve existing Sudograph harness and delivery gates, including context compilation and pointers |
+| Managed delivery | Automatic review updates after valid model edits | Compiler recovery, version conflicts and generated-export verification | Preserve shared checks; optional GitLab model delivery is not a per-edit requirement; gate production source plans separately |
 
 Choosing to reuse a form does not choose the underlying model authority. For a
 Sudograph-managed project, source systems own source facts and checked model/Git
@@ -127,10 +127,13 @@ model revision into the native reader and existing prompt builder; canonical
 target IDs back into host navigation. It does not create a second ontology,
 renderer, credential store or editable RDF representation.
 
-The deployment separates the frontend, Nexus control plane and execution worker.
-Do not assume a cluster/cohost inside each user pod. The inspected Moss K8s
-backend requires external Nexus and supervises pod scode through it. Place the worker
-where the authorised source is reachable and route through existing services.
+The deployment separates the frontend, credential/control plane and execution
+worker. Moss's primary native path places an owner runtime Pod on compute and
+runs `nexusd-cohost` inside it. This binary starts the Nexus cluster services
+with an in-process SudoCode runtime. Root Nexus credential issuance can remain
+external; the legacy standalone K8s/`kubectl exec` route is a different path.
+See the [source execution contract](source-connection-and-scan-contract.md).
+Place the worker where the authorised source is reachable and reuse these services.
 Never interpret a pod or desktop SQLite path on the WebUI VM. Network routing,
 tenant isolation and the deployed adapter still require end-to-end acceptance.
 
@@ -238,8 +241,8 @@ also inject construction/runtime instructions on creation and restoration.
 Select tools and compiled context through the same project-authority resolver
 there; changing only the older AI Builder page leaves those injection paths.
 
-Removing a prompt is not a write guard. The bound project must expose the managed
-write/publish authority, reject stale revisions and self-approval, and prevent
+Removing a prompt is not a write guard. The bound project must expose the checked
+canonical writer, reject stale revisions and prevent
 parallel writes to a legacy ontology store. Existing unrelated legacy projects
 keep their current runtime until an explicit migration is accepted. Do not remove
 their tools globally or silently reinterpret RDF as a Sudograph definition.
@@ -270,34 +273,37 @@ actual source IDs. See the [identity contract](business-identity-and-binding.md)
 Collect host conversation evidence
 through an authenticated intake reference, not by inventing an HTTPS citation.
 
-Business confirmation concerns the meaning of a model definition. Editing or
-reviewing that meaning publishes model changes; it does not commit anything to
-the raw database. Its precise review UX still needs agreement, without assuming
-a separate mandatory approval workflow. Source corrections use their own
-explicitly authorised write path.
+Business agreement concerns the meaning discussed in a bound comment or chat.
+Convergence with the business person is sufficient; no extra confirmer role,
+confirmation action or mandatory `confirmed` flag is needed. Preserve authorship,
+target/revision, evidence and unresolved scope. Changing that meaning updates the
+canonical model, not the raw database. Production source corrections require a
+separately reviewed executable change plan and authorised executor.
 
-Every submitted model revision enters the managed compile/CI/render path;
-invalid changes return repair diagnostics and leave the previous published graph
-in place. A valid proposal produces derived artifacts automatically, while
-publication follows the existing GitLab gate. Chat text, a comment by itself,
-and camera changes are not model commits. The host chat/comment-to-proposal
-adapter is still an integration deliverable. Review graphs and agent context
+Every effective model revision enters the checked compile/render path.
+Invalid changes return repair diagnostics and leave the previous usable graph
+in place. A valid edit automatically updates the review graph and deterministic
+context without GitLab approval. Pure chat without a semantic edit and camera
+changes do not produce model revisions. The host chat/comment-to-model adapter
+is still an integration deliverable. Review graphs and agent context
 must reference the same accepted revision, without manual HTML edits.
 
-GitLab owns model YAML and revision history; a ShareOne remote source would
-point at the generated HTML artifact. ShareOne's current fetch whitelist does
+The canonical model owns YAML definitions and revisions; Git can store their
+history without becoming a synchronous editing gate. The existing GitLab model
+publisher is an optional prototype. A ShareOne remote source would point at the
+generated HTML artifact. ShareOne's inspected fetch whitelist does
 not support GitLab or private repository credentials. This is a separate
 hosting integration, tracked in the [GitLab remote-source request](shareone-gitlab-remote-source-fr.md).
 
 ### Adapter interfaces
 
-The remaining engineering contracts and product details are:
+The remaining engineering specifications and acceptance boundaries are:
 
 | Boundary | What still needs a concrete specification | Recommended starting point |
 | --- | --- | --- |
 | Scanner/provider wire contract | Versioned request/result schemas, exact type/SQL/key representation, observation tokens, cancellation/resume and capability equivalence across Python and host providers | One coordinator, batched provider operations, explicit unsupported/partial results; prove SQLite first, then port each provider against the same receipt |
 | Source identity, execution and permissions | Path-based identity migration, trusted source aliases, credential/access handles, host principal to project/row/field grants, worker packaging and reachable execution placement | Reuse registered identity/secret/permission services; preserve existing canonical IDs through a checked mapping and pin the compiler package; never infer execution location from a UI URL |
-| Business confirmation | How agreement about definition meaning is captured, who may record it, and which version/evidence it covers | Preserve review state and evidence; separate ontology changes, GitLab revision review, comment resolution and raw database writes; do not assume an additional per-edit approval process |
+| Business agreement | Conversation/comment convergence, affected definition/revision and remaining disagreements | Preserve evidence and scope without another confirmation workflow; ordinary model editing does not need GitLab review; production execution approval stays separate |
 | Concurrent sessions, shares and events | Base-revision checks, compatible edit merging, same-definition conflict results, subscription routing, ACK/idempotency and active-session delivery | Support multiple bindings to one canonical model from the first adapter contract; durably enqueue per destination and never start a second process over an active conversation |
 | YAML/RDF interchange | Explicit vocabulary and reversible mapping for identities, versions, definitions, evidence and review state | Low-priority bidirectional converter for the checked semantic model; prove model-to-RDF-to-model fidelity; retain unsupported external statements or refuse them explicitly |
 | Browser review lifecycle | Accept actual graph/comment behavior over the upstream conversation-control protocol, including continuous interaction and devices | Reuse ordinary conversation continuation and the input barrier; no mandatory business handoff buttons; keep real graph latency and physical-device acceptance separate |

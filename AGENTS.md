@@ -17,7 +17,11 @@
   a checked generation owner or a locked baseline.
 - Keep phase-one source projections separate from business definitions. A source
   SQL formula establishes what the source computes, not an approved business
-  meaning. Agent proposals need explicit provenance and human confirmation.
+  meaning. Agent proposals need explicit provenance and human input. Agreement
+  through bound comments/chat is sufficient; do not invent a separate mandatory
+  confirmation role, button or flag. Ordinary model edits require automatic
+  compiler checks, not GitLab human approval. Production source effects require
+  a separately reviewed executable plan and authorised executor.
 - Source SQL calculations and their result rows remain phase-one facts. Phase
   one can also show explicitly unconfirmed `source_review` questions about those
   facts, with source targets and a concrete verification plan. Keep the pure

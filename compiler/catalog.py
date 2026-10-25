@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from contextlib import closing
+
 from . import bind
 from .query import quote
 
 
 def scan(dsn, base="."):
     """Enumerate empty tables, views, columns, keys and foreign keys as well as rows."""
-    with bind.connect(dsn, base) as conn:
+    with closing(bind.connect(dsn, base)) as conn:
         return inventory(conn)
 
 
@@ -19,20 +21,24 @@ def inventory(conn):
         "SELECT name,type,sql FROM sqlite_master WHERE type IN "
         "('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY name"
     ):
-        name = obj["name"]
-        columns = [dict(r) for r in conn.execute(f"PRAGMA table_xinfo({quote(name)})")]
-        fks = [dict(r) for r in conn.execute(f"PRAGMA foreign_key_list({quote(name)})")]
-        result.append(
-            {
-                "name": name,
-                "kind": obj["type"],
-                "definition": obj["sql"],
-                "columns": columns,
-                "foreign_keys": fks,
-                "count": conn.execute(f"SELECT count(*) FROM {quote(name)}").fetchone()[0],
-            }
-        )
+        described = describe(conn, obj)
+        described["count"] = conn.execute(f"SELECT count(*) FROM {quote(obj['name'])}").fetchone()[
+            0
+        ]
+        result.append(described)
     return result
+
+
+def describe(conn, obj):
+    """Read one known SQLite catalogue row without scanning unrelated records."""
+    name = obj["name"]
+    return {
+        "name": name,
+        "kind": obj["type"],
+        "definition": obj["sql"],
+        "columns": [dict(r) for r in conn.execute(f"PRAGMA table_xinfo({quote(name)})")],
+        "foreign_keys": [dict(r) for r in conn.execute(f"PRAGMA foreign_key_list({quote(name)})")],
+    }
 
 
 def coverage(s):
@@ -118,7 +124,7 @@ def coverage(s):
                     if any(not p for p in predicates):
                         continue
                     union = " OR ".join(f"({p})" for p in predicates)
-                    with bind.connect(raw["dsn"], s.source_base) as conn:
+                    with closing(bind.connect(raw["dsn"], s.source_base)) as conn:
                         uncovered = conn.execute(
                             f"SELECT count(*) FROM {quote(table)} WHERE NOT COALESCE(({union}),0)"
                         ).fetchone()[0]
@@ -132,9 +138,8 @@ def coverage(s):
                 "objects": objects,
                 "missing": missing,
                 "complete": not missing,
-                "record_complete": not missing and not any(
-                    o["excluded"] or o["excluded_columns"] for o in objects
-                ),
+                "record_complete": not missing
+                and not any(o["excluded"] or o["excluded_columns"] for o in objects),
                 "required": raw.get("coverage") == "complete",
             }
         )

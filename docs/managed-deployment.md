@@ -1,5 +1,14 @@
 # Managed deployment and automatic publication contract
 
+Scope clarification, 2026-10-24: this document specifies the implemented,
+optional **GitLab model-publishing prototype**. Its approval checks remain
+enforced when that path is selected. It is not the default interactive model
+editing workflow: ordinary checked YAML/graph edits must update review/context
+without a merge request or human release approval. The host adapter for that
+loop remains to be connected. Production source writes require a separate
+reviewed executable plan and executor; this prototype does not implement them.
+See the [current architecture](../README.md#where-this-sits).
+
 Status: private-project provisioning, operator-owned native CI, authenticated
 GitLab approval events and independent managed publication are implemented.
 The complete isolated Docker deployment passed
@@ -10,9 +19,9 @@ registration also requires acceptance in that customer's environment.
 
 ## Ownership
 
-A Sudograph installation includes a dedicated GitLab workspace/project for the
-customer model, automatic CI, pinned compiler/renderer workers, a review reader
-and a trusted publishing path. Sudograph's deployment owner provisions and
+An installation of this optional delivery path includes a dedicated GitLab
+workspace/project for the customer model, automatic CI, pinned compiler/renderer
+workers, a review reader and a trusted publishing path. Its deployment owner provisions and
 maintains these together. Requiring the customer, a business reviewer or a fresh
 agent to discover a Python command is not an acceptable enforcement mechanism.
 

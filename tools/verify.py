@@ -49,6 +49,11 @@ STEPS: list[tuple[list[str], str]] = [
         [sys.executable, "-m", "tools.check_readme"],
         "every command the front page shows still works",
     ),
+    (
+        [sys.executable, "-m", "tools.accept_review", "--receipt",
+         os.path.join(ROOT, ".acceptance", "browser-review", "receipt.json")],
+        "the native browser reads real pages, reloads checked revisions and honors revocation",
+    ),
 ]
 
 

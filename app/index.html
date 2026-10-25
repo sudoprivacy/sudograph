@@ -240,7 +240,7 @@ document.documentElement.lang = uiLanguage;
 const bt = (text, language = uiLanguage) => BUNDLE.translations?.[language]?.[text] ?? text;
 function accessNotice() {
   const access=BUNDLE.access;
-  $('accessNotice').textContent=t(access?.mode==='authorised'
+  $('accessNotice').textContent=t(BUNDLE.ui.review_transport?'受控在线审阅':access?.mode==='authorised'
     ? '仅显示此授权视图；其他范围可能不可见。'
     : access?.mode==='public'?'公开演示快照':'离线快照');
 }
@@ -1272,7 +1272,8 @@ function showChecks(v) {
   if (state.projection === 'data' && BUNDLE.projection?.mode!=='source_projection') $('panel').insertAdjacentHTML('afterbegin',
     `<p class="muted">${t('数据投影：核对对象、列、主键和关联；业务指标在另一视图。')}</p>`);
   if(BUNDLE.projection?.mode==='source_projection')$('panel').insertAdjacentHTML('afterbegin',
-    `<p>${t('查看数据库中的记录、字段和关联。')}</p><p class="muted">${t('离线快照')} · ${esc(BUNDLE.projection.generated_at)}<br>${t('快照不随源库自动更新；空值保持原样。')}</p>`);
+    `<p>${t('查看数据库中的记录、字段和关联。')}</p><p class="muted">${t(BUNDLE.ui.review_transport?
+      '源结构来自已编译版本；记录按需从源库读取。':'离线快照')} · ${esc(BUNDLE.projection.generated_at)}<br>${t('快照不随源库自动更新；空值保持原样。')}</p>`);
 }
 
 function showEvaluationOverview(v) {

@@ -2709,10 +2709,14 @@ def test_ci_runs_the_same_gates_a_developer_runs():
     path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                         ".github", "workflows", "ci.yml")
     with open(path, encoding="utf-8") as fh:
-        ci = fh.read()
+        ci = yaml.safe_load(fh)
 
-    runs = re.findall(r"^\s*- run: (.+)$", ci, re.M)
-    gates = [r for r in runs if not r.startswith("pip install")]
+    # Parse named steps too: a regex on bare `- run:` misses hidden extra gates.
+    # The paired external-host acceptance has its own repository prerequisites;
+    # the ordinary compiler/browser gates all belong to this default local job.
+    runs = [step["run"] for step in ci["jobs"]["test"]["steps"] if "run" in step]
+    setup = {"python -m playwright install --with-deps chromium"}
+    gates = [r for r in runs if not r.startswith("pip install") and r not in setup]
     assert gates == ["python -m tools.verify"], (
         f"ci.yml runs its own list of gates: {gates}. Add it to tools.verify "
         f"instead, so a local run covers it too"
@@ -2721,7 +2725,8 @@ def test_ci_runs_the_same_gates_a_developer_runs():
     # And the module has to actually hold them, or the single entry point is an
     # empty one — the same green-for-nothing this exists to prevent.
     named = " ".join(" ".join(argv) for argv, _ in verify.STEPS)
-    for gate in ("ruff", "pytest", "tools.check_examples", "tools.check_readme"):
+    for gate in ("ruff", "pytest", "tools.check_examples", "tools.check_readme",
+                 "tools.check_baselines", "tools.check_generated", "tools.accept_review"):
         assert gate in named, f"tools.verify no longer runs {gate}"
 
 

@@ -7,6 +7,9 @@ below are proposed work, not deployed capabilities.
 The first integration preserves all existing Sudograph features and human/agent
 workflows. In particular, its full SQLite projection is the reference baseline,
 not functionality to replace with a host's bounded discovery sample.
+The private model worker now supports [bounded live SQLite record reads](source-records.md)
+without embedding rows. Host connector UI, browser transport and scoped gateway
+acceptance remain separate work; this does not establish cloud permissions.
 
 ## Repository boundary
 
@@ -30,12 +33,16 @@ Remote SQLite needs an authorised file/snapshot transfer or a local execution
 worker, not a reinterpretation of a remote path as a local file.
 
 The frontend, Nexus control plane and execution worker may be on different
-hosts. Do not assume that each user pod runs its own `nexusd-cluster` or cohost.
-The inspected Moss Kubernetes backend requires an external Nexus daemon and
-has it supervise `kubectl exec` into the scode runtime. Its runtime image alone
-does not establish a pod-local Nexus service. Resolve the actual registered
-endpoint and capabilities; cohost is a supported hosting mode, not a topology
-to infer from a pod name. The worker receives scoped source/access handles and
+hosts. Moss's primary native cohost path places an owner runtime Pod on compute
+and runs `nexusd-cohost` inside that Pod. This binary starts the Nexus cluster
+service set with an in-process SudoCode runtime; it is not a second standalone
+`nexusd-cluster` process. Root Nexus can still issue scoped owner credentials.
+The legacy standalone K8s backend's external-Nexus/`kubectl exec` route is a
+different path, not evidence against pod-local Nexus in the primary topology.
+See [Moss native runtime architecture](https://github.com/sudoprivacy/moss/blob/3fcff383613bcc1f70357b68c2f71ee8d5b44e72/docs/k8s-gvisor-backend.md#native-user-runtime-boxes)
+and its [recorded production acceptance](https://github.com/sudoprivacy/moss/blob/3fcff383613bcc1f70357b68c2f71ee8d5b44e72/docs/cohost-production-acceptance.md).
+This is source/recorded-evidence verification, not a new live deployment probe.
+Resolve actual endpoints and capabilities. The worker receives scoped handles and
 runs where the source is reachable. Network routing, tenant isolation and the
 deployed configuration still need environment-specific acceptance.
 

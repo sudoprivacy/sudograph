@@ -14,30 +14,21 @@ import hmac
 import json
 import re
 import sqlite3
-import tempfile
 import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import app, business, source_schema
+from . import app, business
 from .context import Reader, registered_pointers
 from .gitlab import Client, GitLabError
-from .spec import read_document
+from .model_contract import MODEL_FILE, SOURCE_REQUEST, Refused, compile_model
 from .subgraph_select import SelectionError
 from .subgraph_select import contract as subgraph_contract
 
-SOURCE_REQUEST = "sudograph-source-request/v1"
-MODEL_FILE = "model.yaml"
 SHA = re.compile(r"^[0-9a-f]{40}$")
 ROOT = Path(__file__).resolve().parent.parent
-
-
-class Refused(ValueError):
-    def __init__(self, code, reason, recovery, status=400):
-        super().__init__(reason)
-        self.code, self.reason, self.recovery, self.status = code, reason, recovery, status
 
 
 def code_digest():
@@ -48,61 +39,6 @@ def code_digest():
                 digest.update(path.relative_to(ROOT).as_posix().encode())
                 digest.update(path.read_bytes())
     return digest.hexdigest()
-
-
-def parse_document(content):
-    if not isinstance(content, str) or len(content.encode("utf8")) > 2 * 1024 * 1024:
-        raise Refused(
-            "MODEL_REQUIRED",
-            "model must be UTF-8 YAML within 2 MiB",
-            "Submit checked model inputs, never generated HTML",
-        )
-    with tempfile.TemporaryDirectory(prefix="sudograph-model-") as folder:
-        path = Path(folder) / MODEL_FILE
-        path.write_text(content, encoding="utf8")
-        return read_document(str(path))
-
-
-def compile_model(content, baseline, previous=None, *, namespace=None, _history=False):
-    source_schema.validate(baseline["source_schema"])
-    if (
-        baseline.get("projection", {}).get("mode") != "source_projection"
-        or not baseline["projection"].get("source_read_only")
-        or baseline.get("business")
-    ):
-        raise ValueError("operator must register a complete read-only phase-one baseline")
-    doc = parse_document(content)
-    pin = {"manifest": "registered-source-baseline", "sha256": business.digest(baseline)}
-    if not isinstance(doc, dict) or doc.get("baseline") != pin:
-        raise Refused(
-            "SOURCE_PIN",
-            "model does not reference the registered source baseline",
-            "Use the baseline pin returned by contract; authors cannot choose source paths",
-        )
-    if doc.get("format") == SOURCE_REQUEST:
-        if set(doc) != {"format", "baseline"}:
-            raise Refused(
-                "SOURCE_FACTS_ONLY",
-                "phase one accepts only the registered source request",
-                "Put authored business definitions in a phase-two overlay",
-            )
-        model, registry = baseline, previous or {}
-    else:
-        if namespace is not None and doc.get("namespace") != namespace:
-            raise Refused(
-                "IDENTITY_NAMESPACE",
-                "model changed its registered identity namespace",
-                "Reuse the namespace returned by contract; views do not allocate identities",
-            )
-        if _history and doc.get("format") == "sudograph-business-overlay/v3":
-            # Only the operator-anchored target history uses this decoder. New
-            # submissions, CI, release checks and HTML rendering remain strict.
-            decoded = business.compile_document(doc, baseline["source_schema"], _history=True)
-            model = {"business": decoded}
-        else:
-            model = business.build(doc, baseline, previous=previous)
-        registry = business.registry(model, previous or {})
-    return model, registry
 
 
 class Publisher:

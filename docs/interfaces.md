@@ -4,16 +4,16 @@ These are usage contracts. Design decisions remain in the design page linked by 
 
 ## Automatic verification in managed deployments
 
-Sudograph's deployment owner must provision the GitLab workspace, automatic CI
-and trusted publishing path described in the [deployment contract](managed-deployment.md).
-Business people review and comment; agents submit model changes. Neither is
-responsible for discovering or remembering a verification command. CI and service
-workers invoke the gates automatically, and the service refuses publication when
-verification is absent or fails. Installing a CLI alone does not enforce this.
-The managed GitLab adapter and publisher are implemented and have passed actual
-isolated deployment acceptance. See [installation and API operations](../infra/gitlab/README.md)
-and [13 end-to-end checks](trials/gitlab-managed-2026-10-13.md).
-Customer Nexus SSO and approved source write-back remain separate work.
+Deployments must invoke compiler/export checks automatically. Business people
+review and comment; agents edit the canonical model. Neither must discover or
+remember a verification command. Ordinary checked model edits update the graph
+and context without GitLab approval; source production effects follow a separate
+reviewed change plan and authorised executor. Installing a CLI alone does not
+enforce those boundaries, and the complete host adapter is not connected yet.
+The [deployment contract](managed-deployment.md) describes the implemented,
+optional GitLab model-publishing prototype, which retains its existing checks.
+Its [13 isolated deployment checks](trials/gitlab-managed-2026-10-13.md) do not
+establish the default host editing flow, customer SSO or source write-back.
 
 All compiler exports use the same reader and SDK integration. The standalone
 verifier accepts native or packed HTML at any path; it does not depend on this
