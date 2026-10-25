@@ -37,9 +37,12 @@ The managed write boundary must reject stale overwrites, merge compatible
 independent edits only after revalidation, and return a concrete conflict for
 incompatible edits to the same definition. Publish one accepted model revision
 atomically; do not solve concurrency by restricting the number of conversations.
-These cross-session concurrency semantics still need adapter implementation and
-acceptance; the current submit interface does not carry an explicit client base
-revision and is not evidence of that completed integration.
+The [canonical authoring store](model-authoring-store.md) implements these writer
+semantics with explicit base revisions, operation IDs, compatible merges and
+atomic compiled products. Its native Sudowork adapter is under test. Durable
+cross-session delivery, active-context refresh and the complete human workflow
+still need integration acceptance; the optional GitLab publisher is a separate
+interface and does not replace the ordinary model writer.
 
 Any authorised phase-three agent may consume compiler-produced text/blocks and
 versioned pointers from the same model. Its host need not be the authoring host.
@@ -147,11 +150,12 @@ twice and recorded identical output; this verifies context generation, not host
 injection, refresh, exact binding or successful semantic edits. Its browser
 progress is independent of these remaining adapter tasks.
 
-[Sudowork PR 1294](https://github.com/sudoprivacy/sudowork/pull/1294), inspected
-while open on 2026-10-24, adds authenticated shared-window streaming. Its real
+[Sudowork PR 1294](https://github.com/sudoprivacy/sudowork/pull/1294), merged on
+2026-10-25 at `324a76b0a87ee8dd8be70e1dc8a14fe62933a78e`, adds authenticated
+shared-window streaming. Its real
 component fixture covers CDP/extension input, reload and reconnect. The linked
 [acceptance scope](https://github.com/sudoprivacy/sudowork/blob/5a1c6e4b0/docs/browser-window-stream-acceptance.md)
 explicitly excludes proof of production routing, real graph and physical phone
 acceptance. Earlier production graph gestures reached the comment login popup;
 submitting/reopening a real authenticated thread and measuring graph feedback
-remain joint acceptance. An open PR or local UI mock is not a deployed feature.
+remain joint acceptance. A merged PR or local UI mock is not production acceptance.
