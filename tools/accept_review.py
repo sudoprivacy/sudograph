@@ -13,10 +13,12 @@ import asyncio
 import hashlib
 import json
 import secrets
+import shutil
 import sqlite3
+import sys
 import tempfile
 import threading
-from contextlib import closing
+from contextlib import asynccontextmanager, closing
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -29,7 +31,62 @@ from compiler.serve import handler
 from compiler.workspace import Workspace
 
 
-async def accept(folder, evidence, *, sdk_port=None):
+@asynccontextmanager
+async def host_review(folder, store, policy, sudowork, bun):
+    """Real host server/client; the fixture installs its cookie, not a host UI."""
+    client = sudowork.resolve() / (
+        "apps/desktop/src/process/services/ontology/SudographModelClient.ts"
+    )
+    host = client.parent / "SudographReviewHost.ts"
+    if not client.is_file() or not host.is_file():
+        raise ValueError("Sudowork checkout must contain the authenticated review adapter")
+    script = folder / "review-host.ts"
+    runtime = {"python": sys.executable, "compilerRoot": str(Path(__file__).resolve().parents[1]),
+               "modelDirectory": str(store.path.parent)}
+    script.write_text(
+        "import {readFileSync} from 'node:fs';\n"
+        f"import {{SudographModelClient}} from {json.dumps(client.as_posix())};\n"
+        f"import {{SudographReviewHost}} from {json.dumps(host.as_posix())};\n"
+        f"const policy={json.dumps(policy.as_posix())};\n"
+        f"const client=new SudographModelClient({json.dumps(runtime)});\n"
+        """
+        const host = new SudographReviewHost({
+          authorize: binding => {
+            if(binding.workspaceId!=='support'||binding.conversationId!=='fixture-chat'||
+               !JSON.parse(readFileSync(policy,'utf8')).credentials.length)
+              throw new Error('Review revoked');
+          },
+          read: (_resource,request)=>client.review('model','fixture-host','support',request),
+        });
+        try {
+          const launch=await host.createSession({workspaceId:'support',
+                                                conversationId:'fixture-chat'});
+          console.log(JSON.stringify({url:launch.url,cookie:launch.cookie}));
+          for await (const _ of process.stdin) { /* EOF closes the owned host. */ }
+        } finally { await host.close(); }
+        """, encoding="utf8",
+    )
+    process = await asyncio.create_subprocess_exec(
+        shutil.which(bun) or bun, "run", str(script), stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+    )
+    try:
+        # This private pipe contains the one-time handoff. Never log its payload.
+        line = await asyncio.wait_for(process.stdout.readline(), timeout=30)
+        if not line:
+            raise RuntimeError("Host review fixture did not start")
+        launch = json.loads(line)
+        yield launch
+    finally:
+        process.stdin.close()
+        try:
+            await asyncio.wait_for(process.wait(), timeout=10)
+        except TimeoutError:
+            process.kill()
+            await process.wait()
+
+
+async def accept(folder, evidence, *, sdk_port=None, sudowork=None, bun="bun"):
     from playwright.async_api import async_playwright  # noqa: PLC0415 — optional browser dependency
 
     evidence.mkdir(parents=True, exist_ok=True)
@@ -63,23 +120,41 @@ async def accept(folder, evidence, *, sdk_port=None):
     base = f"http://127.0.0.1:{server.server_port}"
     before = hashlib.sha256(database.read_bytes()).hexdigest()
     errors = []
+    host_scope = None
     try:
+        review_url = base + "/review/support"
+        launch = None
+        if sudowork is not None:
+            host_scope = host_review(folder, store, policy, sudowork, bun)
+            launch = await host_scope.__aenter__()
+            review_url = launch["url"]
         async with async_playwright() as playwright:
             browser = await playwright.chromium.launch(
                 args=[] if sdk_port is None else [f"--remote-debugging-port={sdk_port}"]
             )
             try:
                 context = await browser.new_context(
-                    extra_http_headers={"Authorization": "Bearer " + token},
+                    extra_http_headers={} if launch else {"Authorization": "Bearer " + token},
                     viewport={"width": 1440, "height": 1000},
                 )
+                if launch:
+                    cookie = launch["cookie"]
+                    await context.add_cookies([{
+                        "name": cookie["name"], "value": cookie["value"],
+                        "domain": "127.0.0.1", "path": cookie["path"],
+                        "httpOnly": cookie["httpOnly"], "sameSite": cookie["sameSite"],
+                        "expires": cookie["expires"],
+                    }])
                 page = await context.new_page()
                 page.on("pageerror", lambda error: errors.append(error.stack or str(error)))
-                response = await page.goto(base + "/review/support")
+                response = await page.goto(review_url)
                 assert response.status == 200
                 html = await response.text()
                 assert "unembedded-row-1" not in html and token not in html
                 assert str(database) not in html
+                if launch:
+                    assert launch["cookie"]["value"] not in html
+                    assert launch["cookie"]["value"] not in await page.evaluate("document.cookie")
                 await page.wait_for_function(
                     "!!cy && document.querySelectorAll('.canvas-label').length > 0"
                 )
@@ -150,7 +225,7 @@ async def accept(folder, evidence, *, sdk_port=None):
                 await page.set_viewport_size({"width": 390, "height": 844})
                 await page.screenshot(path=str(evidence / "records-mobile.png"))
                 if sdk_port is not None:
-                    await check_sdk(sdk_port, base, evidence)
+                    await check_sdk(sdk_port, review_url, evidence)
                 policy.write_text('{"credentials":[]}', encoding="utf8")
                 await page.get_by_role("button", name="Next", exact=True).click()
                 await page.get_by_text("Unable to read source records.", exact=False).wait_for()
@@ -161,11 +236,13 @@ async def accept(folder, evidence, *, sdk_port=None):
                 assert "unembedded-row" not in await page.content()
                 anonymous = await browser.new_context()
                 other = await anonymous.new_page()
-                assert (await other.goto(base + "/review/support")).status == 403
+                assert (await other.goto(review_url)).status == 403
                 assert not errors, errors
             finally:
                 await browser.close()
     finally:
+        if host_scope is not None:
+            await host_scope.__aexit__(None, None, None)
         server.shutdown()
         server.server_close()
         thread.join()
@@ -177,11 +254,14 @@ async def accept(folder, evidence, *, sdk_port=None):
         "checked_edit_visible_after_reload": True, "revocation_blocks_subsequent_reads": True,
         "anonymous_access_denied": True, "page_errors": errors,
         "ai_dev_browser_checked": sdk_port is not None,
+        "real_sudowork_host_transport": sudowork is not None,
+        "http_only_host_cookie": sudowork is not None,
+        "standalone_browser_launch_verified": False,
         "authorization_scope": "synthetic complete resource; not cloud or row/field acceptance",
     }
 
 
-async def check_sdk(port, base, evidence):
+async def check_sdk(port, review_url, evidence):
     from ai_dev_browser.core import (  # noqa: PLC0415 — optional same-browser acceptance
         connect_browser,
         get_active_tab,
@@ -191,7 +271,7 @@ async def check_sdk(port, base, evidence):
 
     tab = await get_active_tab(await connect_browser(port=port))
     location = (await js_evaluate(tab, "location.href"))["result"]
-    assert location == base + "/review/support"
+    assert location == review_url
     records = await js_evaluate(tab, "document.querySelectorAll('[data-source-record]').length")
     records = records["result"]
     assert records == 50
@@ -202,6 +282,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--receipt", type=Path, required=True)
     parser.add_argument("--ai-dev-browser-port", type=int)
+    parser.add_argument("--sudowork", type=Path, help="accept the real host HTTP/worker adapter")
+    parser.add_argument("--bun", default="bun")
     args = parser.parse_args()
     if args.ai_dev_browser_port is not None and not 1 <= args.ai_dev_browser_port <= 65535:
         parser.error("ai-dev-browser port must be 1..65535")
@@ -210,7 +292,8 @@ def main():
     try:
         with tempfile.TemporaryDirectory(prefix="sudograph-review-acceptance-") as temporary:
             receipt = asyncio.run(accept(Path(temporary), args.receipt.with_suffix(""),
-                                         sdk_port=args.ai_dev_browser_port))
+                                         sdk_port=args.ai_dev_browser_port,
+                                         sudowork=args.sudowork, bun=args.bun))
     except BaseException as error:
         # Never leave a previous passing receipt after a failure or interruption.
         args.receipt.write_text(json.dumps({

@@ -42,11 +42,11 @@ class ReviewGateway:
             available.append(resource)
         return {**CONTRACT, "views": available}
 
-    def html(self, credential, resource):
+    def html(self, credential, resource, *, endpoint="/v1"):
         store = self._authorize(credential, resource)
         head = store.head()
         self._check_embedded_export(credential, resource, store, head["revision"])
-        return store.review({"endpoint": "/v1", "resource": resource}, revision=head["revision"])
+        return store.review({"endpoint": endpoint, "resource": resource}, revision=head["revision"])
 
     def _check_embedded_export(self, credential, resource, store, revision):
         model = store.read(revision=revision, product="model")

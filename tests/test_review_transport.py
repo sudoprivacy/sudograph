@@ -4,6 +4,7 @@ import hashlib
 import json
 import sqlite3
 import subprocess
+import sys
 import threading
 from contextlib import closing, contextmanager
 from http.server import ThreadingHTTPServer
@@ -18,12 +19,67 @@ from compiler import app, business, project, spec
 from compiler.gateway import Denied, FileCapabilities
 from compiler.model_contract import Refused
 from compiler.review import ReviewGateway
+from compiler.review_host import execute as host_review
 from compiler.serve import handler
 from compiler.workspace import Workspace
 from tools.gitlab_stack import fixture_baseline
 
 ROOT = Path(__file__).resolve().parents[1]
 TOKEN = "review-test-capability"
+
+
+def test_private_host_review_reuses_the_registered_model_and_keeps_export_separate(registered):
+    _, store, _, source, objects = registered
+    head = host_review(store, "host-alice", "support", {"operation": "head"})
+    html = host_review(store, "host-alice", "support", {
+        "operation": "html", "endpoint": "/review/binding_123/v1",
+    })
+    assert head["revision"] in html and '"endpoint": "/review/binding_123/v1"' in html
+    assert str(source) not in html and "source-only-value-1" not in html
+    page = host_review(store, "host-alice", "support", {
+        "operation": "page", "params": {**head, "id": objects["Tickets"], "limit": 2},
+    })
+    assert len(page["rows"]) == 2 and page["rows"][0][1] == "source-only-value-1"
+    with pytest.raises(Denied):
+        host_review(store, "host-alice", "support", {"operation": "export"})
+    assert '"review_transport"' not in host_review(
+        store, "host-alice", "support", {"operation": "export"}, export=True,
+    )
+
+
+@pytest.mark.parametrize("endpoint", [
+    "https://evil.test/v1", "//evil.test/v1", "/review/../v1", "/review/a/v1?token=x",
+    "/review/a/v1#x", "/review/a%2fb/v1", "/review/a/../../v1", None,
+])
+def test_review_transport_refuses_untrusted_routes(registered, endpoint):
+    _, store, _, _, _ = registered
+    with pytest.raises(ValueError):
+        host_review(store, "host-alice", "support", {"operation": "html", "endpoint": endpoint})
+
+
+def test_private_review_worker_does_not_accept_browser_selected_bindings(registered):
+    _, store, _, source, _ = registered
+    def call(request):
+        result = subprocess.run(
+            [sys.executable, "-m", "compiler.review_host", "--store", str(store.path),
+             "--actor", "host-alice", "--resource", "support"],
+            input=request, text=True, capture_output=True, check=True, cwd=ROOT,
+            encoding="utf8",
+        )
+        return json.loads(result.stdout)
+
+    assert call('{"operation":"head"}')["result"] == store.head()
+    for request in [
+        {"operation": "head", "store": str(source)},
+        {"operation": "head", "actor": "other"},
+        {"operation": "head", "resource": "other"},
+        {"operation": "apply", "params": {}},
+        {"operation": "page", "params": {"source": str(source)}},
+    ]:
+        response = call(json.dumps(request))
+        assert response["ok"] is False and str(source) not in json.dumps(response)
+    assert call('{"operation":"export"}')["error"]["code"] == "ACCESS_DENIED"
+    assert call(" " * 65537)["error"]["code"] == "READ_CONTRACT"
 
 
 @pytest.fixture

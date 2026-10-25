@@ -99,3 +99,41 @@ and revocation. It retains screenshots and a receipt. An optional
 owned browser through ai-dev-browser. This proves the native review transport,
 not production login, ShareOne comment delivery, cloud routing or row/field
 authorization.
+
+## Authenticated native-host adapter
+
+`compiler.review_host` is a private stdin worker for a host which has already
+authorized a request. Deployment-owned arguments select its store, actor and
+registered resource. Input can only request the read operations above, or HTML
+with a checked same-origin endpoint. It cannot select a store, actor, resource,
+source connection or permission. Export is denied unless the trusted invocation
+explicitly supplies `--allow-export`; the desktop adapter does not supply it.
+This worker is not a public endpoint or a builder tool.
+
+Sudowork's `SudographReviewHost` provides a loopback route within the current OS
+profile. It binds an ephemeral review session to the persisted project and Studio
+conversation and rechecks ownership on every read, including after a compiler
+read finishes. The model comes from the existing host registry, not another
+catalogue. Each launch has a random URL reference and a separate 30-minute,
+path-scoped HttpOnly cookie. The reference does not authorize access. Credentials
+are not part of URLs, generated HTML, model context, IPC replies or MCP tools.
+The trusted browser host must install the cookie through its existing controlled
+browser before navigation. Host/Origin checks and bounded JSON requests apply;
+there is no anonymous fallback. This is OS-profile authorization, not cloud tenant
+or row/field policy enforcement.
+
+The HTTP/worker adapter and real Chromium cookie/paging journey are implemented.
+The production browser-host credential handoff and UI launch entry remain
+unconnected. The acceptance fixture installs the cookie; it does not establish
+Desktop/WebUI launch, login, browser-control leases or ShareOne comments.
+
+Run the same native reader acceptance through the real TypeScript HTTP host:
+
+```sh
+python -m tools.accept_review --sudowork ../sudowork --receipt host-review/receipt.json
+```
+
+This reuses the existing browser journey for paging, NULL/blob values, live source
+updates, checked edit/reload, anonymous denial and revocation. The receipt states
+the launch limitation explicitly. `tools.accept_workspace_adapter` additionally
+accepts the host route against the private compiler worker without a browser.
