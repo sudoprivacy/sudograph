@@ -119,6 +119,14 @@ def main():
             assert.equal(page.total,2);
             assert.deepEqual(page.rows[0],[1,7]);
             assert.equal((await invoke('bob',{operation:'contract'})).revision,receipt.revision);
+            const overview = await invoke('alice',{operation:'overview'});
+            assert.equal(overview.revision,receipt.revision);
+            assert.equal(overview.context_digest,context.context_digest);
+            assert.equal(overview.source_registration.initial_revision,registered.contract.revision);
+            assert.equal(overview.source_registration.scan.objects,2);
+            assert.equal(overview.source_registration.scan.fields,3);
+            assert.equal(overview.source_registration.records.rows_embedded,0);
+            assert.ok(!JSON.stringify(overview).includes(source));
             await assert.rejects(client.invoke('../other','alice',{operation:'contract'}));
             console.log(JSON.stringify({status:'passed',actors:2,compatible_merge:true,
               incompatible_edit_refused:true,idempotent_retry:true,definitions:2,
@@ -148,6 +156,7 @@ def main():
             source_registration=True,
             registration_retry_verified=True,
             whole_scan_one_read_transaction=True,
+            private_source_overview_verified=True,
             source_unchanged=True,
             record_delivery="live_on_demand",
             compiler_root=str(ROOT),

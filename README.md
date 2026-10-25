@@ -309,7 +309,9 @@ Its first Sudowork adapter slice passes the paired native host acceptance;
 cloud identity and complete host UI integration remain outstanding.
 The [host source registrar](docs/source-registration.md) creates complete SQLite
 models from one read transaction, stores a durable retry receipt and refuses
-partial scans or source rebinding. Connection-form wiring remains separate work.
+partial scans or source rebinding. The native host now reuses its SQLite form and
+project registry; its overview reads scan receipts without transferring records.
+Authenticated standalone launch and cloud connection wiring remain separate work.
 The [registered source reader](docs/source-records.md) supplies bounded live SQLite
 pages through the native agent tool and the
 [canonical review transport](docs/canonical-review-transport.md). Browser paging
