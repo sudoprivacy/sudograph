@@ -20,6 +20,7 @@ from pathlib import Path
 import yaml
 
 from . import app, business
+from .business_contract import document_schema
 from .context import Reader, registered_pointers
 from .model_contract import SOURCE_REQUEST, Refused, compile_model, parse_document
 from .source_records import SourceRecords
@@ -139,6 +140,14 @@ class Workspace:
         baseline = json.loads(_json(baseline))
         pointers = registered_pointers([] if pointers is None else pointers)
         record_sources = {} if record_sources is None else record_sources
+        if record_sources:
+            from .source_payload import has_source_rows  # noqa: PLC0415 -- registration only
+
+            if has_source_rows(baseline):
+                raise Refused(
+                    "SOURCE_RECORD_PRELOAD", "Live source baselines cannot embed source records",
+                    "Regenerate a source projection without embedded record payloads",
+                )
         SourceRecords(baseline, record_sources)
         content = _dump(
             {
@@ -279,6 +288,9 @@ class Workspace:
                 "write": {
                     "required": ["base_revision", "operation_id", "model"],
                     "accepted_format": business.FORMAT,
+                    "document_schema": document_schema(
+                        settings["namespace"], parse_document(row["content"])["baseline"]
+                    ),
                     "effects": "model, graph and context only; source is read-only",
                 },
             }
@@ -537,7 +549,11 @@ def main():
                 "error": {
                     "code": getattr(error, "code", "COMPILER_REJECTED"),
                     "reason": str(error),
-                    "recovery": getattr(error, "recovery", "Correct the model and retry"),
+                    "recovery": getattr(
+                        error, "recovery",
+                        "Read contract.write.document_schema and the current model; "
+                        "correct the model and retry",
+                    ),
                 },
             }
         print(_json(response), flush=True)

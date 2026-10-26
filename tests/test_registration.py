@@ -13,7 +13,44 @@ import pytest
 
 from compiler import app, bind, catalog, project, registration, source_schema
 from compiler.model_contract import Refused
+from compiler.source_payload import has_source_rows
 from compiler.workspace import Workspace
+
+
+@pytest.mark.parametrize("rows", [1, 15, 21])
+def test_live_registration_never_embeds_small_or_folded_source_records(tmp_path, rows):
+    path = tmp_path / "tiny.db"
+    with closing(sqlite3.connect(path)) as db, db:
+        db.execute("CREATE TABLE Items(id INTEGER PRIMARY KEY, note TEXT)")
+        db.executemany("INSERT INTO Items VALUES (?, ?)",
+                       [(i, f"private-live-marker-{i}") for i in range(1, rows + 1)])
+    store = registration.register(
+        tmp_path / "model.db", source="sqlite:///" + path.as_posix(), namespace="tiny",
+        operation_id="live-1", actor="host",
+    )
+    model = store.read(product="model")
+    assert not has_source_rows(model)
+    assert "private-live-marker" not in json.dumps(model)
+    assert "private-live-marker" not in store.review({"endpoint": "/v1", "resource": "tiny"})
+    assert store.registration()["records"]["rows_embedded"] == 0
+    head = store.head()
+    obj = model["source_schema"]["sources"][0]["objects"][0]
+    page = store.context_read({**head, "id": obj["id"], "records": True, "limit": 1})
+    assert page["rows"] == [[1, "private-live-marker-1"]]
+
+
+def test_live_store_registration_rejects_a_legacy_instance_payload(source):
+    store = create(source)
+    baseline = store.read(product="model")
+    baseline["views"][next(iter(baseline["views"]))]["groups"][0]["members"] = [
+        {"id": 1, "props": {"amount": 3}},
+    ]
+    target = store.path.parent / "unsafe.db"
+    source_id = baseline["source_schema"]["sources"][0]["id"]
+    with pytest.raises(Refused) as caught:
+        Workspace.create(target, baseline, namespace="other", record_sources={source_id: source[1]})
+    assert caught.value.code == "SOURCE_RECORD_PRELOAD"
+    assert not target.exists()
 
 
 @pytest.fixture

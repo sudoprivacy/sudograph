@@ -1,5 +1,6 @@
 """Canonical review uses the committed model and reauthorizes every source page."""
 
+import copy
 import hashlib
 import json
 import sqlite3
@@ -45,6 +46,25 @@ def test_private_host_review_reuses_the_registered_model_and_keeps_export_separa
     assert '"review_transport"' not in host_review(
         store, "host-alice", "support", {"operation": "export"}, export=True,
     )
+
+
+def test_legacy_inline_source_records_cannot_bypass_the_export_grant(registered, tmp_path):
+    gateway, original, policy, _, _ = registered
+    baseline = copy.deepcopy(original.read(product="model"))
+    view = baseline["views"][next(iter(baseline["views"]))]
+    view["groups"][0]["members"] = [{"id": 1, "props": {"note": "legacy-row-marker"}}]
+    # Retained old history can contain scalar-view members without a separate
+    # snapshot payload. Do not silently alter that history or treat it as live.
+    legacy = Workspace.create(tmp_path / "legacy.db", baseline, namespace="support")
+    protected = ReviewGateway({"support": legacy}, gateway.authority)
+    for operation in (lambda: protected.html(TOKEN, "support"),
+                      lambda: protected.execute(TOKEN, "support", "graph")):
+        with pytest.raises(Denied):
+            operation()
+    grants = json.loads(policy.read_text())
+    grants["credentials"][0]["grants"]["support"].append("export")
+    policy.write_text(json.dumps(grants))
+    assert "legacy-row-marker" in protected.html(TOKEN, "support")
 
 
 @pytest.mark.parametrize("endpoint", [

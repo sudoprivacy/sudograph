@@ -23,6 +23,16 @@ FORMAT = "sudograph-business-overlay/v5"
 BOUND_FORMAT = "sudograph-business-overlay/v4"
 REGISTRY = "sudograph-business-registry/v2"
 OLD_REGISTRY = "sudograph-business-registry/v1"
+OVERLAY_REQUIRED = {"format", "namespace", "baseline", "definitions"}
+OVERLAY_OPTIONAL = {"documents", "views", "translations"}
+DEFINITION_REQUIRED = {
+    "concept", "category", "label", "statement", "origin", "contributor", "targets", "version",
+}
+DEFINITION_OPTIONAL = {"evidence", "applies_to", "grain", "scope", "purpose", "verification"}
+ROLES = {"business", "source_review", "source_evidence", "implementation_note"}
+CATEGORIES = {"meaning", "metric", "rule", "issue"}
+ORIGINS = ("provided", "inferred")
+CONTRIBUTORS = {"provided": ("source", "business_user"), "inferred": ("model",)}
 
 
 def digest(value):
@@ -93,8 +103,8 @@ def reservations(previous):
 def compile_document(doc, model, *, previous=None, _history=False):
     mapping(
         doc,
-        {"format", "namespace", "baseline", "documents", "definitions", "views", "translations"},
-        {"format", "namespace", "baseline", "definitions"},
+        OVERLAY_REQUIRED | OVERLAY_OPTIONAL,
+        OVERLAY_REQUIRED,
         "business overlay",
     )
     legacy = _history and doc["format"] == "sudograph-business-overlay/v3"
@@ -123,27 +133,22 @@ def compile_document(doc, model, *, previous=None, _history=False):
         raise ValueError("definitions: declare at least one canonical definition")
     for key, item in doc["definitions"].items():
         where = f"definition {key}"
-        required = {
-            "concept", "category", "label", "statement", "origin",
-            "contributor", "targets", "version",
-        }
+        required = set(DEFINITION_REQUIRED)
         if not legacy:
             required.add("role")
         mapping(
-            item, required | {"evidence", "applies_to", "grain", "scope"}
+            item, required | (DEFINITION_OPTIONAL - {"purpose", "verification"})
             | (set() if legacy else {"purpose", "verification"}),
             required, where,
         )
         role = "business" if legacy else item["role"]
-        if role not in {"business", "source_review", "source_evidence", "implementation_note"}:
+        if role not in ROLES:
             raise ValueError(
                 f"{where}.role: use business, source_review, source_evidence or "
                 "implementation_note; data questions belong in phase-one source_review; "
                 "business proposals need a purpose"
             )
-        if not isinstance(item["category"], str) or item["category"] not in {
-            "meaning", "metric", "rule", "issue",
-        }:
+        if not isinstance(item["category"], str) or item["category"] not in CATEGORIES:
             raise ValueError(f"{where}.category: use meaning, metric, rule or issue")
         for name in ("concept", "label", "statement"):
             text(item[name], f"{where}.{name}")
@@ -155,11 +160,11 @@ def compile_document(doc, model, *, previous=None, _history=False):
             text(item.get("verification"), f"{where}.verification")
         elif "verification" in item:
             raise ValueError(f"{where}: verification belongs to a phase-one source_review question")
-        if item["origin"] not in ("provided", "inferred"):
+        if item["origin"] not in ORIGINS:
             raise ValueError(
                 f"{where}.origin: use provided with evidence, or inferred for model deduction"
             )
-        contributors = ("source", "business_user") if item["origin"] == "provided" else ("model",)
+        contributors = CONTRIBUTORS[item["origin"]]
         if item["contributor"] not in contributors:
             raise ValueError(
                 f"{where}.contributor: {item['origin']} requires one of {contributors}; "
@@ -255,7 +260,9 @@ def compile_document(doc, model, *, previous=None, _history=False):
             if not original or excerpt not in original:
                 raise ValueError(
                     f"{where}.evidence: quote is absent from its cited source; "
-                    "inspect the actual evidence"
+                    f"inspect {citation['kind']} reference {citation['ref']!r}. "
+                    "Source field references belong in targets; an evidence quote "
+                    "must occur verbatim in the referenced SQL or supplied document"
                 )
         definitions[identity] = {
             "id": identity,
@@ -312,17 +319,25 @@ def compile_document(doc, model, *, previous=None, _history=False):
                 "subjects; attach evidence/notes to the subject in their own applies_to"
             )
         definition["applies_to"] = [keys[k] for k in refs]
-    visiting, visited = set(), set()
+    visiting, visited, dependency_path = set(), set(), []
 
     def dependencies(identity):
         if identity in visiting:
-            raise ValueError("business dependencies contain a cycle; make their purpose explicit")
+            cycle = [*dependency_path[dependency_path.index(identity):], identity]
+            names = " -> ".join(definitions[key]["key"] for key in cycle)
+            raise ValueError(
+                f"business dependencies contain a cycle: {names}; "
+                "correct applies_to in these definitions. Rules and questions "
+                "apply to their business subject, not the reverse"
+            )
         if identity in visited:
             return
         visiting.add(identity)
+        dependency_path.append(identity)
         for target in definitions[identity]["applies_to"]:
             dependencies(target)
         visiting.remove(identity)
+        dependency_path.pop()
         visited.add(identity)
 
     for identity in definitions:

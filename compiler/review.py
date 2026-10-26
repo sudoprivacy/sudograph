@@ -7,6 +7,7 @@ not a row/field policy adapter. No paths, actors or model writes are HTTP inputs
 
 from .gateway import Denied
 from .model_contract import Refused
+from .source_payload import has_source_rows
 from .workspace import Workspace
 
 OPERATIONS = ["head", "graph", "context", "page", "export"]
@@ -50,7 +51,7 @@ class ReviewGateway:
 
     def _check_embedded_export(self, credential, resource, store, revision):
         model = store.read(revision=revision, product="model")
-        if model.get("records") or model.get("source_schema", {}).get("snapshots"):
+        if has_source_rows(model):
             # Frozen record bytes must not become an implicit bulk export via
             # a graph or HTML read. Normal live review contains neither payload.
             self.authority.require(credential, resource, "export")

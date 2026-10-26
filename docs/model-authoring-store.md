@@ -56,6 +56,23 @@ same definition, evidence document or view is atomic during a concurrent merge.
 Conflicting changes return `MODEL_CONFLICT` with affected paths. A merged model
 must pass the compiler again, including dependency and version checks.
 
+`contract.write.document_schema` exposes the business YAML's JSON Schema: the
+actual pinned baseline and namespace, required mappings, allowed fields and
+enums, role/category conditions, evidence shapes and a minimal format example.
+Field names and enums are shared with the compiler. This is tool-readable
+reference data, not a workflow prompt or a second model. The example contains no
+customer business facts and is never applied automatically. Source IDs still
+come from the current context catalogue. Provenance quotes, reference meaning,
+identity reservations and version history still require semantic compilation.
+`review_status` and generated IDs belong to the compiler, not submitted YAML.
+
+A real fresh-session trial exposed the missing contract: the model guessed one
+field at a time from compiler errors. Structural rejection protected the source
+but did not make the authoring experience acceptable. The exported format and
+tests now verify that a new author can discover a compilable document through
+the contract, while malformed fields are rejected by both the schema and the
+compiler. No particular database or business definition is special-cased.
+
 The same operation, payload and actor reuse the original receipt after restart
 or a lost response. Reusing an operation ID for a different payload or actor is
 refused. Retired identity reservations remain available to later revisions.
