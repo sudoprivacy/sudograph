@@ -549,7 +549,11 @@ def main():
                 "error": {
                     "code": getattr(error, "code", "COMPILER_REJECTED"),
                     "reason": str(error),
-                    "recovery": getattr(error, "recovery", "Correct the model and retry"),
+                    "recovery": getattr(
+                        error, "recovery",
+                        "Read contract.write.document_schema and the current model; "
+                        "correct the model and retry",
+                    ),
                 },
             }
         print(_json(response), flush=True)

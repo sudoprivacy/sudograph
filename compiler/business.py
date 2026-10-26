@@ -260,7 +260,9 @@ def compile_document(doc, model, *, previous=None, _history=False):
             if not original or excerpt not in original:
                 raise ValueError(
                     f"{where}.evidence: quote is absent from its cited source; "
-                    "inspect the actual evidence"
+                    f"inspect {citation['kind']} reference {citation['ref']!r}. "
+                    "Source field references belong in targets; an evidence quote "
+                    "must occur verbatim in the referenced SQL or supplied document"
                 )
         definitions[identity] = {
             "id": identity,
@@ -317,17 +319,25 @@ def compile_document(doc, model, *, previous=None, _history=False):
                 "subjects; attach evidence/notes to the subject in their own applies_to"
             )
         definition["applies_to"] = [keys[k] for k in refs]
-    visiting, visited = set(), set()
+    visiting, visited, dependency_path = set(), set(), []
 
     def dependencies(identity):
         if identity in visiting:
-            raise ValueError("business dependencies contain a cycle; make their purpose explicit")
+            cycle = [*dependency_path[dependency_path.index(identity):], identity]
+            names = " -> ".join(definitions[key]["key"] for key in cycle)
+            raise ValueError(
+                f"business dependencies contain a cycle: {names}; "
+                "correct applies_to in these definitions. Rules and questions "
+                "apply to their business subject, not the reverse"
+            )
         if identity in visited:
             return
         visiting.add(identity)
+        dependency_path.append(identity)
         for target in definitions[identity]["applies_to"]:
             dependencies(target)
         visiting.remove(identity)
+        dependency_path.pop()
         visited.add(identity)
 
     for identity in definitions:

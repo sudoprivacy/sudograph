@@ -282,7 +282,9 @@ def test_missing_categories_unknown_purposes_and_cycles_are_refused(base):
         business.build(doc, model)
     item["applies_to"] = ["observed-total"]
     doc["definitions"]["observed-total"]["applies_to"] = ["refund-question"]
-    with pytest.raises(ValueError, match="cycle"):
+    with pytest.raises(
+        ValueError, match=r"cycle: observed-total -> refund-question -> observed-total"
+    ):
         business.build(doc, model)
 
 
