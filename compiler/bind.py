@@ -113,6 +113,8 @@ class _ReadLease:
 
 
 def _source_address(dsn, base):
+    if dsn.startswith("registered://"):
+        return dsn
     return os.path.normcase(os.path.realpath(_path_of(dsn, base)))
 
 
@@ -128,16 +130,23 @@ def observation(dsn, base="."):
         raise BindingError("source observations cannot be nested")
     with closing(_open(dsn, base)) as connection:
         connection.execute("BEGIN")
-        version = connection.execute("PRAGMA schema_version").fetchone()[0]
-        proof = {"id": str(uuid.uuid4()), "provider": "sqlite",
+        version = (None if getattr(connection, "provider", None) else
+                   connection.execute("PRAGMA schema_version").fetchone()[0])
+        proof = dict(connection.proof) if getattr(connection, "provider", None) else {
+                 "id": str(uuid.uuid4()), "provider": "sqlite",
                  "provider_version": sqlite3.sqlite_version,
                  "consistency": "one SQLite read transaction",
                  "schema_version": version, "started_at": datetime.now(UTC).isoformat()}
         token = _observation.set((_source_address(dsn, base), connection))
         try:
+            if getattr(connection, "provider", None):
+                connection.inventory()
             yield proof
             if not connection.in_transaction:
                 raise BindingError("source observation transaction ended before compilation")
+            if (getattr(connection, "provider", None) and
+                    connection.catalog != connection._call("inventory")):
+                raise BindingError("Source schema changed during registration; retry the scan")
             proof["completed_at"] = datetime.now(UTC).isoformat()
         finally:
             _observation.reset(token)
@@ -154,6 +163,9 @@ def connect(dsn: str, base: str = ".") -> sqlite3.Connection | _ReadLease:
 
 def _open(dsn: str, base: str = ".") -> sqlite3.Connection:
     """Open the source read-only, so a mistake cannot become a write."""
+    if dsn.startswith("registered://"):
+        from .registered_source import Connection  # noqa: PLC0415 -- provider imports bind errors
+        return Connection(dsn)
     path = _path_of(dsn, base)
     if not os.path.exists(path):
         raise SourceUnavailable(f"no database at {path}")
@@ -171,6 +183,8 @@ def _open(dsn: str, base: str = ".") -> sqlite3.Connection:
 
 
 def _columns(conn: sqlite3.Connection, table: str) -> dict[str, str]:
+    if getattr(conn, "provider", None):
+        return {r["name"]: r["type"].upper() for r in conn.describe(table)["columns"]}
     rows = conn.execute(f"pragma table_xinfo({quote(table)})").fetchall()
     return {r["name"]: (r["type"] or "").upper() for r in rows}
 
@@ -195,7 +209,7 @@ def _not_unique(conn, table: str, columns: list[str], backing: dict) -> list[int
     where = f" where {backing['where']}" if backing.get("where") else ""
     n = conn.execute(
         f"select count(*) from (select {quoted} from {quote(table)}{where} "
-        f"group by {quoted} having count(*) > 1)"
+        f"group by {quoted} having count(*) > 1) AS sg_duplicates"
     ).fetchone()[0]
     return [n] if n else []
 
@@ -472,12 +486,13 @@ def link_evidence(s: Spec, tname: str, prop: str, at=None) -> dict:
     where = ' WHERE ' + ' AND '.join(clauses) if clauses else ''
     with closing(connect(builder.dsn, s.source_base)) as conn:
         result = conn.execute(
-            f"SELECT count(*), count({source_key}), COALESCE(sum({bad}), 0) {base_sql}{where}",
+            f"SELECT count(*), count({source_key}), "
+            f"COALESCE(sum(CASE WHEN {bad} THEN 1 ELSE 0 END), 0) {base_sql}{where}",
             builder.params,
         ).fetchone()
         columns = ','.join(row.property(p) for p in s.id_props(tname))
         sample_where = ' WHERE ' + ' AND '.join([*clauses, bad])
         sample = conn.execute(f"SELECT {columns} {base_sql}{sample_where} LIMIT 5",
                               builder.params).fetchall() if result[2] else []
-    return {'total': result[0], 'linked': result[1], 'affected': result[2],
+    return {'total': int(result[0]), 'linked': int(result[1]), 'affected': int(result[2]),
             'sample': [r[0] if len(r) == 1 else '·'.join(str(x) for x in r) for r in sample]}

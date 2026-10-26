@@ -16,6 +16,11 @@ def scan(dsn, base="."):
 
 def inventory(conn):
     """Read a catalogue on the caller's read transaction."""
+    if getattr(conn, "provider", None):
+        objects = conn.inventory()
+        for obj in objects:
+            obj["count"] = conn.execute(f"SELECT count(*) FROM {quote(obj['name'])}").fetchone()[0]
+        return objects
     result = []
     for obj in conn.execute(
         "SELECT name,type,sql FROM sqlite_master WHERE type IN "
@@ -31,6 +36,8 @@ def inventory(conn):
 
 def describe(conn, obj):
     """Read one known SQLite catalogue row without scanning unrelated records."""
+    if getattr(conn, "provider", None):
+        return conn.describe(obj["name"])
     name = obj["name"]
     return {
         "name": name,

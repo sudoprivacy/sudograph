@@ -35,8 +35,10 @@ def execute(store, actor, resource, request, *, export=False):
     gateway = ReviewGateway({resource: store}, authority)
     if not isinstance(request, dict):
         raise ValueError("expected a review request")
-    if request.get("operation") == "html" and set(request) == {"operation", "endpoint"}:
-        return gateway.html(actor, resource, endpoint=request["endpoint"])
+    if (request.get("operation") in {"html", "document"}
+            and set(request) == {"operation", "endpoint"}):
+        document = gateway.document(actor, resource, endpoint=request["endpoint"])
+        return document["html"] if request["operation"] == "html" else document
     if set(request) - {"operation", "params"} or "operation" not in request:
         raise ValueError("expected operation and optional params")
     params = request.get("params", {})

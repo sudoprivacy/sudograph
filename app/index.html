@@ -247,8 +247,11 @@ function accessNotice() {
     : access?.mode==='public'?'公开演示快照':'离线快照');
   syncCommentAvailability();
 }
+function pageHost() {
+  return window.__SHAREONE__ || {};
+}
 function commentHost() {
-  return (window.__SHAREONE__ || {}).anchors || null;
+  return pageHost().anchors || null;
 }
 function commentHostReady() {
   const api=commentHost();

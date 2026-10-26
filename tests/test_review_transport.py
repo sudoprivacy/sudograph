@@ -311,6 +311,7 @@ def test_browser_page_request_is_exact_and_rejects_mixed_revisions():
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
 const packet={revision:'r1',context_digest:'d1'};
 global.BUNDLE={ui:{review_transport:{endpoint:'/v1',resource:'support'},agent_context:packet}};
+global.pageHost=()=>({});
 vm.runInThisContext(fs.readFileSync('./app/schema.js','utf8'));
 (async()=>{
  let request;
@@ -324,6 +325,13 @@ vm.runInThisContext(fs.readFileSync('./app/schema.js','utf8'));
  await assert.rejects(()=>reviewSourcePage('obj1',50,50),/displayed model/);
  global.fetch=async()=>({ok:false,status:403});
  await assert.rejects(()=>reviewSourcePage('obj1',50,50),/unavailable/);
+ global.fetch=async()=>{throw new Error('Sandbox reads must use the authenticated parent');};
+ let bridged;
+ global.pageHost=()=>({read:{request:async(body)=>{bridged=body;return {status:200,body:{result:{
+   ...packet,source_object:'obj1',offset:50,rows:[[51,'same row']]}}};}}});
+ assert.equal((await reviewSourcePage('obj1',50,50)).rows[0][1],'same row');
+ assert.deepEqual(bridged,{view:'support',operation:'page',params:{
+   ...packet,id:'obj1',offset:50,limit:50}});
  console.log('passed');
 })().catch(error=>{console.error(error);process.exitCode=1});
 """

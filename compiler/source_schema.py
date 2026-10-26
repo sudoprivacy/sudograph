@@ -11,11 +11,11 @@ import gzip
 import hashlib
 import json
 import math
-import os
 import struct
 import sys
 from array import array
 from contextlib import closing
+from decimal import Decimal
 from urllib.parse import quote
 
 import sqlglot
@@ -31,7 +31,7 @@ CONTRACT = "source-object-field/v1"
 def source_id(dsn, base):
     # Resolve relative paths and symlinks; aliases/labels and changing data do
     # not participate. Moving the registered database is a source migration.
-    path = os.path.normcase(os.path.realpath(bind._path_of(dsn, base)))
+    path = bind._source_address(dsn, base)
     return "sg-source/" + hashlib.sha256(path.encode()).hexdigest()[:32]
 
 
@@ -57,6 +57,8 @@ def bound_fields(s, tname):
 
 
 def wire(value):
+    if isinstance(value, Decimal):
+        return {"$decimal": str(value)}
     if isinstance(value, bytes):
         return {
             "$binary": base64.b64encode(value).decode(),
@@ -159,15 +161,19 @@ def record_adapters(s, model):
     return result
 
 
-def _dependencies(definition, names):
+def _dependencies(definition, names, dialect="sqlite", schema=None):
     try:
-        tree = sqlglot.parse_one(definition, read="sqlite")
+        tree = sqlglot.parse_one(definition, read=dialect)
+        physical = [src for scope in traverse_scope(tree) for src in scope.sources.values()
+                    if isinstance(src, exp.Table)]
+        if dialect != "sqlite" and any(
+            src.name not in names or src.catalog or (src.db and src.db != schema)
+            for src in physical
+        ):
+            return [], "Source SQL references objects outside the registered schema scope"
         # Scope resolution distinguishes CTE aliases from actual source objects.
         found = {
-            src.name
-            for scope in traverse_scope(tree)
-            for src in scope.sources.values()
-            if isinstance(src, exp.Table) and src.name in names
+            src.name for src in physical if src.name in names
         }
         return sorted(found), None
     except sqlglot.errors.SqlglotError as error:
@@ -197,7 +203,9 @@ def build(s, *, records=False):
             inventory = catalog.inventory(conn)
             names = {obj["name"] for obj in inventory}
             objects, pool, codes = [], [], {}
-            table_flags = {r["name"]: r for r in conn.execute("PRAGMA table_list")}
+            remote = bool(getattr(conn, "provider", None))
+            table_flags = ({} if remote else {
+                r["name"]: r for r in conn.execute("PRAGMA table_list")})
             for obj in inventory:
                 oid = object_id(sid, obj["name"])
                 projections = [
@@ -208,7 +216,7 @@ def build(s, *, records=False):
                 ]
                 fields = []
                 primary = [c for c in obj["columns"] if c["pk"]]
-                indexed_key = any(
+                indexed_key = remote or any(
                     r["origin"] == "pk"
                     for r in conn.execute(f"PRAGMA index_list({sql_quote(obj['name'])})")
                 )
@@ -242,7 +250,9 @@ def build(s, *, records=False):
                         }
                     )
                 dependencies, error = (
-                    _dependencies(obj["definition"], names) if obj["kind"] == "view" else ([], None)
+                    _dependencies(obj["definition"], names, getattr(conn, "dialect", "sqlite"),
+                                  getattr(conn, "schema", None))
+                    if obj["kind"] == "view" else ([], None)
                 )
                 objects.append(
                     {
