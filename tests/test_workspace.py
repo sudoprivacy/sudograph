@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import yaml
+from jsonschema import Draft202012Validator
 
 from compiler import business, workspace
 from compiler.model_contract import Refused
@@ -52,6 +53,48 @@ def request(store, doc, op="edit-1", base=None):
         "operation_id": op,
         "model": yaml.safe_dump(doc),
     }
+
+
+def test_contract_provides_a_valid_authoring_shape_without_external_context(registered):
+    store, _baseline = registered
+    contract = store.contract()
+    schema = contract["write"]["document_schema"]
+    Draft202012Validator.check_schema(schema)
+    example = schema["examples"][0]
+    Draft202012Validator(schema).validate(example)
+    assert example["baseline"] == contract["baseline"]
+    assert example["namespace"] == contract["namespace"]
+    assert schema["properties"]["definitions"]["additionalProperties"]["properties"]["role"][
+        "enum"
+    ] == sorted(business.ROLES)
+    before = contract["revision"]
+    receipt = store.apply(request(store, example), actor="new-author")
+    assert receipt["revision"] != before
+    definition = next(iter(store.read(product="model")["business"]["definitions"].values()))
+    assert definition["review_status"] == "unreviewed"
+    assert definition["binding_status"] == "unbound"
+    assert store.read()["inventory"]["record_rows_preloaded"] == 0
+
+
+@pytest.mark.parametrize("change", [
+    {"role": "definition"}, {"category": "business_definition"},
+    {"origin": "user"}, {"contributor": "business_user"},
+    {"review_status": "confirmed"}, {"id": "author-chosen"},
+    {"verification": "Only legal for a phase-one question"},
+    {"purpose": "A string is not a stakeholder and decision"},
+    {"origin": "provided", "contributor": "business_user"},
+    {"category": "metric"}, {"category": "rule"},
+])
+def test_authoring_schema_and_compiler_reject_the_same_invalid_shapes(registered, change):
+    store, baseline = registered
+    doc = document(baseline)
+    doc["definitions"]["refund"].update(change)
+    before = store.contract()
+    validator = Draft202012Validator(before["write"]["document_schema"])
+    assert list(validator.iter_errors(doc))
+    with pytest.raises(ValueError):
+        store.apply(request(store, doc), actor="new-author")
+    assert store.contract() == before
 
 
 def test_model_graph_context_and_retry_share_one_committed_revision(registered):

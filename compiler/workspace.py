@@ -20,6 +20,7 @@ from pathlib import Path
 import yaml
 
 from . import app, business
+from .business_contract import document_schema
 from .context import Reader, registered_pointers
 from .model_contract import SOURCE_REQUEST, Refused, compile_model, parse_document
 from .source_records import SourceRecords
@@ -287,6 +288,9 @@ class Workspace:
                 "write": {
                     "required": ["base_revision", "operation_id", "model"],
                     "accepted_format": business.FORMAT,
+                    "document_schema": document_schema(
+                        settings["namespace"], parse_document(row["content"])["baseline"]
+                    ),
                     "effects": "model, graph and context only; source is read-only",
                 },
             }
