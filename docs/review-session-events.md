@@ -11,6 +11,16 @@ WebUI ontology channels remain unmapped at the inspected revision; Desktop
 loopback setup and the current busy-rejecting repair helper are not a deployed
 cloud ontology provider or durable comment receiver.
 
+The current native **Open review** route also lacks ShareOne's shell/comment
+provider. Normal integrated review requires comments enabled by default, with
+separate, truthful content/comment/delivery readiness. A readable private graph
+is not acceptance of that loop. The
+[private-review comments request](shareone-private-review-comments-fr.md)
+documents the missing provider contract and joint acceptance; it must not be
+worked around by exporting private records or implementing a second comment
+store. The host's durable receiver below remains required even after a comment
+component is available.
+
 ## Shared model and explicit review bindings
 
 Multiple people, conversations, agents and review shares may work on the same

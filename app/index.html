@@ -23,6 +23,7 @@
 .source-catalogue .catalogue-fields {display:flex;flex-direction:column;gap:4px;padding:7px 0 7px 12px;}
 #catalogueSearch {width:100%;padding:7px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:5px;}
 #subgraphBar {padding:7px 16px;border-bottom:1px solid var(--line);display:flex;gap:9px;align-items:center;flex-wrap:wrap;}
+#commentNotice {padding:7px 16px;border-bottom:1px solid var(--line);background:var(--panel);color:#edc58a;}
 .schema-actions {display:flex;gap:6px;flex-wrap:wrap;margin:12px 0;align-items:center;}
 .schema-cell-label {border:0;background:transparent;padding:0;text-align:left;}
 .schema-relation-list {display:flex;flex-direction:column;gap:6px;}
@@ -211,8 +212,9 @@
   <button id="instBtn" data-ui="全部展开">全部展开</button>
   <label><input id="sources" type="checkbox"><span data-ui="显示取数来源">显示取数来源</span></label>
   <label><input id="edgeLabels" type="checkbox"><span data-ui="全部关系名称">全部关系名称</span></label>
-  <span class="hint" data-ui="拖动节点边缘调整位置；选中文字可评论。">拖动节点边缘调整位置；选中文字可评论。</span>
+  <span id="interactionHint" class="hint"></span>
 </div>
+<div id="commentNotice" role="status" hidden></div>
 <div id="subgraphBar" hidden>
   <span id="subgraphStatus"></span>
   <label><span data-ui="关联距离">关联距离</span><select id="subgraphHops"></select></label>
@@ -243,6 +245,25 @@ function accessNotice() {
   $('accessNotice').textContent=t(BUNDLE.ui.review_transport?'受控在线审阅':access?.mode==='authorised'
     ? '仅显示此授权视图；其他范围可能不可见。'
     : access?.mode==='public'?'公开演示快照':'离线快照');
+  syncCommentAvailability();
+}
+function commentHost() {
+  return (window.__SHAREONE__ || {}).anchors || null;
+}
+function commentHostReady() {
+  const api=commentHost();
+  // The early ShareOne stub queues calls; it is not a connected composer.
+  return !!api && !api.__pending && ['select','report','on'].every(k=>typeof api[k]==='function');
+}
+function syncCommentAvailability() {
+  const ready=commentHostReady();
+  document.getElementById('interactionHint').textContent=ready
+    ? t('拖动节点边缘调整位置；选中文字可评论。') : t('拖动节点边缘调整位置。');
+  const notice=document.getElementById('commentNotice');
+  notice.hidden=ready||!BUNDLE.ui.review_transport;
+  notice.textContent=notice.hidden?'':commentHost()?.__pending
+    ? t('评论组件尚未连接，暂时无法提交评论。')
+    : t('当前审阅页尚未接入评论服务，无法在图上反馈给 Agent。');
 }
 document.querySelectorAll('[data-ui]').forEach(el => el.textContent = t(el.dataset.ui));
 document.getElementById('language').value = uiLanguage;
@@ -866,7 +887,7 @@ const anchors = (() => {
   // document — so reading it once at load binds to nothing and stays bound to
   // nothing for the life of the page, silently. Found exactly that way on the
   // first live run.
-  const host = () => (window.__SHAREONE__ || {}).anchors || null;
+  const host = () => commentHost();
   let wired = false;
 
   const known = () => {
@@ -981,7 +1002,7 @@ const anchors = (() => {
     });
   };
 
-  return { get live() { return !!host(); }, report, marked:id=>tracked.has(id),
+  return { get live() { return commentHostReady(); }, report, marked:id=>tracked.has(id),
     activate:id=>host()?.activate?.(id),
     activateComment:id=>host()?.activateComment?.(id),
     resyncText:()=>host()?.resyncText?.(),
@@ -1001,6 +1022,18 @@ const anchors = (() => {
     }
   };
 })();
+
+// ShareOne dispatches this on document after replacing its queued SDK stub.
+// Keep standalone previews honest without polling or relayout on every frame.
+document.addEventListener('shareone:ready', () => {
+  syncCommentAvailability();
+  anchors.report();
+  if(state.panel==='node' && state.selected) {
+    const node=businessNodes.get(state.selected)||schemaNodes.get(state.selected)
+      ||view()?.nodes.find(n=>n.id===state.selected);
+    if(node)showNode(node);
+  }
+});
 
 function clearReaderSelection() {
   state.selected=null;state.selectedRelation=null;delete state.relation;state.panel='checks';
