@@ -139,6 +139,14 @@ class Workspace:
         baseline = json.loads(_json(baseline))
         pointers = registered_pointers([] if pointers is None else pointers)
         record_sources = {} if record_sources is None else record_sources
+        if record_sources:
+            from .source_payload import has_source_rows  # noqa: PLC0415 -- registration only
+
+            if has_source_rows(baseline):
+                raise Refused(
+                    "SOURCE_RECORD_PRELOAD", "Live source baselines cannot embed source records",
+                    "Regenerate a source projection without embedded record payloads",
+                )
         SourceRecords(baseline, record_sources)
         content = _dump(
             {

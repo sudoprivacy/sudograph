@@ -137,3 +137,12 @@ This reuses the existing browser journey for paging, NULL/blob values, live sour
 updates, checked edit/reload, anonymous denial and revocation. The receipt states
 the launch limitation explicitly. `tools.accept_workspace_adapter` additionally
 accepts the host route against the private compiler worker without a browser.
+
+Live source baselines also omit the legacy scalar view's instance nodes, member
+rows, per-record completeness and top-row summaries. Disabling snapshot export
+alone did not remove small-table data from those fields. The common producer now
+retains structural counts and compiler checks while record pages stay dynamic;
+the canonical store refuses to register an embedded-row baseline as live. Explicit
+snapshot exports and frozen examples retain their existing bytes. Retained older
+models are not rewritten: HTML/graph reads of their inline source rows require
+the separate export grant, just like explicit record snapshots.

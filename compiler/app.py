@@ -64,6 +64,8 @@ def _key(basis: str | None, at: dict[str, str]) -> str:
 
 def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5,
            records: bool = False) -> dict[str, Any]:
+    from .source_payload import without_source_rows  # noqa: PLC0415 -- presentation boundary
+
     axes = coordinates(s)
     bases: list[str | None] = list(s.bases) or [None]
     combos = [
@@ -84,8 +86,10 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5,
             c = compile_mod.compile_spec(
                 s, basis=basis, at=at, fold_over=fold_over, top_n=top_n
             )
-            views[_key(basis, at)] = c.view
-            c.view['measurement'] = measure_mod.correctness(s, basis=basis, at=at).as_dict()
+            view = (without_source_rows(c.view)
+                    if s.mode == 'source_projection' and not records else c.view)
+            views[_key(basis, at)] = view
+            view['measurement'] = measure_mod.correctness(s, basis=basis, at=at).as_dict()
 
     # Bridges are the deliverable, so they are computed here too. With exactly
     # two readings the single pairing is implied; past that only the declared
