@@ -162,6 +162,36 @@ async def accept(folder, evidence, *, sdk_port=None, sudowork=None, bun="bun"):
                     "BUNDLE.ui.agent_context.inventory.record_rows_preloaded"
                 )
                 assert preloaded == 0
+                # A readable live graph is not proof of a working comment service.
+                notice = page.locator('#commentNotice')
+                assert await notice.is_visible()
+                assert 'Comments are not connected' in await notice.text_content()
+                assert 'select text to comment' not in await page.locator(
+                    '#interactionHint'
+                ).text_content()
+                await page.select_option('#language', 'zh')
+                assert '尚未接入评论服务' in await notice.text_content()
+                await page.select_option('#language', 'en')
+                # A delayed SDK stub must not advertise a connected composer.
+                # This simulates bridge readiness only, not submitting comments.
+                await page.evaluate("""() => {
+                  window.__SHAREONE__={anchors:{__pending:{},select(){},report(){},on(){}}};
+                  document.dispatchEvent(new Event('shareone:ready'));
+                }""")
+                assert await notice.is_visible()
+                assert 'has not connected' in await notice.text_content()
+                await page.evaluate("""() => {
+                  delete window.__SHAREONE__.anchors.__pending;
+                  document.dispatchEvent(new Event('shareone:ready'));
+                }""")
+                assert not await notice.is_visible()
+                assert 'select text to comment' in await page.locator(
+                    '#interactionHint'
+                ).text_content()
+                # Reload restores the actual unconnected host before record acceptance.
+                await page.reload()
+                await page.wait_for_function('!!cy')
+                assert await notice.is_visible()
                 # Use the existing catalogue/field/record buttons, not injected record rows.
                 async def open_records(name):
                     identity = objects[name]
@@ -256,6 +286,10 @@ async def accept(folder, evidence, *, sdk_port=None, sudowork=None, bun="bun"):
         "ai_dev_browser_checked": sdk_port is not None,
         "real_sudowork_host_transport": sudowork is not None,
         "http_only_host_cookie": sudowork is not None,
+        "unconnected_comments_reported": True,
+        "comment_bridge_readiness_fixture": True,
+        "real_comment_submission_verified": False,
+        "comment_to_agent_delivery_verified": False,
         "standalone_browser_launch_verified": False,
         "authorization_scope": "synthetic complete resource; not cloud or row/field acceptance",
     }

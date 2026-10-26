@@ -837,6 +837,13 @@ Full verification also requires Playwright 1.61.0 and its Chromium runtime;
 shared by local verification and CI. Screenshots and its receipt are written to
 the worktree's ignored `.acceptance/browser-review/` directory.
 
+The native controlled review adapter currently proves authenticated model reads,
+record paging and checked revision reloads. It does **not** yet provide ShareOne
+comment submission or durable comment delivery to a bound agent. Normal
+integrated review must enable comments by default; a readable preview alone is
+not acceptance of that workflow. The [private-review comment contract](docs/shareone-private-review-comments-fr.md)
+records the missing integration and the required real comment-to-agent journey.
+
 One of those gates runs every `python -m` line on this page. That is the only
 reason to trust it: the front page is what a model reads before writing its
 first spec, so a command here that no longer works is the tool being broken for

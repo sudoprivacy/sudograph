@@ -1976,7 +1976,7 @@ def test_comment_anchors_are_optional_and_identity_based():
     # so reading it once at load binds to nothing — silently, for the life of
     # the page. That is exactly what happened on the first live run.
     assert "const host = () =>" in block
-    assert "get live() { return !!host(); }" in block
+    # Missing/pending/connected runtime behavior is exercised by accept_review.
     assert "const api = window.__SHAREONE__ && window.__SHAREONE__.anchors" not in block
     # Absent host: every entry point returns without touching it.
     assert "if (!api) return" in block
@@ -2001,7 +2001,7 @@ def test_comment_anchors_are_optional_and_identity_based():
     # other use goes through `api`, so there is no second unguarded path.
     reaches = [ln for ln in html.splitlines() if "__SHAREONE__" in ln]
     assert len(reaches) == 1, reaches
-    assert "const host = () => (window.__SHAREONE__ || {}).anchors || null;" in reaches[0]
+    assert "return (window.__SHAREONE__ || {}).anchors || null;" in reaches[0]
 
 
 def test_doubt_is_the_gap_colour_reaching_a_figure():

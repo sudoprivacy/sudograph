@@ -14,6 +14,26 @@ The private model worker now supports [bounded live SQLite record reads](source-
 without embedding rows. Host connector UI, browser transport and scoped gateway
 acceptance remain separate work; this does not establish cloud permissions.
 
+## Intake implementation status, 2026-10-26
+
+The existing connector experience is retained. Form and chat are two entries to
+one host-owned source registration/probe/scan pipeline, not competing designs.
+
+| Entry | Current canonical Sudograph integration |
+| --- | --- |
+| Sudowork SQLite connection form | Registered read-only local file, complete structure receipt and live record reads implemented. A SQLite file has no database-server IP. |
+| Existing PostgreSQL/MySQL connection forms and providers | Existing host connector functionality to reuse; not yet ported into the complete canonical projection contract. A legacy successful probe is not canonical scan acceptance. |
+| Chat with an explicitly supplied endpoint/credentials | Agreed first-version intake, not yet exposed as a source registration tool. The agent cannot currently connect a new database simply because it received its IP. |
+| Unstructured authorized endpoint list | Requires bounded deterministic discovery and per-target receipts through that same pipeline; not implemented. |
+
+For remote databases, address/port/database name are connection properties of a
+registered source. The worker must actually reach that endpoint; neither a
+prompt nor a remote browser viewer supplies network routing. Agent involvement
+handles missing input and observed ambiguities; provider detection, source
+deduplication, read-only access, scan coverage and projection stay checked tool
+operations. Canonical model YAML contains source identities and pointers, not
+connection passwords.
+
 ## Repository boundary
 
 | Repository | Owns | Integration boundary |
