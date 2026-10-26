@@ -44,10 +44,15 @@ class ReviewGateway:
         return {**CONTRACT, "views": available}
 
     def html(self, credential, resource, *, endpoint="/v1"):
+        return self.document(credential, resource, endpoint=endpoint)["html"]
+
+    def document(self, credential, resource, *, endpoint="/v1"):
+        """The host records exactly the revision served to its comment frame."""
         store = self._authorize(credential, resource)
         head = store.head()
         self._check_embedded_export(credential, resource, store, head["revision"])
-        return store.review({"endpoint": endpoint, "resource": resource}, revision=head["revision"])
+        return {**head, "html": store.review(
+            {"endpoint": endpoint, "resource": resource}, revision=head["revision"])}
 
     def _check_embedded_export(self, credential, resource, store, revision):
         model = store.read(revision=revision, product="model")

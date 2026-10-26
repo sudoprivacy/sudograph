@@ -87,7 +87,10 @@ def register(
             "Invalid registration settings",
             "Use the deployment's actor, namespace, locale and record-delivery mode",
         )
-    if not isinstance(source, str) or not source.startswith("sqlite:///"):
+    if not isinstance(source, str) or not (
+        source.startswith("sqlite:///")
+        or re.fullmatch(r"registered://[a-zA-Z0-9_-]{1,128}", source)
+    ):
         raise Refused(
             "SOURCE_PROVIDER_UNSUPPORTED",
             "Complete registration currently requires SQLite",
@@ -100,18 +103,19 @@ def register(
             "Model storage must name a file",
             "Use the host-owned model store path",
         )
-    source_path = Path(bind._path_of(source, ".")).resolve()
+    remote = source.startswith("registered://")
+    source_path = None if remote else Path(bind._path_of(source, ".")).resolve()
     lock = path.with_name(path.name + ".registration-lock")
-    if source_path in {path, lock} or any(
+    if not remote and (source_path in {path, lock} or any(
         target.exists() and source_path.exists() and os.path.samefile(source_path, target)
         for target in (path, lock)
-    ):
+    )):
         raise Refused(
             "REGISTRATION_CONTRACT",
             "Source and model storage overlap",
             "Select a source database separate from this model's private storage",
         )
-    dsn = "sqlite:///" + source_path.as_posix()
+    dsn = source if remote else "sqlite:///" + source_path.as_posix()
     identity = source_schema.source_id(dsn, ".")
     request = {
         "operation_id": operation_id,
@@ -143,7 +147,7 @@ def register(
                         raise
                     except (ValueError, bind.BindingError, sqlite3.Error) as error:
                         detail = str(error)
-                        for private in (dsn, str(source_path), source_path.as_posix(), str(folder)):
+                        for private in (dsn, str(source_path), str(source_path), str(folder)):
                             detail = detail.replace(private, "<registered-source>")
                         raise Refused(
                             "SCAN_INCOMPLETE",
@@ -184,13 +188,13 @@ def register(
                     "request_digest": digest,
                     "connection": {
                         "status": "connected",
-                        "provider": "sqlite",
+                        "provider": observation["provider"],
                         "source": identity,
                         "observed_at": observation["completed_at"],
                     },
                     "scan": {
                         "status": "complete",
-                        "scope": "complete registered SQLite source",
+                        "scope": observation.get("scope", "complete registered SQLite source"),
                         "inventory_exhausted": True,
                         "structure_complete": True,
                         "objects": len(objects),

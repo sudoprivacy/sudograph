@@ -2001,7 +2001,7 @@ def test_comment_anchors_are_optional_and_identity_based():
     # other use goes through `api`, so there is no second unguarded path.
     reaches = [ln for ln in html.splitlines() if "__SHAREONE__" in ln]
     assert len(reaches) == 1, reaches
-    assert "return (window.__SHAREONE__ || {}).anchors || null;" in reaches[0]
+    assert "return window.__SHAREONE__ || {};" in reaches[0]
 
 
 def test_doubt_is_the_gap_colour_reaching_a_figure():

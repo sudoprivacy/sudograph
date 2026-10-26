@@ -80,9 +80,11 @@ class SourceRecords:
             )
         try:
             with closing(bind.connect(self.sources[obj["source"]])) as conn:
-                conn.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, MAX_BYTES)
+                remote = bool(getattr(conn, "provider", None))
+                if not remote:
+                    conn.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, MAX_BYTES)
                 conn.execute("BEGIN")
-                definition = conn.execute(
+                definition = conn.describe(obj["name"]) if remote else conn.execute(
                     "SELECT name,type,sql FROM sqlite_master "
                     "WHERE name = ? AND type IN ('table','view')",
                     (obj["name"],),
@@ -94,7 +96,7 @@ class SourceRecords:
                         "Rescan the registered source and reconcile the model",
                         409,
                     )
-                self._validate(obj, catalog.describe(conn, definition))
+                self._validate(obj, definition if remote else catalog.describe(conn, definition))
                 columns = [field["column"] for field in obj["fields"]]
                 keys = [
                     field["column"]

@@ -261,12 +261,23 @@ function showSchemaRelation(e) {
 let sourceBrowseSeq=0;
 async function reviewSourcePage(id,offset,limit) {
   const transport=BUNDLE.ui.review_transport,packet=BUNDLE.ui.agent_context;
-  const response=await fetch(transport.endpoint,{method:'POST',credentials:'same-origin',
-    headers:{'Content-Type':'application/json'},cache:'no-store',
-    body:JSON.stringify({view:transport.resource,operation:'page',params:{
-      revision:packet.revision,context_digest:packet.context_digest,id,offset,limit}})});
-  if(!response.ok)throw new Error('Source page unavailable');
-  const {result}=await response.json();
+  const request={view:transport.resource,operation:'page',params:{
+    revision:packet.revision,context_digest:packet.context_digest,id,offset,limit}};
+  // A ShareOne sandbox delegates reads to its authenticated parent. It never
+  // receives a source credential or bypasses the host's registered read route.
+  const read=pageHost().read;
+  let payload;
+  if(read?.request) {
+    const response=await read.request(request);
+    if(response.status!==200)throw new Error('Source page unavailable');
+    payload=response.body;
+  } else {
+    const response=await fetch(transport.endpoint,{method:'POST',credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(request)});
+    if(!response.ok)throw new Error('Source page unavailable');
+    payload=await response.json();
+  }
+  const {result}=payload;
   if(result?.revision!==packet.revision||result.context_digest!==packet.context_digest||
     result.source_object!==id||result.offset!==offset||!Array.isArray(result.rows))
     throw new Error('Source page does not match the displayed model');
@@ -326,7 +337,7 @@ async function showSourceRecords(id,offset=0,column=null) {
         download.onclick=()=>{const url=URL.createObjectURL(new Blob([Uint8Array.from(atob(value.$binary),c=>c.charCodeAt(0))]));
           const a=document.createElement('a');a.href=url;a.download=obj.name+'-'+name+'-'+(offset+ix+1)+'.bin';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
         download.dataset.binaryDownload='true';text.appendChild(download);text.title='SHA256 '+value.sha256;
-      } else text.textContent=value===null?'NULL':String(value?.$integer??value?.$float??value);
+      } else text.textContent=value===null?'NULL':String(value?.$integer??value?.$decimal??value?.$float??value);
       line.appendChild(text);item.appendChild(line);
     }
     $('panel').appendChild(item);

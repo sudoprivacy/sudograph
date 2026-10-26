@@ -11,6 +11,10 @@ import yaml
 from . import bind, catalog
 
 
+def _binary_type(declared):
+    return any(token in declared.upper() for token in ("BLOB", "BYTEA", "BINARY"))
+
+
 def draft(dsn: str, *, base=".", name="Source projection") -> dict:
     objects = catalog.scan(dsn, base)
     tables = {o["name"]: o for o in objects if o["kind"] == "table"}
@@ -26,7 +30,7 @@ def draft(dsn: str, *, base=".", name="Source projection") -> dict:
             continue
         props = {}
         for col in obj["columns"]:
-            if "BLOB" in col["type"].upper():
+            if _binary_type(col["type"]):
                 exclude[obj["name"] + "." + col["name"]] = (
                     "Binary payload preserved losslessly in the source snapshot, "
                     "outside scalar business properties."
@@ -116,7 +120,7 @@ def verify_projection(s):
                                   "from source_projection")
                 for col in obj["columns"]:
                     if (obj["name"] + "." + col["name"] in exclusions and
-                            "BLOB" not in col["type"].upper()):
+                            not _binary_type(col["type"])):
                         errors.append(f"{obj['name']}.{col['name']}: cannot exclude a "
                                       "source scalar column from source_projection")
     for tn, t in s.types.items():
