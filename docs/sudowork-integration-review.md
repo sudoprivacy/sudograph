@@ -91,35 +91,41 @@ owns business definitions. Sudowork stores host/session/UI state and references
 the checked revision. Retained RDF must be mapped, kept as immutable evidence or
 refused explicitly; do not silently discard it or dual-write editable definitions.
 
-## Connector contract to align before implementation
+## Registered-source connector contract
 
 The detailed [registered-source and scan contract](source-connection-and-scan-contract.md)
 now specifies repository ownership, the host-agent workflow, independent
 connection/scan/coverage states, provider operations, snapshot evidence, identity
-migration and the proposed FDE intake. These connector integrations remain planned.
+migration and the proposed FDE intake. The native host implements explicit
+database intake and complete relational scans. Deployed cloud intake and bulk
+ambiguous-source discovery remain outstanding.
 
 Use one connection entry and credential flow. Each registered source should
 report the capabilities actually available: schema enumeration and pagination,
 declared keys/relations, original database-view SQL, record paging, read-only
-access, revision/snapshot strategy and authorised scope. These are proposed
-adapter fields, not a declaration that every provider currently implements them.
+access, revision/snapshot strategy and authorised scope. Capability claims must
+come from that provider's actual complete-scan receipt, not the connection form
+or a broader connector catalogue.
 
 Connection credentials remain with the host/provider after intake. If the user
 explicitly supplies a password in chat, the model may see that input; do not claim
 otherwise. Register it through the existing secret boundary, then use references
 without echoing it into artifacts, logs or summaries. Basic chat onboarding of
-an explicitly supplied endpoint is part of the proposed first version, using the
-same registry/probe as the form. Bulk ambiguous-source discovery is a further
-extension. Neither registration path is wired to Sudograph yet.
+an explicitly supplied endpoint uses the same native registration pipeline as
+the form and project command. Bulk ambiguous-source discovery is a further
+extension; the corresponding cloud provider is not yet deployed.
 
 An agent receives a
 registered source identity, available operations, observable status and typed
 recovery. Do not turn an arbitrary browser extraction into database coverage or
-use a capped asset list to claim a full scan. Sudograph's current source scanner
-is SQLite-only; reusing the PostgreSQL/MySQL form does not complete those ports.
-Do not replace that complete scanner with a capped asset probe. Extend existing
-PostgreSQL/MySQL providers for exhausted pagination and coverage receipts; simply
-removing a query limit does not establish completeness.
+use a capped asset list to claim a full scan. Sudograph reads SQLite directly
+and PostgreSQL/MySQL through the authenticated registered-source provider. The
+native provider exhausts SELECT-visible objects in its registered schema, uses
+one read-only repeatable-read transaction and rechecks the catalogue before
+publication. Unsupported consistency, unavailable database-view SQL and
+cross-schema references fail explicitly. This proves the declared schema scope,
+not coverage of every database or connector. Do not replace these scanners with
+a capped asset probe; simply removing a query limit does not establish completeness.
 
 The host adapter is thin routing and registration code: registered source/access
 handle and execution location into the existing scan/compiler harness; checked

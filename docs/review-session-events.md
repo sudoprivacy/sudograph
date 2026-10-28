@@ -1,6 +1,6 @@
 # Bound review sessions and durable events
 
-This is an integration contract, not a claim of a deployed Sudograph adapter.
+This is an integration contract, not a claim of a complete deployed cloud adapter.
 It reuses existing Sudowork conversation/workspace and browser-session binding,
 ShareOne durable event delivery, and Sudocode's mailbox transport.
 
@@ -8,18 +8,18 @@ The [host reuse audit](sudowork-ontology-adapter-audit.md) identifies the existi
 Studio conversation factory, persistent ownership, MCP/runtime preparation,
 scoped write bridge, revision checks and refresh/repair UX to extend. Existing
 WebUI ontology channels remain unmapped at the inspected revision; Desktop
-loopback setup and the current busy-rejecting repair helper are not a deployed
-cloud ontology provider or durable comment receiver.
+loopback setup is not a deployed cloud ontology provider. Native and cloud
+acceptance must remain distinct.
 
-The current native **Open review** route also lacks ShareOne's shell/comment
-provider. Normal integrated review requires comments enabled by default, with
-separate, truthful content/comment/delivery readiness. A readable private graph
-is not acceptance of that loop. The
+The native **Open review** route now uses ShareOne's shell/comment provider,
+with comments enabled by default and separate content/comment/delivery readiness.
+Its bound receiver and real comment/edit/reply journeys have native isolated
+acceptance; they do not establish cloud tenant permissions or deployed delivery.
+A readable private graph alone is not acceptance of that loop. The
 [private-review comments request](shareone-private-review-comments-fr.md)
-documents the missing provider contract and joint acceptance; it must not be
-worked around by exporting private records or implementing a second comment
-store. The host's durable receiver below remains required even after a comment
-component is available.
+records the provider contract and joint acceptance. Reuse that provider and
+durable receiver when wiring the cloud host; do not export private records or
+implement a second comment store to fill the remaining deployment gap.
 
 ## Shared model and explicit review bindings
 
