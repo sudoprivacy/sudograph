@@ -93,7 +93,7 @@ def register(
     ):
         raise Refused(
             "SOURCE_PROVIDER_UNSUPPORTED",
-            "Complete registration currently requires SQLite",
+            "Complete registration requires SQLite or a host-registered relational source",
             "Use a supported complete-scan provider; connection success is not coverage",
         )
     path = Path(path).resolve()
