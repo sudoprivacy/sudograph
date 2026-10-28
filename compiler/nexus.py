@@ -5,9 +5,10 @@ from __future__ import annotations
 import base64
 import json
 import subprocess
-from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlsplit
+
+from .runtime_files import nexus_directory
 
 
 class NexusClient:
@@ -19,7 +20,7 @@ class NexusClient:
                 "certificate identity needs its own verified caller adapter"
             )
         self.endpoint, self.tls, self.node, self.timeout = endpoint, tls, node, timeout
-        self.bridge = Path(__file__).resolve().parent.parent / "nexus-client" / "read-grant.mjs"
+        self.bridge = nexus_directory() / "read-grant.mjs"
 
     def read(self, path, *, credential):
         result = subprocess.run(

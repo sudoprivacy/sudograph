@@ -8,9 +8,11 @@ import hashlib
 import json
 from pathlib import Path
 
+from .runtime_files import renderer_directory
+
 FORMAT = "sudograph-packed-html/v1"
 MARKER = "<script>\nconst SG_PACKED_HTML = "
-TEMPLATE = Path(__file__).resolve().parents[1] / "app" / "packed.html"
+TEMPLATE = renderer_directory() / "packed.html"
 
 
 def pack(html: str, *, language: str) -> str:

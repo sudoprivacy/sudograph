@@ -10,10 +10,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  installed-runtime:
+    name: installed runtime (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt hatchling==1.33.0
+      - run: python -m tools.accept_installed_runtime --receipt .acceptance/installed-runtime/receipt.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installed-runtime-${{ matrix.os }}
+          path: .acceptance/installed-runtime/receipt.json
+
+  installed-runtime-parity:
+    name: installed runtime platform parity
+    needs: installed-runtime
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installed-runtime-*
+          path: receipts
+      - name: Compare complete package contents and compiler identity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          receipts = [json.loads(path.read_text()) for path in Path('receipts').rglob('receipt.json')]
+          assert len(receipts) == 2, 'both platform receipts are required'
+          identity = lambda item: tuple(item[key] for key in ('version', 'contents_digest', 'implementation_digest'))
+          assert identity(receipts[0]) == identity(receipts[1]), 'runtime release differs across platforms'
+          PY
+
   test:
+    needs: installed-runtime-parity
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_SKIP_BROWSER_GC: "1"
+      SUDOGRAPH_CI_RUNTIME_PARITY: ${{ needs.installed-runtime-parity.result }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -25,7 +70,7 @@ jobs:
       # Pinned. An unpinned linter is a gate whose meaning changes with whatever
       # PyPI served that morning: ruff 0.16 widened its defaults and turned a
       # green local run red here, which says nothing about the code.
-      - run: pip install -r requirements.txt pytest==9.1.1 jsonschema==4.26.0 ruff==0.16.8 playwright==1.61.0
+      - run: pip install -r requirements.txt -r requirements-dev.txt
       - run: python -m playwright install --with-deps chromium
       # One step, because the list of gates lives in tools/verify.py and is the
       # same list a developer runs locally. Spelled out here a second time it

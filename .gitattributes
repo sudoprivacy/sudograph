@@ -1,3 +1,7 @@
+# Runtime release contents must be identical on every checkout platform.
+/compiler/** text eol=lf
+/app/** text eol=lf
+/nexus-client/** text eol=lf
 # Acceptance artifacts are byte-for-byte evidence, including their line endings.
 /examples/northwind-phase-one/2026-10-10/* -text whitespace=cr-at-eol
 # Generated bundles contain vendor code and the full compressed source snapshot.

@@ -1,0 +1,45 @@
+name: Release compiler runtime
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_GC: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.21.0'
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: python -m playwright install --with-deps chromium
+      - name: Require a revision already landed on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - name: Require the tag to match the packaged version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python -c "import os,tomllib; from pathlib import Path; version=tomllib.loads(Path('pyproject.toml').read_text())['project']['version']; assert os.environ['RELEASE_TAG'] == 'v'+version, 'release tag differs from wheel version'"
+      - run: python -m tools.verify
+      - run: python -m hatchling build -t wheel -d dist
+      - name: Accept the exact release asset
+        run: python -m tools.accept_installed_runtime --wheel dist/sudograph_compiler-${GITHUB_REF_NAME#v}-py3-none-any.whl --receipt dist/installed-runtime.json
+      - name: Publish the verified asset and integrity receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.whl dist/installed-runtime.json --verify-tag --generate-notes
