@@ -60,3 +60,34 @@ Windows acceptance also runs with short-name temporary paths, so path aliases
 cannot make an installed resource appear to belong to another directory.
 This is installed-runtime acceptance; tenant grants, cloud deployment and the
 authenticated Desktop/WebUI human journey remain separate acceptance.
+
+## Agent context integration acceptance
+
+`tools.accept_agent_context` launches an explicitly pinned Sudo Code binary and
+an installed compiler interpreter. No second source checkout is needed. Supply
+the engine checksum from the selected artifact's verified release manifest;
+the tool checks it before starting the engine. The engine must advertise
+`hostContext` version 1. A legacy engine fails before any model request.
+
+```sh
+python -m tools.accept_agent_context --engine ./scode --engine-sha256 "$SCODE_SHA256" --runtime-python ./runtime/bin/python --evidence-directory .acceptance/agent-context
+```
+
+The fixture registers an unrelated SQLite source, creates a tentative business
+definition and sends two actual ACP turns around a canonical model edit. A
+loopback provider captures the complete requests and returns fixed responses.
+Acceptance requires each request to contain the exact current compiled context,
+the graph to expose that same revision, prior user history to survive, obsolete
+business context to leave the system prompt, and context to stay out of user
+messages. A synthetic host denial must prevent another model request. The source
+database must retain its original bytes. No real provider credentials are used.
+
+The evidence directory retains the pinned binary checksum, installed compiler
+identity, revisions, captured requests, ACP transcript and engine diagnostics.
+Failures retain their fixture without producing a successful receipt. Sudo Code
+CI consumes a fixed source revision of this tool after building its release
+binary; the compiler is installed in a dedicated environment. `tools.verify`
+remains independent of an external engine binary. Product release adoption must
+also accept its published hostContext-capable engine pin. A local candidate
+receipt does not attest publication, model reasoning, production host
+authorization, Sudowork UI, cloud login or ShareOne comment delivery.
