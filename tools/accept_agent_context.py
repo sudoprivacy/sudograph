@@ -293,7 +293,11 @@ def main():
     args.evidence_directory.mkdir(parents=True, exist_ok=True)
     case = Path(tempfile.mkdtemp(prefix="agent-context-", dir=args.evidence_directory)).resolve()
     print(f"Acceptance evidence: {case}", flush=True)
-    receipt = accept(args.engine.resolve(), args.engine_sha256, args.runtime_python.resolve(), case)
+    # A Unix venv launcher can symlink to the base interpreter. Keep its venv path
+    # so isolated compiler imports use the environment the operator supplied.
+    receipt = accept(
+        args.engine.resolve(), args.engine_sha256, args.runtime_python.absolute(), case,
+    )
     (case / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf8")
     print(json.dumps(receipt))
 
