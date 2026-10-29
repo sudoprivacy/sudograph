@@ -26,6 +26,11 @@ The host still supplies the registered model path, current authenticated actor,
 source provider and review resource through its trusted boundary. Installation
 does not authorize a model, grant access to records or connect an agent.
 
+The managed GitLab image builds and installs this same wheel. Its publisher
+and trusted CI worker use the packaged compiler and renderer rather than a
+partial source-tree copy. Changes to any runtime source or packaging metadata
+trigger the deployed GitLab acceptance workflow.
+
 The existing Sudowork adapter's `SUDOGRAPH_COMPILER_ROOT` currently names its
 worker working directory. With this installed runtime it can point to an empty,
 operator-owned directory. `SUDOGRAPH_PYTHON` must select the interpreter where
@@ -51,5 +56,7 @@ each receipt separately records the exact wheel SHA-256 used for installation.
 The gate checks source scanning, contract discovery, model edits/retries,
 graph/context revisions, full native/packed HTML equality, resource/code hashes
 and unchanged source bytes. A wheel cannot pass by importing the checkout.
+Windows acceptance also runs with short-name temporary paths, so path aliases
+cannot make an installed resource appear to belong to another directory.
 This is installed-runtime acceptance; tenant grants, cloud deployment and the
 authenticated Desktop/WebUI human journey remain separate acceptance.

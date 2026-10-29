@@ -23,6 +23,19 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt hatchling==1.33.0
+      - name: Exercise Windows short-name temporary directories
+        if: runner.os == 'Windows'
+        shell: python
+        run: |
+          import ctypes, os
+          from pathlib import Path
+          directory = Path(os.environ['RUNNER_TEMP']) / 'sudograph-installed-runtime'
+          directory.mkdir()
+          short = ctypes.create_unicode_buffer(32768)
+          if not ctypes.windll.kernel32.GetShortPathNameW(str(directory), short, len(short)):
+              raise ctypes.WinError()
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf8') as output:
+              output.write(f'TEMP={short.value}\nTMP={short.value}\n')
       - run: python -m tools.accept_installed_runtime --receipt .acceptance/installed-runtime/receipt.json
       - uses: actions/upload-artifact@v4
         with:

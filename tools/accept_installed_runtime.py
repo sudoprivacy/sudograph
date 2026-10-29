@@ -61,7 +61,9 @@ def accept(wheel, directory):
                          for name in names if name.startswith("compiler/_assets/")}
         if expected_assets != actual_assets:
             raise AssertionError("Wheel renderer differs from the checked source renderer")
-    environment = directory / "installed"
+    # Windows CI uses short-name temporary paths (for example RUNNER~1).
+    # Resource discovery resolves paths, so compare their physical identities.
+    environment = (directory / "installed").resolve()
     python = sys.executable
     isolated = [python, "-I", "-X", "utf8", "-c",
                 f"import sys, runpy; sys.path.insert(0, {str(environment)!r}); "
@@ -82,12 +84,17 @@ print(json.dumps({'module':compiler.__file__, 'version':version('sudograph-compi
     'digest':code_digest(), 'renderer':str(renderer_directory()),
     'nexusBridgePresent':(nexus_directory()/'read-grant.mjs').is_file()}))
 """], cwd=empty))
-    if (not Path(identity["module"]).is_relative_to(environment)
-            or not Path(identity["renderer"]).is_relative_to(environment)
-            or identity["digest"] != code_digest() or not identity["nexusBridgePresent"]
-            or identity["version"] != metadata["version"]
-            or {value.lower() for value in identity["dependencies"]} != dependencies):
-        raise AssertionError("Installed runtime identity/resources do not match this build")
+    checks = {
+        "module location": Path(identity["module"]).resolve().is_relative_to(environment),
+        "renderer location": Path(identity["renderer"]).resolve().is_relative_to(environment),
+        "implementation digest": identity["digest"] == code_digest(),
+        "Nexus bridge": identity["nexusBridgePresent"],
+        "version": identity["version"] == metadata["version"],
+        "dependencies": {value.lower() for value in identity["dependencies"]} == dependencies,
+    }
+    failed = [name for name, passed in checks.items() if not passed]
+    if failed:
+        raise AssertionError("Installed runtime differs from this build: " + ", ".join(failed))
     source = directory / "source.sqlite"
     with closing(sqlite3.connect(source)) as database:
         database.executescript("""
