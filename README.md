@@ -809,6 +809,11 @@ That record travels with the spec into git, so there is no second place where
 
 Requires Python 3.11+. Install the pinned runtime dependencies with
 `pip install -r requirements.txt` (PyYAML and SQLGlot).
+Host deployments can instead install the versioned
+[compiler runtime wheel](docs/installed-runtime.md), including the same renderer
+and layout resources, without a source checkout. Its installed-process gate is
+part of normal verification; it is not proof of a deployed cloud adapter.
+For development verification, also install `pip install -r requirements-dev.txt`.
 The verification suite also uses Node.js 22.21.0 to exercise the vendored ELK
 engine on real graphs; CI installs that version explicitly. No npm packages
 are needed for those layout checks.

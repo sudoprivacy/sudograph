@@ -3,9 +3,9 @@ name: GitLab integration
 on:
   push:
     branches: [feat/managed-gitlab]
-    paths: ['compiler/**', 'infra/gitlab/**', 'tools/*gitlab*.py', '.github/workflows/gitlab-integration.yml']
+    paths: ['compiler/**', 'app/**', 'nexus-client/**', 'pyproject.toml', 'infra/gitlab/**', 'tools/*gitlab*.py', '.github/workflows/gitlab-integration.yml']
   pull_request:
-    paths: ['compiler/managed.py', 'compiler/gitlab.py', 'infra/gitlab/**', 'tools/*gitlab*.py', '.github/workflows/gitlab-integration.yml']
+    paths: ['compiler/**', 'app/**', 'nexus-client/**', 'pyproject.toml', 'infra/gitlab/**', 'tools/*gitlab*.py', '.github/workflows/gitlab-integration.yml']
   workflow_dispatch:
 
 concurrency:

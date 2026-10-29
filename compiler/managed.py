@@ -24,20 +24,18 @@ from . import app, business
 from .context import Reader, registered_pointers
 from .gitlab import Client, GitLabError
 from .model_contract import MODEL_FILE, SOURCE_REQUEST, Refused, compile_model
+from .runtime_files import implementation_files
 from .subgraph_select import SelectionError
 from .subgraph_select import contract as subgraph_contract
 
 SHA = re.compile(r"^[0-9a-f]{40}$")
-ROOT = Path(__file__).resolve().parent.parent
 
 
 def code_digest():
     digest = hashlib.sha256()
-    for folder in (ROOT / "compiler", ROOT / "app"):
-        for path in sorted(folder.rglob("*")):
-            if path.is_file() and "__pycache__" not in path.parts:
-                digest.update(path.relative_to(ROOT).as_posix().encode())
-                digest.update(path.read_bytes())
+    for logical_path, path in implementation_files():
+        digest.update(logical_path.encode())
+        digest.update(path.read_bytes())
     return digest.hexdigest()
 
 

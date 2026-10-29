@@ -50,6 +50,10 @@ STEPS: list[tuple[list[str], str]] = [
         "every command the front page shows still works",
     ),
     (
+        [sys.executable, "-m", "tools.accept_installed_runtime"],
+        "the installed wheel works outside this checkout and contains the same renderer",
+    ),
+    (
         [sys.executable, "-m", "tools.accept_review", "--receipt",
          os.path.join(ROOT, ".acceptance", "browser-review", "receipt.json")],
         "the native browser reads real pages, reloads checked revisions and honors revocation",
@@ -58,6 +62,12 @@ STEPS: list[tuple[list[str], str]] = [
 
 
 def main() -> int:
+    # CI orchestration supplies the other platforms' result. Fail closed here,
+    # through the same verifier entry point, rather than a second shell gate.
+    parity = os.environ.get("SUDOGRAPH_CI_RUNTIME_PARITY")
+    if parity is not None and parity != "success":
+        print(f"FAIL installed runtime platform parity: {parity!r}", file=sys.stderr)
+        return 1
     env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
     failed: list[str] = []
     for argv, why in STEPS:

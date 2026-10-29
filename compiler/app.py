@@ -28,10 +28,12 @@ from . import blind, browse, catalog, html_export, source_schema, subgraph_selec
 from . import compile as compile_mod
 from . import diff as diff_mod
 from . import measure as measure_mod
+from .runtime_files import renderer_directory
 from .spec import Spec
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TEMPLATE = os.path.join(_ROOT, "app", "index.html")
+_APP = renderer_directory()
+TEMPLATE = os.path.join(_APP, "index.html")
 
 #: Every reading times every slice is compiled up front. A spec with several
 #: dimensions of many values each would multiply into something nobody opens, so
@@ -140,23 +142,23 @@ def bundle(s: Spec, *, fold_over: int = 20, top_n: int = 5,
 #: client site, and a CDN reference turns "open this file" into "open this file,
 #: on a machine with internet, on a day the CDN is up". Both are MIT.
 VENDOR = [
-    os.path.join(_ROOT, "app", "vendor", "elk.bundled.js"),
-    os.path.join(_ROOT, "app", "vendor", "cytoscape.min.js"),
-    os.path.join(_ROOT, "app", "vendor", "layout-base.js"),
-    os.path.join(_ROOT, "app", "vendor", "cose-base.js"),
-    os.path.join(_ROOT, "app", "vendor", "cytoscape-fcose.js"),
-    os.path.join(_ROOT, "app", "vendor", "driver.js"),
+    os.path.join(_APP, "vendor", "elk.bundled.js"),
+    os.path.join(_APP, "vendor", "cytoscape.min.js"),
+    os.path.join(_APP, "vendor", "layout-base.js"),
+    os.path.join(_APP, "vendor", "cose-base.js"),
+    os.path.join(_APP, "vendor", "cytoscape-fcose.js"),
+    os.path.join(_APP, "vendor", "driver.js"),
 ]
 
 
 def languages() -> list[str]:
-    with open(os.path.join(_ROOT, 'app', 'messages.json'), encoding='utf-8') as fh:
+    with open(os.path.join(_APP, 'messages.json'), encoding='utf-8') as fh:
         return ['zh', *json.load(fh)]
 
 
 def reader_policy() -> dict[str, str]:
     """Operator-owned reader settings, included in full export verification."""
-    with open(os.path.join(_ROOT, 'app', 'reader-policy.json'), encoding='utf8') as fh:
+    with open(os.path.join(_APP, 'reader-policy.json'), encoding='utf8') as fh:
         policy = json.load(fh)
     if (not isinstance(policy, dict) or set(policy) != {'tutorial'}
             or policy['tutorial'] not in {'manual', 'off'}):
@@ -185,7 +187,7 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
                          'rebuild with compiler.cli')
     if 'challenge' in b:
         blind.public_only(b['challenge'])
-    with open(os.path.join(_ROOT, 'app', 'messages.json'), encoding='utf-8') as fh:
+    with open(os.path.join(_APP, 'messages.json'), encoding='utf-8') as fh:
         catalogs = json.load(fh)
     keys = set(catalogs['en'])
     for lang, messages in catalogs.items():
@@ -221,11 +223,11 @@ def render(b: dict[str, Any], template_path: str = TEMPLATE, *, language: str = 
                              ('/*__COMMENTS__*/', 'comments.js'),
                              ('/*__AGENT_CONTEXT__*/', 'agent-context.js'),
                              ('/*__NAVIGATION__*/', 'navigation.js')]:
-        with open(os.path.join(_ROOT, 'app', filename), encoding='utf-8') as fh:
+        with open(os.path.join(_APP, filename), encoding='utf-8') as fh:
             html = html.replace(marker, fh.read())
-    html = html.replace('/*__GUIDE__*/', Path(_ROOT, 'app', 'guide.js').read_text(encoding='utf8'))
+    html = html.replace('/*__GUIDE__*/', Path(_APP, 'guide.js').read_text(encoding='utf8'))
     html = html.replace('/*__GUIDE_STYLE__*/',
-                        Path(_ROOT, 'app', 'vendor', 'driver.css').read_text(encoding='utf8'))
+                        Path(_APP, 'vendor', 'driver.css').read_text(encoding='utf8'))
     used = set(re.findall(r"\bt\(['\"]([^'\"]+)['\"]", html))
     used.update(re.findall(r'data-ui="([^"]+)"', html))
     if used - keys:

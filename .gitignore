@@ -5,6 +5,7 @@ __pycache__/
 node_modules/
 .acceptance/
 .shareone_history.json
+/dist/
 
 # Generated apps are build artifacts; the template and the vendored libraries
 # are the sources. `--app` writes wherever you point it.

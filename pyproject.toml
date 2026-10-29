@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sudograph-compiler"
+version = "0.1.0"
+description = "Checked source projections, business models and shared review rendering"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["pyyaml==6.0.3", "sqlglot==30.21.0"]
+
+[project.urls]
+Repository = "https://github.com/sudoprivacy/sudograph"
+
+[tool.hatch.build.targets.wheel]
+only-include = ["compiler", "app", "nexus-client"]
+exclude = ["**/__pycache__", "**/*.pyc", "**/node_modules"]
+
+[tool.hatch.build.targets.wheel.sources]
+app = "compiler/_assets"
+nexus-client = "compiler/_nexus"
+
+[tool.hatch.build.targets.sdist]
+only-include = ["compiler", "app", "nexus-client", "pyproject.toml", "README.md"]
