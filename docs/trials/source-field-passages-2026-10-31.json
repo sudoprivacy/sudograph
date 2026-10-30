@@ -1,0 +1,39 @@
+{
+  "status": "published_and_actual_cloud_viewer_verified",
+  "published_revision": "6fad925f93b09f9c9b28fe673a32fd7d9ea6d732",
+  "remote_url": "https://raw.githubusercontent.com/sudoprivacy/sudograph/6fad925f93b09f9c9b28fe673a32fd7d9ea6d732/examples/northwind/business/review.html",
+  "sha256": "6ad7bc433f8e7990edf203e8d64028e13d88a0f084fac627ffaec9b37c594d2b",
+  "bytes": 12003476,
+  "share_url": "https://s.shareone.vip/s/sudograph-northwind",
+  "verification_gates_passed": 8,
+  "tests_passed": 451,
+  "pr_url": "https://github.com/sudoprivacy/sudograph/pull/21",
+  "all_pr_checks_passed": true,
+  "unchanged_model_content_except_ui": true,
+  "original_resolved_threads_preserved": 48,
+  "original_comment_mutations": 0,
+  "actual_acceptance": {
+    "production_webui": true,
+    "managed_cloud_chrome_extension": true,
+    "same_persistent_profile": true,
+    "isolated_fixture_comment_posted_with_chinese_input": true,
+    "immutable_field_name": "ProductSales",
+    "english_to_chinese_highlight_preserved": true,
+    "comment_reveals_same_source_field": true,
+    "page_reload_reopen_and_reveal": true,
+    "raw_quote_and_selector_unchanged": true,
+    "anchor_reattachment_used": false,
+    "fixture_comment_deleted": true,
+    "original_share_after_publication_rendered": true,
+    "original_share_field_selected_across_languages": true,
+    "owned_runtime_resources_cleaned": true,
+    "physical_phone": false
+  },
+  "startup": {
+    "latest_original_share_content_ms": 5777,
+    "latest_unchanged_thirty_second_gate_passed": true,
+    "prior_failures_preserved": true,
+    "reliability_accepted": false,
+    "note": "One successful sample does not resolve the earlier repeated large-document loading failures."
+  }
+}

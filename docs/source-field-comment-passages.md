@@ -48,11 +48,20 @@ Using the real viewer and authenticated ShareOne UI:
    the owned browser, removed its test conversation, revoked its temporary key,
    logged out the test operator and closed the local viewer.
 
-The separate fixture is retained for source review until publication. These
-functional results do not satisfy the separate startup performance gate: the
-large graph still failed to appear within the unchanged 30-second budget.
+The original share was subsequently updated to the merged source revision
+`6fad925f93b09f9c9b28fe673a32fd7d9ea6d732`. Its owner download matches the generated
+Chinese artifact, and all 48 existing threads remained identical. A fresh
+production viewer rendered the original page and retained the selected
+`ProductSales` field when switching from Chinese to English. All owned runtime
+resources were cleaned up.
+
+The original-page follow-up displayed graph content in 5,777 ms. Earlier repeated
+30-second failures remain recorded; this single successful sample does not
+establish startup reliability. The temporary fixture's functional result and the
+startup performance gate remain separate.
 
 Both active Northwind artifacts were regenerated from the shared compiler and
 renderer. Their embedded model content matches the published source revision
-apart from presentation configuration. `publication.json` continues to record
-the actual public revision; the regenerated files remain publication candidates.
+apart from presentation configuration. `publication.json` records the deployed
+Chinese review artifact and retains the earlier publications. The English
+artifact has not been deployed to the original share.
