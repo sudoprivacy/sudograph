@@ -34,12 +34,15 @@ function readableCommentText(container) {
 }
 async function commentTextVersion(container,text=readableCommentText(container).text) {
   if(!crypto.subtle)return undefined;
+  const language=container.dataset.commentLanguage||uiLanguage;
   const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));
-  return uiLanguage+'/'+container.dataset.commentSurface+'/'+
+  return language+'/'+container.dataset.commentSurface+'/'+
     [...new Uint8Array(hash)].map(n=>n.toString(16).padStart(2,'0')).join('');
 }
-async function annotateCommentText(container,id,surface) {
+async function annotateCommentText(container,id,surface,language) {
   container.dataset.shareoneAnchorId=id;container.dataset.commentSurface=surface;
+  if(language)container.dataset.commentLanguage=language;
+  else delete container.dataset.commentLanguage;
   delete container.dataset.shareoneAnchorVersion;
   const content=readableCommentText(container).text,version=await commentTextVersion(container,content);
   if(container.isConnected&&readableCommentText(container).text===content) {
@@ -48,6 +51,11 @@ async function annotateCommentText(container,id,surface) {
   }
 }
 async function captureCommentPassage(container,range) {
+  const ancestor=range.commonAncestorContainer;
+  const element=ancestor.nodeType===1?ancestor:ancestor.parentElement;
+  const nested=element?.closest?.('[data-comment-surface]');
+  if(nested&&nested!==container&&container.contains(nested)&&
+    nested.dataset.shareoneAnchorId===container.dataset.shareoneAnchorId)container=nested;
   const {text}=readableCommentText(container),before=document.createRange();
   before.selectNodeContents(container);before.setEnd(range.startContainer,range.startOffset);
   const start=before.toString().length,exact=range.toString(),end=start+exact.length;
@@ -81,11 +89,12 @@ function invalidateCommentPassages() {
 async function restoreCommentPassage({commentId,id,text,signal},api,passive=false) {
   commentPassages.delete(commentId);paintCommentPassages();
   if(signal.aborted||!api.resolveText||!text)return 'unresolved';
-  if(!passive&&text.version&&!text.version.includes('/label/')&&!text.version.includes('/edge-label/')&&state.panelCollapsed) {
+  if(!passive&&text.version&&!text.version.includes('/label/')&&!text.version.includes('/edge-label/')&&
+    !text.version.includes('/field-name/')&&state.panelCollapsed) {
     state.panelCollapsed=false;panelSizeChanged=true;syncPanelToggle();
   }
   const matches=[];let readable=false;
-  const surface=text.version?.match(/^(?:en|zh)\/([^/]+)\/[a-f0-9]{64}$/)?.[1];
+  const surface=text.version?.match(/^(?:en|zh|und)\/([^/]+)\/[a-f0-9]{64}$/)?.[1];
   for(const container of document.querySelectorAll('[data-shareone-anchor-id="'+CSS.escape(id)+'"][data-comment-surface]')) {
     if((surface&&container.dataset.commentSurface!==surface)||!container.getClientRects().length)continue;
     readable=true;

@@ -2,8 +2,8 @@
   "status": "unreviewed-business-pilot",
   "language": "en",
   "artifact": "index.html",
-  "artifact_bytes": 11996785,
-  "artifact_sha256": "2b93a69cfbcf66f988ebdef9ac6dc339a14b7990fd05cf0a2462e19ef82c6d77",
+  "artifact_bytes": 12005330,
+  "artifact_sha256": "fe0d2ebf3e26976cda5ec4bb97f2c9b65372b286274df2d0c0260bcd97fc4247",
   "overlay": "pilot.yaml",
   "overlay_sha256": "36308fa56f644246ffd4d5146a00e0bd69edce4766ab1cbde17aec439cb18194",
   "registry": "pilot.registry.json",
@@ -14,13 +14,13 @@
   },
   "new_executable_metrics": false,
   "phase_one_source_unchanged": true,
-  "live_shareone_deployment": true,
+  "live_shareone_deployment": false,
   "reproduce": "python -m compiler.business examples/northwind/business/pilot.yaml --app examples/northwind/business/index.html --lang en",
   "renderer_revision": "Use the Git commit containing this preview and its compiler/reader sources.",
   "customer_review": {
     "artifact": "review.html",
-    "bytes": 11995006,
-    "sha256": "0a36f83dad1714951f1fdcf5817030cc551b10329886aafda649832c63e1f9ca",
+    "bytes": 12003476,
+    "sha256": "6ad7bc433f8e7990edf203e8d64028e13d88a0f084fac627ffaec9b37c594d2b",
     "language": "zh"
   },
   "contributors": {
@@ -159,5 +159,6 @@
     "existing_definitions_referenced": 9,
     "new_pending_definitions_in_northwind": 0,
     "canonical_ids_preserved": 9
-  }
+  },
+  "renderer_candidate": "Immutable field-name passages; publication.json retains the actual approved public revision."
 }
