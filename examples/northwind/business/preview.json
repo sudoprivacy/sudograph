@@ -21,7 +21,9 @@
     "artifact": "review.html",
     "bytes": 12003476,
     "sha256": "6ad7bc433f8e7990edf203e8d64028e13d88a0f084fac627ffaec9b37c594d2b",
-    "language": "zh"
+    "language": "zh",
+    "live_shareone_deployment": true,
+    "publication_commit": "6fad925f93b09f9c9b28fe673a32fd7d9ea6d732"
   },
   "contributors": {
     "source": 1,
@@ -159,6 +161,5 @@
     "existing_definitions_referenced": 9,
     "new_pending_definitions_in_northwind": 0,
     "canonical_ids_preserved": 9
-  },
-  "renderer_candidate": "Immutable field-name passages; publication.json retains the actual approved public revision."
+  }
 }
