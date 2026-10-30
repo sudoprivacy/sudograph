@@ -253,7 +253,13 @@ async function drawCanvas(v, shown, edges, mine) {
     label.style.cssText='position:absolute;pointer-events:auto;user-select:text;cursor:text;'+
       'text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;line-height:16px';
     const readable=document.createElement('span');
-    readable.textContent=linesOf(n,state.expanded.has(n.id)).map(l=>l.parts.join('')).join('\n');
+    const lines=linesOf(n,state.expanded.has(n.id)).map(l=>l.parts.join(''));
+    if(n.kind==='schema_field'&&typeof n.column==='string'&&lines[0]===n.column) {
+      // The source name is unchanged when the translated type caption changes.
+      const name=document.createElement('span');name.textContent=n.column;
+      readable.appendChild(name);void annotateCommentText(name,n.id,'field-name','und');
+      if(lines.length>1)readable.appendChild(document.createTextNode('\n'+lines.slice(1).join('\n')));
+    } else readable.textContent=lines.join('\n');
     label.appendChild(readable);void annotateCommentText(readable,n.id,'label');
     label.onpointerdown=e=>e.stopPropagation();
     label.onclick=e=>{e.stopPropagation();if (!getSelection()?.toString()) select(n);};

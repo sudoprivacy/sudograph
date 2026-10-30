@@ -6,6 +6,30 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_immutable_field_passage_keeps_its_version_across_ui_languages():
+    script = r"""
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+global.document={addEventListener:()=>{}};
+global.uiLanguage='zh';
+vm.runInThisContext(fs.readFileSync('app/comments.js','utf8'));
+(async()=>{
+ const field={dataset:{commentSurface:'field-name',commentLanguage:'und'}};
+ const translated={dataset:{commentSurface:'label'}};
+ const original=await commentTextVersion(field,'ProductSales');
+ const originalLabel=await commentTextVersion(translated,'ProductSales\nType not declared');
+ assert.ok(original.startsWith('und/field-name/'));
+ global.uiLanguage='en';
+ assert.equal(await commentTextVersion(field,'ProductSales'),original);
+ assert.notEqual(await commentTextVersion(field,'OtherField'),original);
+ assert.notEqual(await commentTextVersion(translated,'ProductSales\nType not declared'),
+   originalLabel);
+})().catch(error=>{console.error(error);process.exitCode=1});
+"""
+    subprocess.run(
+        ["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, timeout=15
+    )
+
+
 def test_passive_passages_keep_navigation_untouched_and_cancel_only_their_own_ranges():
     script = r"""
 const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
