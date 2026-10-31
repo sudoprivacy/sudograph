@@ -153,6 +153,24 @@ through the existing `SystemPrompt` methods. This repository has not patched or
 deployed sudocode session-start code; the adapter payload and authenticated
 reader are implemented, while automatic cross-repository wiring remains next.
 
+Execution-time hosts negotiate Sudo Code's `hostContext` v1 capability and answer
+`_sudocode/session/host_context` with the packet's exact current `text`. The wire
+response keeps the legacy `appendSystemPrompt` name. The engine supersedes the
+initial append before model work and records the resolved snapshot at the
+conversation tail; it keeps the provider system prompt and earlier message
+content unchanged. Ordinary static callers retain their append semantics.
+Compaction must preserve the latest exact snapshot independently of its LLM
+summary. This contract still requires an engine release and host deployment.
+
+`tools.accept_agent_context` runs an installed compiler and an explicit,
+checksum-pinned real ACP executable against a deterministic loopback provider.
+Its v2 receipt requires the exact A/B compiled revisions, the latest snapshot
+at the tail, a fixed system prefix, the unchanged earlier message content,
+the corresponding graph revision and fail-closed revocation. It excludes only
+rolling content-block `cache_control` metadata from the history comparison.
+This measures request preservation; real provider usage is needed to establish
+actual cache reuse. It does not prove cloud host bindings or review delivery.
+
 The packet's `text` and ordered blocks are also host-neutral outputs. Multiple
 authoring conversations and review shares may refine one canonical model, and
 any authorised downstream agent can load its compiled knowledge through a host

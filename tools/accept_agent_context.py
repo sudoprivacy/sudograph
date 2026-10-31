@@ -8,6 +8,7 @@ authorization, cloud login or review comments. Retain fixture evidence on failur
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -140,6 +141,24 @@ def system_text(request):
     return system if isinstance(system, str) else "\n".join(block["text"] for block in system)
 
 
+def host_snapshots(request):
+    prefix, suffix = "<host_context_snapshot>\n", "\n</host_context_snapshot>"
+    return [text[len(prefix):-len(suffix)]
+            for message in request["messages"] for block in message["content"]
+            if block.get("type") == "text"
+            and (text := block["text"]).startswith(prefix) and text.endswith(suffix)]
+
+
+def message_prefix(request):
+    messages = copy.deepcopy(request["messages"])
+    for message in messages:
+        for block in message["content"]:
+            # Rolling provider checkpoints can move without changing model input.
+            # Keep every role, content field and nested tool argument intact.
+            block.pop("cache_control", None)
+    return messages
+
+
 def accept(engine, expected_sha256, python, case):
     actual_sha256 = hashlib.sha256(engine.read_bytes()).hexdigest()
     if actual_sha256 != expected_sha256.lower():
@@ -244,9 +263,11 @@ print(json.dumps({'version': package.version, 'digest': code_digest()}))
             assert "error" not in first, first
             assert len(captured) == len(contexts) == 1
             assert captured[0]["path"].rstrip("/").endswith("/v1/messages")
-            assert contexts[0]["text"] in system_text(captured[0]["body"])
-            assert "CONTEXT_A_USE_ORDER_DATE" in system_text(captured[0]["body"])
-            assert "INITIAL_CONTEXT_MUST_BE_REPLACED" not in system_text(captured[0]["body"])
+            first_body = captured[0]["body"]
+            assert host_snapshots(first_body) == [contexts[0]["text"]]
+            assert "CONTEXT_A_USE_ORDER_DATE" in contexts[0]["text"]
+            assert "CONTEXT_A_USE_ORDER_DATE" not in system_text(first_body)
+            assert "INITIAL_CONTEXT_MUST_BE_REPLACED" not in system_text(first_body)
             document["definitions"]["revenue"].update(
                 version=2, statement="CONTEXT_B_USE_SHIPMENT_DATE")
             updated = apply("revision-b")
@@ -255,11 +276,12 @@ print(json.dumps({'version': package.version, 'digest': code_digest()}))
             assert len(captured) == len(contexts) == 2
             assert contexts[1]["revision"] == updated["revision"] != contexts[0]["revision"]
             body = captured[1]["body"]
-            assert contexts[1]["text"] in system_text(body)
-            assert "CONTEXT_B_USE_SHIPMENT_DATE" in system_text(body)
-            assert "CONTEXT_A_USE_ORDER_DATE" not in system_text(body)
+            assert host_snapshots(body) == [context["text"] for context in contexts]
+            assert "CONTEXT_B_USE_SHIPMENT_DATE" in contexts[1]["text"]
+            assert "CONTEXT_A_USE_ORDER_DATE" not in contexts[1]["text"]
+            assert body["system"] == first_body["system"]
+            assert message_prefix(body)[:len(first_body["messages"])] == message_prefix(first_body)
             assert "FIRST_USER_TURN" in json.dumps(body["messages"])
-            assert "CONTEXT_A_USE_ORDER_DATE" not in json.dumps(body["messages"])
             html = worker("compiler.workspace", {"operation": "read", "product": "html"})
             assert updated["revision"] in html and "CONTEXT_B_USE_SHIPMENT_DATE" in html
             allowed = False
@@ -271,12 +293,13 @@ print(json.dumps({'version': package.version, 'digest': code_digest()}))
             json.dumps(client.transcript if client else [], indent=2), encoding="utf8")
         (case / "requests.json").write_text(json.dumps(captured, indent=2), encoding="utf8")
     assert hashlib.sha256(source.read_bytes()).hexdigest() == before
-    return {"format": "sudograph-agent-context-acceptance/v1", "passed": True,
+    return {"format": "sudograph-agent-context-acceptance/v2", "passed": True,
             "engine_sha256": actual_sha256, "compiler": identity,
             "canonical_revisions": [context["revision"] for context in contexts],
             "real_acp_process": True, "installed_compiler": True,
             "exact_compiled_context_in_requests": True, "same_graph_context_revision": True,
-            "history_preserved": True, "context_not_in_user_history": True,
+            "history_preserved": True, "exact_current_snapshot_at_tail": True,
+            "fixed_system_prefix_unchanged": True, "history_content_prefix_unchanged": True,
             "denied_model_requests": 0, "source_unchanged": True,
             "scope": "Explicit pinned engine and deterministic provider capture. "
                      "Not engine publication, model business quality, production host ACL, "
