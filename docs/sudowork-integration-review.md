@@ -1,5 +1,36 @@
 # Sudowork integration: feature and experience review
 
+## Current product direction: Mosswork host
+
+On 2026-11-09 the user agreed to retain
+[Mosswork's frontend and UX](https://github.com/sudoprivacy/mosswork), with
+substantial replacement of Sudowork. The remaining layers should preferentially
+reuse the existing shared infrastructure. Mosswork production qualification
+comes first; portable infrastructure can then be integrated incrementally.
+This direction supersedes the older host-specific UI ownership choices below.
+The feature inventory and existing acceptance evidence remain useful; they do
+not require rebuilding Sudowork's interface inside Mosswork.
+
+| Boundary | Integration direction | Acceptance still required |
+| --- | --- | --- |
+| Product frontend and UX | Retain Mosswork surfaces; treat Sudowork as the previous host | Complete the same human and agent workflows in Mosswork, including shared browser/review behavior |
+| Production execution, agent management, sessions and A2A | Preserve the working SudoCloud SudoCode/Nexus capabilities and expose them through service contracts | Verify actual identity, ownership, invocation, authorization and restart recovery through the new host |
+| Business model, checks, review and context | Reuse Sudograph's canonical model, compiler/renderer, stable identities, checked writes and exact-read pointers | A comment or chat edit must change the same checked model and be visible to subsequent execution; no second editable ontology |
+| Execution engines | Keep existing SudoCode agents; explicitly integrate another engine when needed | Each agent, session and A2A operation has one authority; do not infer equivalence from a similar tool or UI |
+| Constraints | Execute validation, revision checks and authorization in code and tools | Do not replace an enforced contract with system-prompt workflow guidance |
+
+The source reviewed at Mosswork `bd428989e4be67977ce0705566b6cbef43e24941`
+uses Deep Agents/LangGraph and its own agent/session/team implementation. No
+SudoCode, Nexus, Sudograph or ShareOne adapter was found in the inspected
+application paths. Its existing ACP delegation is not proof of production
+management or A2A integration. A new host must either route to an existing
+authority or explicitly map its execution provider into that authority; two
+independent registries are not a shared SSOT. This adapter is not implemented
+or deployed by this review. Keep existing production behavior while replacing
+components through checked, incremental acceptance.
+
+## Historical Sudowork proposal and reusable acceptance inventory
+
 This is a proposed first-version boundary, inspected on 2026-10-18. It does not
 claim that the cross-repository integration has been implemented or deployed.
 The source-graph selector and renderer fixes described below are Sudograph
