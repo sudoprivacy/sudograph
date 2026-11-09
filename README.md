@@ -170,6 +170,24 @@ no GitLab approval is required for each modelling turn. GitLab reviews executabl
 production source-change plans. Version history and optional artifact delivery
 must not become an additional business-editing gate.
 
+The product direction agreed on 2026-11-09 is to retain
+[Mosswork's frontend and UX](https://github.com/sudoprivacy/mosswork) while
+substantially replacing the corresponding Sudowork surfaces. Prefer the existing
+shared infrastructure for the other layers. SudoCloud already uses SudoCode and
+Nexus in production for execution, agent management, sessions and A2A; preserve
+those working capabilities when integrating the new product host. Sudograph's
+canonical model, compiler, renderer, review identities and context products stay
+reusable behind that host.
+
+This is an integration direction, not a claim of a deployed Mosswork adapter.
+The inspected Mosswork source uses its own Deep Agents/LangGraph execution,
+session and team implementation. Map those responsibilities to the existing
+production contracts before claiming continuity. One authority must own each
+agent identity, session and A2A operation. Different execution engines may be
+integrated explicitly; a shared frontend or ACP tool alone does not establish
+shared management, recovery or permissions. Existing Sudowork adapters and
+acceptance evidence remain references, not a requirement to preserve its UI.
+
 ```mermaid
 flowchart LR
   subgraph SOURCES["source facts remain authoritative"]
@@ -194,6 +212,8 @@ flowchart LR
   end
 
   PEOPLE["business reviewers"]
+  MOSSWORK["Mosswork frontend and UX<br/>integration planned"]
+  CLOUD["existing SudoCloud production services<br/>SudoCode execution and Nexus agent / A2A"]
   AGENT["agents"]
   WRITEBACK["separately approved source executor<br/>planned"]
 
@@ -201,6 +221,11 @@ flowchart LR
   FILES --> ACCESS
   NEXUS -->|source and view grants| ACCESS
   ACCESS --> BASELINE
+  PEOPLE -.->|planned product entry| MOSSWORK
+  MOSSWORK -.->|reuse production service contracts| CLOUD
+  MOSSWORK -.->|same canonical review| READER
+  NEXUS -->|existing production authority| CLOUD
+  CLOUD -->|existing execution path| AGENT
   AGENT -->|checked inputs and intent| AUTHOR
   AUTHOR -->|validate proposed revision| CI
   BASELINE -->|pinned source facts| CI
@@ -248,7 +273,9 @@ for revision review, rollback, artifact integrity and membership revocation.
 It remains available, with its existing checks, while the default authoring
 adapter is integrated. This prototype is not a production database-write gate.
 The source Gateway and Nexus authority adapter exist separately. Dotted paths
-show planned production execution and SSO integration. Main-LLM context
+show planned Mosswork integration, production source writes and model SSO
+integration. Existing SudoCloud runtime capability does not establish any of
+those new connections. Main-LLM context
 compression is also planned; only deterministic context generation exists today.
 Graph menus and YAML flags cannot grant source or production execution authority.
 
@@ -300,9 +327,11 @@ The [agent-context adapter](docs/agent-context.md) derives ordered knowledge
 blocks and exact source/definition/record reads from this same checked model.
 It reuses sudocode's existing prompt append contract; automatic session wiring,
 business confirmation and the format-comparison evaluation remain separate work.
-The [Sudowork integration review](docs/sudowork-integration-review.md) records
-proposed feature ownership and human/agent experiences. Existing connection and
-browser-session UI can be reused, but the host adapter is not yet deployed.
+The [host integration review](docs/sudowork-integration-review.md) records the
+Mosswork product direction and preserves the earlier Sudowork feature inventory
+and adapter evidence. Retain Mosswork's frontend and UX, reuse shared source,
+browser and runtime contracts, and verify the complete modelling loop through
+the new host. The Mosswork adapter is not yet implemented or deployed.
 The [transactional authoring store](docs/model-authoring-store.md) implements
 ordinary edits, compatible concurrent merges and atomic graph/context products.
 Its first Sudowork adapter slice passes the paired native host acceptance;

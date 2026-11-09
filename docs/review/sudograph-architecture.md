@@ -4,7 +4,7 @@
 
 This is the commentable counterpart of the [README architecture](https://github.com/sudoprivacy/sudograph#where-this-sits). The diagram, labels and boundaries come from that single source. Select readable text in the node and relationship inventories below to comment on a specific responsibility or connection. The README discussion link is temporary and will be removed after design alignment.
 
-Diagram source SHA-256: `44a0af22e67b6b03c8ecae3ab0388ad5bf0a7016bf81f0b06c670d74297d8457`.
+Diagram source SHA-256: `b6ce0cbaaac0642a0c00ef59bd126983b1e1112022d353ad2f766f4b4a511077`.
 
 **Markdown viewer issue:** region comments on Mermaid nodes currently lose their element location after reload. Prefer text comments on the inventories while the [ShareOne BR/FR](https://github.com/sudoprivacy/sudograph/blob/main/docs/shareone-markdown-mermaid-comments-br-2026-10-13.md) is pending. The complete diagram remains the visual reference.
 
@@ -16,6 +16,24 @@ references. Its checked edits automatically produce the review graph and context
 no GitLab approval is required for each modelling turn. GitLab reviews executable
 production source-change plans. Version history and optional artifact delivery
 must not become an additional business-editing gate.
+
+The product direction agreed on 2026-11-09 is to retain
+[Mosswork's frontend and UX](https://github.com/sudoprivacy/mosswork) while
+substantially replacing the corresponding Sudowork surfaces. Prefer the existing
+shared infrastructure for the other layers. SudoCloud already uses SudoCode and
+Nexus in production for execution, agent management, sessions and A2A; preserve
+those working capabilities when integrating the new product host. Sudograph's
+canonical model, compiler, renderer, review identities and context products stay
+reusable behind that host.
+
+This is an integration direction, not a claim of a deployed Mosswork adapter.
+The inspected Mosswork source uses its own Deep Agents/LangGraph execution,
+session and team implementation. Map those responsibilities to the existing
+production contracts before claiming continuity. One authority must own each
+agent identity, session and A2A operation. Different execution engines may be
+integrated explicitly; a shared frontend or ACP tool alone does not establish
+shared management, recovery or permissions. Existing Sudowork adapters and
+acceptance evidence remain references, not a requirement to preserve its UI.
 
 ```mermaid
 flowchart LR
@@ -41,6 +59,8 @@ flowchart LR
   end
 
   PEOPLE["business reviewers"]
+  MOSSWORK["Mosswork frontend and UX<br/>integration planned"]
+  CLOUD["existing SudoCloud production services<br/>SudoCode execution and Nexus agent / A2A"]
   AGENT["agents"]
   WRITEBACK["separately approved source executor<br/>planned"]
 
@@ -48,6 +68,11 @@ flowchart LR
   FILES --> ACCESS
   NEXUS -->|source and view grants| ACCESS
   ACCESS --> BASELINE
+  PEOPLE -.->|planned product entry| MOSSWORK
+  MOSSWORK -.->|reuse production service contracts| CLOUD
+  MOSSWORK -.->|same canonical review| READER
+  NEXUS -->|existing production authority| CLOUD
+  CLOUD -->|existing execution path| AGENT
   AGENT -->|checked inputs and intent| AUTHOR
   AUTHOR -->|validate proposed revision| CI
   BASELINE -->|pinned source facts| CI
@@ -95,7 +120,9 @@ for revision review, rollback, artifact integrity and membership revocation.
 It remains available, with its existing checks, while the default authoring
 adapter is integrated. This prototype is not a production database-write gate.
 The source Gateway and Nexus authority adapter exist separately. Dotted paths
-show planned production execution and SSO integration. Main-LLM context
+show planned Mosswork integration, production source writes and model SSO
+integration. Existing SudoCloud runtime capability does not establish any of
+those new connections. Main-LLM context
 compression is also planned; only deterministic context generation exists today.
 Graph menus and YAML flags cannot grant source or production execution authority.
 
@@ -127,6 +154,8 @@ Identifiers below are the node names in the Mermaid source. Labels, layout and a
 | `MR` | GitLab production change review / exact plan revision and human authority |
 | `PUBLISHER` | production CI and execution checks / reviewed plan, source grants and preconditions |
 | `PEOPLE` | business reviewers |
+| `MOSSWORK` | Mosswork frontend and UX / integration planned |
+| `CLOUD` | existing SudoCloud production services / SudoCode execution and Nexus agent / A2A |
 | `AGENT` | agents |
 | `WRITEBACK` | separately approved source executor / planned |
 
@@ -140,6 +169,11 @@ Every source edge is retained, including separate edges between the same endpoin
 | `FILES` | `ACCESS` | Current path | Unlabelled in the source diagram |
 | `NEXUS` | `ACCESS` | Current path | source and view grants |
 | `ACCESS` | `BASELINE` | Current path | Unlabelled in the source diagram |
+| `PEOPLE` | `MOSSWORK` | Planned connection | planned product entry |
+| `MOSSWORK` | `CLOUD` | Planned connection | reuse production service contracts |
+| `MOSSWORK` | `READER` | Planned connection | same canonical review |
+| `NEXUS` | `CLOUD` | Current path | existing production authority |
+| `CLOUD` | `AGENT` | Current path | existing execution path |
 | `AGENT` | `AUTHOR` | Current path | checked inputs and intent |
 | `AUTHOR` | `CI` | Current path | validate proposed revision |
 | `BASELINE` | `CI` | Current path | pinned source facts |
